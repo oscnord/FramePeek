@@ -8,11 +8,13 @@
 import SwiftUI
 
 @main
-struct mediainspectorApp: App {
+struct MediaInspectorApp: App {
     var body: some Scene {
         WindowGroup {
             MediaInspector()
         }
-        .windowStyle(HiddenTitleBarWindowStyle())
+        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unifiedCompact)
+        .defaultSize(width: 850, height: 650)
     }
 }
