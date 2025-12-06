@@ -243,7 +243,6 @@ func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
         
         let formatDescs = track.formatDescriptions as? [CMAudioFormatDescription] ?? []
         if let audioDesc = formatDescs.first {
-            // Use CMFormatDescriptionGetMediaSubType for any CMFormatDescription subtype
             let codecFourCC = CMFormatDescriptionGetMediaSubType(audioDesc)
             codec = fourCCToString(codecFourCC)
             
@@ -293,14 +292,15 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
     var transferFunction: String? = nil
     var matrixCoefficients: String? = nil
     var colorRange: String? = nil
-    var bitDepth: String? = nil
+    
+    var inferredBitDepthBpc: Int? = nil
+    
     var av1CSize: Int? = nil
     var av1Profile: String? = nil
     var av1Level: String? = nil
     var av1Chroma: String? = nil
     var av1Range: String? = nil
     
-    // Duration
     if let loadedDuration = try? await asset.load(.duration) {
         let durationSec = CMTimeGetSeconds(loadedDuration)
         if durationSec > 0 {
@@ -308,11 +308,9 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
         }
     }
     
-    // Metadata
     let creationDateString = await formatCreationDate(from: asset)
     let metadata = extractCommonMetadata(from: asset)
     
-    // Video track
     var videoTrack: AVAssetTrack?
     do {
         let tracks = try await asset.loadTracks(withMediaType: .video)
@@ -374,8 +372,8 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
                     }
                     
                     // Bit depth
-                    if let d = extDict[kCMFormatDescriptionExtension_Depth] as? NSNumber {
-                        bitDepth = "\(d.intValue) bits"
+                    if let bpc = extDict[kCMFormatDescriptionExtension_BitsPerComponent] as? NSNumber {
+                        inferredBitDepthBpc = bpc.intValue
                     }
                     
                     // Clean aperture
@@ -410,10 +408,8 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
                             av1Level = "Level \(cfg.level)"
                             av1Chroma = cfg.chromaSubsampling
                             av1Range = cfg.fullRange ? "Full" : "Limited"
-                            // Override bit depth with parsed AV1 value if not set
-                            if bitDepth == nil {
-                                bitDepth = "\(cfg.bitDepth) bits"
-                            }
+
+                            inferredBitDepthBpc = cfg.bitDepth
                         }
                     }
                 }
@@ -421,6 +417,13 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
         } catch {
             print("Error loading extended video info: \(error.localizedDescription)")
         }
+    }
+    
+    let bitDepthString: String?
+    if let bpc = inferredBitDepthBpc {
+        bitDepthString = "\(bpc)-bit"
+    } else {
+        bitDepthString = nil
     }
     
     let audioTracks = await loadAudioInfo(asset: asset)
@@ -442,7 +445,7 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
         transferFunction: transferFunction,
         matrixCoefficients: matrixCoefficients,
         colorRange: colorRange,
-        bitDepth: bitDepth,
+        bitDepth: bitDepthString,
         av1CSize: av1CSize,
         av1Profile: av1Profile,
         av1Level: av1Level,
