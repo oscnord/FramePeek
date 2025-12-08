@@ -6,56 +6,163 @@
 //
 
 import SwiftUI
-import Charts
 import UniformTypeIdentifiers
 
 struct MediaInspector: View {
     @StateObject private var viewModel = MediaInspectorViewModel()
 
+    @AppStorage("showInspector") private var showInspector: Bool = true
+    @AppStorage("inspectorWidth") private var inspectorWidth: Double = 380
+
+    private let inspectorMin: Double = 280
+    private let inspectorMax: Double = 520
+
     var body: some View {
-        HSplitView {
+        HStack(spacing: 0) {
+            // Main content (chart)
             BitrateChartView(viewModel: viewModel)
-                .frame(minWidth: 400)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+                .toolbar {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button {
+                            viewModel.pickFile()
+                        } label: {
+                            Label("Open…", systemImage: "folder")
+                        }
+                        .keyboardShortcut("o", modifiers: [.command])
 
-            InfoInspectorView(viewModel: viewModel)
-                .frame(minWidth: 260, idealWidth: 320)
-        }
-        // Drag & drop anywhere in this view
-        .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
-            guard let provider = providers.first else { return false }
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                guard let data = item as? Data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil)
-                else { return }
-                Task { @MainActor in
-                    viewModel.handleIncomingFile(url: url)
-                }
-            }
-            return true
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button {
-                    viewModel.pickFile()
-                } label: {
-                    Label("Open…", systemImage: "folder")
-                }
-                .keyboardShortcut("o", modifiers: [.command])
+                        if viewModel.isAnalyzing {
+                            ProgressView().controlSize(.small)
+                            Button {
+                                viewModel.cancelAnalysis() // keeps partial data
+                            } label: {
+                                Label("Cancel", systemImage: "xmark.circle.fill")
+                            }
+                        }
 
-                if viewModel.isAnalyzing {
-                    ProgressView().controlSize(.small)
-                    Button {
-                        viewModel.cancelAnalysis()
-                    } label: {
-                        Label("Cancel", systemImage: "xmark.circle.fill")
+                        Divider()
+
+                        Button {
+                            withAnimation(.snappy(duration: 0.25)) {
+                                showInspector.toggle()
+                            }
+                        } label: {
+                            Label(showInspector ? "Hide Inspector" : "Show Inspector",
+                                  systemImage: "sidebar.right")
+                        }
+                        .keyboardShortcut("i", modifiers: [.command, .option])
                     }
                 }
+
+            // Right inspector that *takes space* (does not overlay)
+            if showInspector {
+                Rectangle()
+                    .fill(.separator.opacity(0.6))
+                    .frame(width: 1)
+
+                InspectorColumn(
+                    width: CGFloat(inspectorWidth),
+                    onClose: {
+                        withAnimation(.snappy(duration: 0.25)) {
+                            showInspector = false
+                        }
+                    }
+                ) {
+                    InfoInspectorView(viewModel: viewModel)
+                }
+                .frame(width: CGFloat(inspectorWidth))
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .overlay(alignment: .leading) {
+                    // Optional: resize handle (feels like pro apps)
+                    ResizeHandle(
+                        minWidth: inspectorMin,
+                        maxWidth: inspectorMax,
+                        width: $inspectorWidth
+                    )
+                    .offset(x: -4) // sits just on top of divider
+                }
             }
         }
+        .animation(.snappy(duration: 0.25), value: showInspector)
         .sheet(isPresented: $viewModel.showSamplingDialog) {
             SamplingSheet(viewModel: viewModel)
-                .frame(minWidth: 420, minHeight: 260)
+                .frame(minWidth: 420, minHeight: 300)
         }
+    }
+
+    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first else { return false }
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+            guard let data = item as? Data,
+                  let url = URL(dataRepresentation: data, relativeTo: nil)
+            else { return }
+            Task { @MainActor in
+                viewModel.handleIncomingFile(url: url)
+            }
+        }
+        return true
+    }
+}
+
+// MARK: - Inspector Column
+
+private struct InspectorColumn<Content: View>: View {
+    let width: CGFloat
+    let onClose: () -> Void
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text("Inspector")
+                    .font(.headline)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(.background)
+
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.background)
+        }
+        .background(.background)
+    }
+}
+
+private struct ResizeHandle: View {
+    let minWidth: Double
+    let maxWidth: Double
+    @Binding var width: Double
+
+    @State private var startWidth: Double?
+
+    var body: some View {
+        Rectangle()
+            .fill(.clear)
+            .frame(width: 8)
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                if hovering {
+                    NSCursor.resizeLeftRight.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if startWidth == nil { startWidth = width }
+                        let base = startWidth ?? width
+                        let proposed = base - Double(value.translation.width)
+                        width = min(max(proposed, minWidth), maxWidth)
+                    }
+                    .onEnded { _ in
+                        startWidth = nil
+                    }
+            )
+            .help("Drag to resize")
     }
 }
 
