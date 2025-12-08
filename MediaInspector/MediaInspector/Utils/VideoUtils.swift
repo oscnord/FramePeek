@@ -70,6 +70,22 @@ struct FrameAnalysisResult {
     let maxInterval: Double?
 }
 
+struct FrameSamplingOptions {
+    let minEmitIntervalSeconds: Double?
+
+    let maxSamples: Int
+
+    let emitEveryNSamples: Int
+
+    static func everyFrame(maxSamples: Int = 2000, emitEveryNSamples: Int = 100) -> Self {
+        .init(minEmitIntervalSeconds: nil, maxSamples: maxSamples, emitEveryNSamples: emitEveryNSamples)
+    }
+
+    static func interval(_ seconds: Double, maxSamples: Int = 2000, emitEveryNSamples: Int = 100) -> Self {
+        .init(minEmitIntervalSeconds: max(0, seconds), maxSamples: maxSamples, emitEveryNSamples: emitEveryNSamples)
+    }
+}
+
 func fourCCToString(_ code: OSType) -> String {
     let bytes: [CChar] = [
         CChar((code >> 24) & 0xFF),
@@ -484,170 +500,65 @@ func frameRateStats(from times: [Double]) -> (averageFPS: Double, minInterval: D
     return (averageFPS, minInterval, maxInterval)
 }
 
+func startFrameExtractionProgressive(
+    asset: AVAsset,
+    maxSamples: Int = 2000,
+    emitEveryNSamples: Int = 50,
+    onUpdate: @escaping (FrameAnalysisUpdate) -> Void
+) -> Task<Void, Never> {
+    let options = FrameSamplingOptions(
+        minEmitIntervalSeconds: nil,   // every frame (but capped)
+        maxSamples: maxSamples,
+        emitEveryNSamples: emitEveryNSamples
+    )
+
+    return Task.detached(priority: .userInitiated) {
+        for await update in extractFramesStream(asset: asset, options: options) {
+            if Task.isCancelled { return }
+            await MainActor.run { onUpdate(update) }
+            if update.isFinished { break }
+        }
+    }
+}
+
 func extractFrames(
     asset: AVAsset,
     maxSamples: Int = 2000,
     completion: @escaping (FrameAnalysisResult) -> Void
 ) {
-    let emptyResult = FrameAnalysisResult(
-        samples: [],
-        averageFPS: nil,
-        minInterval: nil,
-        maxInterval: nil
+    // Use a larger batch size since we're not updating UI progressively
+    let options = FrameSamplingOptions(
+        minEmitIntervalSeconds: nil, // every frame (but capped)
+        maxSamples: maxSamples,
+        emitEveryNSamples: 200
     )
-    
-    Task {
-        let durationSeconds: Double
-        if let durationTime = try? await asset.load(.duration) {
-            let s = CMTimeGetSeconds(durationTime)
-            durationSeconds = (s.isFinite && s > 0) ? s : 0
-        } else {
-            durationSeconds = 0
+
+    Task.detached(priority: .userInitiated) {
+        var all: [BitrateSample] = []
+        all.reserveCapacity(maxSamples)
+
+        var avgFPS: Double?
+        var minInt: Double?
+        var maxInt: Double?
+
+        for await update in extractFramesStream(asset: asset, options: options) {
+            if Task.isCancelled { return }
+            all.append(contentsOf: update.appendedSamples)
+            avgFPS = update.averageFPS
+            minInt = update.minInterval
+            maxInt = update.maxInterval
+            if update.isFinished { break }
         }
-        
-        let videoTrack: AVAssetTrack?
-        do {
-            let tracks = try await asset.loadTracks(withMediaType: .video)
-            videoTrack = tracks.first
-        } catch {
-            print("Failed to load video tracks for extraction: \(error.localizedDescription)")
-            videoTrack = nil
-        }
-        
-        guard let videoTrack else {
-            DispatchQueue.main.async {
-                completion(emptyResult)
-            }
-            return
-        }
-        
-        // Create reader & output
-        let reader: AVAssetReader
-        do {
-            reader = try AVAssetReader(asset: asset)
-        } catch {
-            print("Failed to create AVAssetReader: \(error.localizedDescription)")
-            DispatchQueue.main.async {
-                completion(emptyResult)
-            }
-            return
-        }
-        
-        let output = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: nil)
-        output.alwaysCopiesSampleData = false  // avoid copying sample data if possible
-        
-        guard reader.canAdd(output) else {
-            print("Reader cannot add output")
-            DispatchQueue.main.async {
-                completion(emptyResult)
-            }
-            return
-        }
-        reader.add(output)
-        
-        let minStep = (durationSeconds > 0 && maxSamples > 0)
-        ? durationSeconds / Double(maxSamples)
-        : 0
-        
-        DispatchQueue.global(qos: .userInitiated).async { [reader, output] in
-            guard reader.startReading() else {
-                print("Reader failed to start: \(reader.error?.localizedDescription ?? "Unknown error")")
-                DispatchQueue.main.async {
-                    completion(emptyResult)
-                }
-                return
-            }
-            
-            var samples: [BitrateSample] = []
-            samples.reserveCapacity(maxSamples)
-            
-            var previousTimeForBitrate: Double?
-            var previousTimeForStats: Double?
-            var lastEmittedTime: Double?
-            
-            var sumInterval = 0.0
-            var intervalCount = 0
-            var minIntervalVal = Double.greatestFiniteMagnitude
-            var maxIntervalVal = 0.0
-            
-            while let sampleBuffer = output.copyNextSampleBuffer() {
-                autoreleasepool {
-                    let currentTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-                    let sampleSize = CMSampleBufferGetTotalSampleSize(sampleBuffer)
-                    
-                    // Stats for FPS / min / max interval (uses EVERY frame)
-                    if let prev = previousTimeForStats, currentTime > prev {
-                        let interval = currentTime - prev
-                        sumInterval += interval
-                        intervalCount += 1
-                        if interval < minIntervalVal { minIntervalVal = interval }
-                        if interval > maxIntervalVal { maxIntervalVal = interval }
-                    }
-                    previousTimeForStats = currentTime
-                    
-                    // Per-frame bitrate (between frames)
-                    if let prev = previousTimeForBitrate, currentTime > prev {
-                        let frameDuration = currentTime - prev
-                        if frameDuration > 0 {
-                            let frameBitrate = (Double(sampleSize) * 8.0) / frameDuration
-                            
-                            // Decide whether to keep this point for plotting
-                            let shouldEmit: Bool
-                            if minStep > 0 {
-                                if let last = lastEmittedTime {
-                                    shouldEmit = currentTime - last >= minStep
-                                } else {
-                                    shouldEmit = true
-                                }
-                            } else {
-                                shouldEmit = true
-                            }
-                            
-                            if shouldEmit {
-                                samples.append(
-                                    BitrateSample(
-                                        time: currentTime,
-                                        bitrate: frameBitrate
-                                    )
-                                )
-                                lastEmittedTime = currentTime
-                            }
-                        }
-                    }
-                    
-                    previousTimeForBitrate = currentTime
-                }
-            }
-            
-            if reader.status != .completed {
-                print("Reader finished with status \(reader.status): \(reader.error?.localizedDescription ?? "No error")")
-            }
-            
-            let avgFPS: Double?
-            let minInt: Double?
-            let maxInt: Double?
-            
-            if intervalCount > 0 {
-                let avgInterval = sumInterval / Double(intervalCount)
-                avgFPS = avgInterval > 0 ? 1.0 / avgInterval : nil
-                minInt = minIntervalVal
-                maxInt = maxIntervalVal
-            } else {
-                avgFPS = nil
-                minInt = nil
-                maxInt = nil
-            }
-            
-            let result = FrameAnalysisResult(
-                samples: samples,
-                averageFPS: avgFPS,
-                minInterval: minInt,
-                maxInterval: maxInt
-            )
-            
-            DispatchQueue.main.async {
-                completion(result)
-            }
+
+        let result = FrameAnalysisResult(
+            samples: all,
+            averageFPS: avgFPS,
+            minInterval: minInt,
+            maxInterval: maxInt
+        )
+
+        await MainActor.run {
+            completion(result)
         }
     }
 }

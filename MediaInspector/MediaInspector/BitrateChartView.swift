@@ -10,20 +10,20 @@ import Charts
 
 struct BitrateChartView: View {
     @ObservedObject var viewModel: MediaInspectorViewModel
-    
+
     private var maxBitrateKbps: Double {
         let maxBits = viewModel.samples.map(\.bitrate).max() ?? 1
         return Double(maxBits) / 1000.0
     }
-    
+
     private var maxTime: Double {
         viewModel.samples.map(\.time).max() ?? 0
     }
-    
+
     private var yTickStep: Double {
         niceStep(forMax: maxBitrateKbps, targetTicks: 8)
     }
-    
+
     private var xTickStep: Double {
         niceStep(forMax: maxTime, targetTicks: 6)
     }
@@ -33,7 +33,7 @@ struct BitrateChartView: View {
         let rough = max / Double(targetTicks)
         let magnitude = pow(10.0, floor(log10(rough)))
         let residual = rough / magnitude
-        
+
         let nice: Double
         if residual < 1.5 {
             nice = 1
@@ -44,10 +44,10 @@ struct BitrateChartView: View {
         } else {
             nice = 10
         }
-        
+
         return nice * magnitude
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if viewModel.samples.isEmpty {
@@ -76,9 +76,10 @@ struct BitrateChartView: View {
                                 x: .value("Time (s)", sample.time),
                                 y: .value("Bitrate (kbps)", sample.bitrate / 1000.0)
                             )
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.green.opacity(1.0))
                             .cornerRadius(2)
                         }
+
                         if let hovered = viewModel.hoveredSample {
                             RuleMark(
                                 x: .value("Time (s)", hovered.time)
@@ -133,7 +134,6 @@ struct BitrateChartView: View {
                                         DragGesture(minimumDistance: 0)
                                             .onChanged { value in
                                                 let location = value.location
-                                                
                                                 if let time: Double = proxy.value(atX: location.x) {
                                                     if let nearest = viewModel.samples.min(by: {
                                                         abs($0.time - time) < abs($1.time - time)
@@ -146,16 +146,14 @@ struct BitrateChartView: View {
                                                 viewModel.hoveredSample = nil
                                             }
                                     )
-                                
+
                                 if let sample = viewModel.hoveredSample,
-                                   let xPos = proxy.position(forX: sample.time)
-                                {
+                                   let xPos = proxy.position(forX: sample.time) {
                                     let clampedX = min(
                                         max(xPos, 12),
                                         geometry.size.width - 180
                                     )
-                                    
-                                    // Tooltip content
+
                                     VStack(alignment: .leading, spacing: 4) {
                                         HStack(spacing: 4) {
                                             Text("Time")
@@ -163,14 +161,13 @@ struct BitrateChartView: View {
                                             Text("s")
                                         }
                                         .fontWeight(.semibold)
-                                        
+
                                         HStack(spacing: 4) {
                                             Text("Bitrate")
                                             Text(sample.bitrate / 1000.0, format: .number.precision(.fractionLength(0)))
                                             Text("kb/s")
                                         }
-                                        
-                                        // Percentage of peak
+
                                         let fraction = maxBitrateKbps > 0 ? (sample.bitrate / 1000.0) / maxBitrateKbps : 0
                                         HStack(spacing: 4) {
                                             Text("≈")
@@ -189,23 +186,45 @@ struct BitrateChartView: View {
                                         )
                                     )
                                     .shadow(radius: 4)
-                                    .position(
-                                        x: clampedX,
-                                        y: 18
-                                    )
+                                    .position(x: clampedX, y: 18)
                                 }
                             }
                         }
                     }
+
                     if viewModel.isAnalyzing {
-                        ZStack {
-                            Rectangle()
-                                .fill(.ultraThinMaterial)
-                                .ignoresSafeArea()
-                            
-                            ProgressView("Analyzing frames…")
-                                .progressViewStyle(.circular)
+                        VStack {
+                            HStack {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .controlSize(.small)
+
+                                    Text("Analyzing…")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+
+                                    Text("\(viewModel.samples.count) pts")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 10)
+                                .background(.thinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .strokeBorder(.white.opacity(0.10), lineWidth: 1)
+                                )
+                                .shadow(radius: 4)
+
+                                Spacer()
+                            }
+
+                            Spacer()
                         }
+                        .padding(.horizontal, 60)
+                        .padding(.vertical, 10)
+                        .allowsHitTesting(false)
                     }
                 }
             }
