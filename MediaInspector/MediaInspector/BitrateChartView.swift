@@ -144,6 +144,19 @@ struct BitrateChartView: View {
                 chart
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
+                
+                KeyframeTimelineView(
+                    keyframes: viewModel.keyframes,
+                    duration: maxTime == 0 ? viewModel.durationSeconds : maxTime
+                )
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+                
+                if !viewModel.keyframeThumbs.isEmpty {
+                    KeyframeThumbnailStrip(thumbs: viewModel.keyframeThumbs)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
+                }
             }
 
             if viewModel.isAnalyzing {

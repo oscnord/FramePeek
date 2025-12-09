@@ -18,6 +18,10 @@ final class MediaInspectorViewModel: ObservableObject {
     @Published var maxInterval: Double?
     @Published var hoveredSample: BitrateSample?
     @Published var isAnalyzing: Bool = false
+    // Keyframes
+    @Published var keyframes: [KeyframeMarker] = []
+    @Published var durationSeconds: Double = 0
+    @Published var keyframeThumbs: [KeyframeThumbnail] = []
 
     // Sampling UI
     @Published var showSamplingDialog: Bool = false
@@ -28,6 +32,8 @@ final class MediaInspectorViewModel: ObservableObject {
 
     private var pendingURL: URL?
     private var infoTask: Task<Void, Never>?
+    private var keyframeTask: Task<Void, Never>?
+    private var thumbnailTask: Task<Void, Never>?
     private var framesTask: Task<Void, Never>?
 
     enum SamplingMode: String, CaseIterable, Identifiable {
@@ -72,6 +78,8 @@ final class MediaInspectorViewModel: ObservableObject {
         infoTask?.cancel()
         framesTask?.cancel()
         infoTask = nil
+        keyframeTask = nil
+        thumbnailTask = nil
         framesTask = nil
 
         // reset state for new asset
@@ -87,6 +95,28 @@ final class MediaInspectorViewModel: ObservableObject {
         infoTask = Task { [weak self] in
             guard let self else { return }
             self.extendedInfo = await getExtendedInfo(url: url, asset: asset)
+        }
+        
+        keyframeTask = Task { [weak self] in
+            guard let self else { return }
+            self.durationSeconds = (try? await asset.load(.duration).seconds) ?? 0
+            self.keyframes = await extractKeyframes(asset: asset, minSpacingSeconds: 0.05)
+        }
+        
+        thumbnailTask = Task { [weak self] in
+            guard let self else { return }
+
+            self.durationSeconds = (try? await asset.load(.duration).seconds) ?? 0
+            self.keyframes = await extractKeyframes(asset: asset, minSpacingSeconds: 0.05)
+
+            // Generate thumbnails from keyframe times
+            let times = self.keyframes.map(\.time)
+            self.keyframeThumbs = await GenerateKeyframeThumbnails(
+                asset: asset,
+                keyframeTimes: times,
+                maxThumbnails: 90,
+                thumbHeight: 38
+            )
         }
 
         // Frames (async + progressive updates)
@@ -120,6 +150,8 @@ final class MediaInspectorViewModel: ObservableObject {
 
     func cancelAnalysis() {
         infoTask?.cancel()
+        keyframeTask?.cancel()
+        thumbnailTask?.cancel()
         framesTask?.cancel()
         infoTask = nil
         framesTask = nil
@@ -134,6 +166,7 @@ final class MediaInspectorViewModel: ObservableObject {
         minInterval = nil
         maxInterval = nil
         hoveredSample = nil
+        keyframeThumbs = []
     }
 
     private func makeSamplingOptions(asset: AVAsset) async -> FrameSamplingOptions {

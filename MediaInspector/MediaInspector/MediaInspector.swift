@@ -19,7 +19,6 @@ struct MediaInspector: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Main content (chart)
             BitrateChartView(viewModel: viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
@@ -36,7 +35,7 @@ struct MediaInspector: View {
                         if viewModel.isAnalyzing {
                             ProgressView().controlSize(.small)
                             Button {
-                                viewModel.cancelAnalysis() // keeps partial data
+                                viewModel.cancelAnalysis()
                             } label: {
                                 Label("Cancel", systemImage: "xmark.circle.fill")
                             }
