@@ -10,14 +10,47 @@ import Charts
 
 struct BitrateChartView: View {
     @ObservedObject var viewModel: MediaInspectorViewModel
+    
+    // MARK: - Display Settings
+    
+    /// Maximum points to render in chart for performance (LTTB downsampling)
+    private let maxDisplayPoints = 500
 
+    // MARK: - Statistics
+    
     private var maxBitrateKbps: Double {
         let maxBits = viewModel.samples.map(\.bitrate).max() ?? 1
         return Double(maxBits) / 1000.0
     }
+    
+    private var minBitrateKbps: Double {
+        let minBits = viewModel.samples.map(\.bitrate).min() ?? 0
+        return Double(minBits) / 1000.0
+    }
+    
+    private var avgBitrateKbps: Double {
+        guard !viewModel.samples.isEmpty else { return 0 }
+        let sum = viewModel.samples.reduce(0.0) { $0 + $1.bitrate }
+        return (sum / Double(viewModel.samples.count)) / 1000.0
+    }
+    
+    private var stdDevKbps: Double {
+        guard viewModel.samples.count > 1 else { return 0 }
+        let avg = avgBitrateKbps * 1000.0
+        let variance = viewModel.samples.reduce(0.0) { sum, sample in
+            let diff = sample.bitrate - avg
+            return sum + diff * diff
+        } / Double(viewModel.samples.count)
+        return sqrt(variance) / 1000.0
+    }
 
     private var maxTime: Double {
         viewModel.samples.map(\.time).max() ?? 0
+    }
+    
+    /// Downsampled samples for efficient chart rendering using LTTB algorithm
+    private var displaySamples: [BitrateSample] {
+        downsampleLTTB(viewModel.samples, targetCount: maxDisplayPoints)
     }
 
     private var yTickStep: Double { niceStep(forMax: maxBitrateKbps, targetTicks: 7) }
@@ -46,6 +79,16 @@ struct BitrateChartView: View {
     private var headerDurationText: String {
         if viewModel.samples.isEmpty { return "—" }
         return String(format: "%.0f s", maxTime)
+    }
+    
+    private var headerAvgText: String {
+        if viewModel.samples.isEmpty { return "—" }
+        return String(format: "%.0f kb/s", avgBitrateKbps)
+    }
+    
+    private var headerStdDevText: String {
+        if viewModel.samples.isEmpty { return "—" }
+        return String(format: "±%.0f", stdDevKbps)
     }
 
     var body: some View {
@@ -82,7 +125,9 @@ struct BitrateChartView: View {
 
             HStack(spacing: 14) {
                 StatPill(title: "Points", value: "\(viewModel.samples.count)")
+                StatPill(title: "Avg", value: headerAvgText)
                 StatPill(title: "Peak", value: headerPeakText)
+                StatPill(title: "σ", value: headerStdDevText)
                 StatPill(title: "Span", value: headerDurationText)
             }
         }
@@ -143,24 +188,33 @@ struct BitrateChartView: View {
 
                 chart
                     .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                
+                // Keyframe section with animated reveal
+                if !viewModel.keyframes.isEmpty {
+                    VStack(spacing: 8) {
+                        KeyframeTimelineView(
+                            keyframes: viewModel.keyframes,
+                            duration: maxTime == 0 ? viewModel.durationSeconds : maxTime,
+                            hoveredKeyframeTime: viewModel.hoveredKeyframeTime
+                        )
+                        
+                        if !viewModel.keyframeThumbs.isEmpty {
+                            KeyframeThumbnailStrip(
+                                thumbs: viewModel.keyframeThumbs,
+                                totalKeyframes: viewModel.keyframes.count,
+                                hoveredKeyframeTime: $viewModel.hoveredKeyframeTime
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }
+                    .padding(.horizontal, 12)
                     .padding(.bottom, 12)
-                
-                KeyframeTimelineView(
-                    keyframes: viewModel.keyframes,
-                    duration: maxTime == 0 ? viewModel.durationSeconds : maxTime,
-                    hoveredKeyframeTime: viewModel.hoveredKeyframeTime
-                )
-                .padding(.horizontal, 12)
-                
-                if !viewModel.keyframeThumbs.isEmpty {
-                    KeyframeThumbnailStrip(
-                        thumbs: viewModel.keyframeThumbs,
-                        hoveredKeyframeTime: $viewModel.hoveredKeyframeTime
-                    )
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.98, anchor: .top)))
                 }
             }
+            .animation(.spring(response: 0.5, dampingFraction: 0.85), value: viewModel.keyframes.isEmpty)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.keyframeThumbs.isEmpty)
 
             if viewModel.isAnalyzing {
                 loadingBadge
@@ -172,26 +226,66 @@ struct BitrateChartView: View {
 
     private var chart: some View {
         Chart {
-            ForEach(viewModel.samples) { sample in
-                BarMark(
+            // Area chart with gradient fill
+            ForEach(displaySamples) { sample in
+                AreaMark(
                     x: .value("Time (s)", sample.time),
                     y: .value("Bitrate (kbps)", sample.bitrate / 1000.0)
                 )
-                .foregroundStyle(.tint.opacity(viewModel.isAnalyzing ? 0.80 : 1.0))
-                .cornerRadius(2)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            Color.accentColor.opacity(viewModel.isAnalyzing ? 0.5 : 0.7),
+                            Color.accentColor.opacity(viewModel.isAnalyzing ? 0.1 : 0.15)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .interpolationMethod(.catmullRom)
+                
+                LineMark(
+                    x: .value("Time (s)", sample.time),
+                    y: .value("Bitrate (kbps)", sample.bitrate / 1000.0)
+                )
+                .foregroundStyle(Color.accentColor.opacity(viewModel.isAnalyzing ? 0.7 : 1.0))
+                .interpolationMethod(.catmullRom)
+                .lineStyle(StrokeStyle(lineWidth: 1.5))
+            }
+            
+            // Average bitrate reference line
+            if !viewModel.samples.isEmpty {
+                RuleMark(y: .value("Avg", avgBitrateKbps))
+                    .foregroundStyle(.orange.opacity(0.7))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 4]))
+                    .annotation(position: .trailing, alignment: .leading) {
+                        Text("avg")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 4)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+            }
+            
+            // Keyframe markers on chart - downsampled for performance
+            ForEach(downsampleKeyframes(viewModel.keyframes, maxCount: 200)) { keyframe in
+                RuleMark(x: .value("Keyframe", keyframe.time))
+                    .foregroundStyle(.green.opacity(0.25))
+                    .lineStyle(StrokeStyle(lineWidth: 1))
             }
 
             if let hovered = viewModel.hoveredSample {
                 RuleMark(x: .value("Time (s)", hovered.time))
-                    .foregroundStyle(.secondary.opacity(0.55))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .foregroundStyle(.primary.opacity(0.7))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
             }
             
             // Highlight from keyframe thumbnail hover
             if let keyframeTime = viewModel.hoveredKeyframeTime {
                 RuleMark(x: .value("Keyframe", keyframeTime))
-                    .foregroundStyle(.secondary.opacity(0.55))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .foregroundStyle(.green.opacity(0.8))
+                    .lineStyle(StrokeStyle(lineWidth: 2))
             }
         }
         .chartYScale(domain: 0...(maxBitrateKbps * 1.1))
@@ -226,50 +320,61 @@ struct BitrateChartView: View {
         }
         .chartOverlay { proxy in
             GeometryReader { geometry in
-                ZStack(alignment: .topLeading) {
-                    Rectangle()
-                        .fill(.clear)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
-                                    let location = value.location
-                                    if let time: Double = proxy.value(atX: location.x) {
-                                        if let nearest = viewModel.samples.min(by: {
-                                            abs($0.time - time) < abs($1.time - time)
-                                        }) {
-                                            viewModel.hoveredSample = nearest
-                                        }
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                let location = value.location
+                                if let time: Double = proxy.value(atX: location.x) {
+                                    if let nearest = viewModel.samples.min(by: {
+                                        abs($0.time - time) < abs($1.time - time)
+                                    }) {
+                                        viewModel.hoveredSample = nearest
                                     }
                                 }
-                                .onEnded { _ in
-                                    viewModel.hoveredSample = nil
-                                }
-                        )
-
-                    // Tooltip for direct chart interaction
-                    if let sample = viewModel.hoveredSample,
-                       let xPos = proxy.position(forX: sample.time)
-                    {
-                        let clampedX = min(max(xPos, 14), geometry.size.width - 200)
-
-                        Tooltip(sample: sample, maxBitrateKbps: maxBitrateKbps)
-                            .position(x: clampedX, y: 16)
-                    }
-                    // Tooltip for keyframe thumbnail hover (find nearest sample to keyframe time)
-                    else if let keyframeTime = viewModel.hoveredKeyframeTime,
-                            let nearestSample = viewModel.samples.min(by: { abs($0.time - keyframeTime) < abs($1.time - keyframeTime) }),
-                            let xPos = proxy.position(forX: keyframeTime)
-                    {
-                        let clampedX = min(max(xPos, 14), geometry.size.width - 200)
-
-                        Tooltip(sample: nearestSample, maxBitrateKbps: maxBitrateKbps)
-                            .position(x: clampedX, y: 16)
-                    }
-                }
+                            }
+                            .onEnded { _ in
+                                viewModel.hoveredSample = nil
+                            }
+                    )
             }
         }
+        .drawingGroup() // Metal-accelerated rendering for better performance
         .frame(minHeight: 260)
+        .overlay(alignment: .topLeading) {
+            // Tooltip overlay - outside chart clipping area
+            tooltipOverlay
+        }
+    }
+
+    // MARK: - Tooltip Overlay
+
+    @ViewBuilder
+    private var tooltipOverlay: some View {
+        GeometryReader { geometry in
+            // Determine which sample to show tooltip for
+            let tooltipSample: BitrateSample? = {
+                if let sample = viewModel.hoveredSample {
+                    return sample
+                } else if let keyframeTime = viewModel.hoveredKeyframeTime {
+                    return viewModel.samples.min(by: { abs($0.time - keyframeTime) < abs($1.time - keyframeTime) })
+                }
+                return nil
+            }()
+            
+            if let sample = tooltipSample {
+                // Calculate x position based on time ratio
+                let timeRatio = maxTime > 0 ? sample.time / maxTime : 0
+                let chartWidth = geometry.size.width
+                let xPos = timeRatio * chartWidth
+                let clampedX = min(max(xPos, 80), chartWidth - 80)
+                
+                Tooltip(sample: sample, maxBitrateKbps: maxBitrateKbps)
+                    .position(x: clampedX, y: 50)
+            }
+        }
     }
 
     // MARK: - Overlay
@@ -373,6 +478,7 @@ private struct ChartHeaderRow: View {
                 Text("Hover/drag to see a point")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .padding(.vertical, 5)
             }
         }
     }
@@ -423,4 +529,86 @@ private struct Tooltip: View {
 
 #Preview {
     BitrateChartView(viewModel: MediaInspectorViewModel())
+}
+
+// MARK: - Downsampling Algorithms
+
+/// Largest-Triangle-Three-Buckets (LTTB) downsampling algorithm
+/// Preserves visual shape of the data while reducing point count for performance
+private func downsampleLTTB(_ samples: [BitrateSample], targetCount: Int) -> [BitrateSample] {
+    guard samples.count > targetCount, targetCount >= 2 else { return samples }
+    
+    var result: [BitrateSample] = []
+    result.reserveCapacity(targetCount)
+    
+    // Always include first point
+    result.append(samples[0])
+    
+    let bucketSize = Double(samples.count - 2) / Double(targetCount - 2)
+    var lastSelectedIndex = 0
+    
+    for i in 0..<(targetCount - 2) {
+        // Calculate bucket boundaries
+        let bucketStart = Int(Double(i) * bucketSize) + 1
+        let bucketEnd = min(Int(Double(i + 1) * bucketSize) + 1, samples.count - 1)
+        
+        // Calculate the average point for the next bucket (used as target)
+        let nextBucketStart = bucketEnd
+        let nextBucketEnd = min(Int(Double(i + 2) * bucketSize) + 1, samples.count - 1)
+        
+        var avgX: Double = 0
+        var avgY: Double = 0
+        let nextBucketCount = nextBucketEnd - nextBucketStart + 1
+        
+        for j in nextBucketStart...nextBucketEnd {
+            avgX += samples[j].time
+            avgY += samples[j].bitrate
+        }
+        avgX /= Double(nextBucketCount)
+        avgY /= Double(nextBucketCount)
+        
+        // Find the point in current bucket that creates largest triangle
+        var maxArea: Double = -1
+        var maxAreaIndex = bucketStart
+        
+        let pointA = samples[lastSelectedIndex]
+        
+        for j in bucketStart..<bucketEnd {
+            let pointB = samples[j]
+            // Triangle area using cross product
+            let area = abs(
+                (pointA.time - avgX) * (pointB.bitrate - pointA.bitrate) -
+                (pointA.time - pointB.time) * (avgY - pointA.bitrate)
+            ) * 0.5
+            
+            if area > maxArea {
+                maxArea = area
+                maxAreaIndex = j
+            }
+        }
+        
+        result.append(samples[maxAreaIndex])
+        lastSelectedIndex = maxAreaIndex
+    }
+    
+    // Always include last point
+    result.append(samples[samples.count - 1])
+    
+    return result
+}
+
+/// Downsample keyframes evenly across the video duration for chart display
+private func downsampleKeyframes(_ keyframes: [KeyframeMarker], maxCount: Int) -> [KeyframeMarker] {
+    guard keyframes.count > maxCount else { return keyframes }
+    
+    let step = Double(keyframes.count) / Double(maxCount)
+    var result: [KeyframeMarker] = []
+    result.reserveCapacity(maxCount)
+    
+    for i in 0..<maxCount {
+        let index = min(Int(Double(i) * step), keyframes.count - 1)
+        result.append(keyframes[index])
+    }
+    
+    return result
 }

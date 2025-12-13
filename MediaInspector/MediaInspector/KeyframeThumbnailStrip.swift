@@ -8,75 +8,180 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Anchor Preference for tracking thumb positions
+
+private struct ThumbAnchorKey: PreferenceKey {
+    static var defaultValue: [Int: Anchor<CGRect>] = [:]
+    static func reduce(value: inout [Int: Anchor<CGRect>], nextValue: () -> [Int: Anchor<CGRect>]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
 struct KeyframeThumbnailStrip: View {
     let thumbs: [KeyframeThumbnail]
+    let totalKeyframes: Int  // Total keyframes in the video (may be more than thumbs.count)
     @Binding var hoveredKeyframeTime: Double?
-    @State private var hoveredID: KeyframeThumbnail.ID? = nil
+    @State private var hoveredThumb: KeyframeThumbnail? = nil
+    @State private var hoveredIndex: Int? = nil
     
     var body: some View {
-        strip
-        // ✅ Preview drawn above the strip (and not clipped by the strip's clipShape)
-            .overlayPreferenceValue(ThumbAnchorKey.self) { anchors in
-                GeometryReader { proxy in
-                    if let id = hoveredID,
-                       let anchor = anchors[id],
-                       let thumbIndex = thumbs.firstIndex(where: { $0.id == id }),
-                       let thumb = thumbs.first(where: { $0.id == id }) {
-                        
-                        let rect = proxy[anchor]
-                        let previousTime: Double? = thumbIndex > 0 ? thumbs[thumbIndex - 1].time : nil
-                        
-                        HoverPreview(
-                            image: thumb.image,
-                            time: thumb.time,
-                            index: thumbIndex + 1,
-                            total: thumbs.count,
-                            previousKeyframeTime: previousTime
-                        )
-                        .position(
-                            x: clamp(rect.midX, min: 140, max: proxy.size.width - 140),
-                            y: rect.minY - 100
-                        )
-                        .allowsHitTesting(false)
-                        .zIndex(999)
-                    }
-                }
-            }
-    }
-    
-    private var strip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        VStack(alignment: .leading, spacing: 6) {
+            // Header with hover info
             HStack(spacing: 6) {
-                ForEach(thumbs) { t in
-                    ThumbCell(image: t.image, time: t.time, isHovered: hoveredID == t.id)
-                        .anchorPreference(key: ThumbAnchorKey.self, value: .bounds) { anchor in
-                            [t.id: anchor]
-                        }
-                        .onHover { isHovering in
-                            if isHovering {
-                                hoveredID = t.id
-                                hoveredKeyframeTime = t.time
-                            } else if hoveredID == t.id {
-                                hoveredID = nil
-                                hoveredKeyframeTime = nil
+                Image(systemName: "photo.on.rectangle.angled")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                Text("Keyframe Thumbnails")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+                
+                Spacer()
+                
+                // Show hover info in header area - fixed height to prevent jumping
+                Group {
+                    if let thumb = hoveredThumb, let index = hoveredIndex {
+                        HStack(spacing: 8) {
+                            Text("\(index + 1)/\(thumbs.count)")
+                                .fontWeight(.medium)
+                            Text(formatTime(thumb.time))
+                                .monospacedDigit()
+                            if let gopInterval = gopInterval(for: index) {
+                                Text("GOP: \(gopInterval, specifier: "%.2f")s")
+                                    .foregroundStyle(.secondary)
                             }
                         }
+                        .font(.caption2)
+                        .padding(.horizontal, 8)
+                        .background(.orange.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                    } else {
+                        if totalKeyframes > thumbs.count {
+                            Text("\(thumbs.count) of \(totalKeyframes) keyframes")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        } else {
+                            Text("\(thumbs.count) keyframes")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
                 }
+                .frame(height: 20, alignment: .center)  // Fixed height prevents jumping
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 4)
+            
+            strip
         }
-        .frame(height: 56)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(.separator.opacity(0.25), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
     
-    private func clamp(_ x: CGFloat, min: CGFloat, max: CGFloat) -> CGFloat {
-        Swift.min(Swift.max(x, min), max)
+    private func formatTime(_ time: Double) -> String {
+        let totalSeconds = Int(time)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        let millis = Int((time - Double(totalSeconds)) * 1000)
+        return String(format: "%d:%02d.%03d", minutes, seconds, millis)
+    }
+    
+    private func gopInterval(for index: Int) -> Double? {
+        guard index > 0 else { return nil }
+        return thumbs[index].time - thumbs[index - 1].time
+    }
+    
+    private var strip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 6) {
+                ForEach(Array(thumbs.enumerated()), id: \.element.id) { index, t in
+                    ThumbCell(
+                        image: t.image,
+                        isHovered: hoveredIndex == index
+                    )
+                    .anchorPreference(key: ThumbAnchorKey.self, value: .bounds) { anchor in
+                        [index: anchor]
+                    }
+                    .onHover { isHovering in
+                        if isHovering {
+                            hoveredThumb = t
+                            hoveredIndex = index
+                            hoveredKeyframeTime = t.time
+                        } else if hoveredIndex == index {
+                            hoveredThumb = nil
+                            hoveredIndex = nil
+                            hoveredKeyframeTime = nil
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 10)
+        }
+        .frame(height: 68)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.06),
+                            Color.black.opacity(0.02)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(.separator.opacity(0.15), lineWidth: 1)
+        )
+        // Enlarged thumbnail overlay using anchor preferences
+        .overlayPreferenceValue(ThumbAnchorKey.self) { anchors in
+            GeometryReader { geo in
+                if let index = hoveredIndex,
+                   index < thumbs.count,
+                   let anchor = anchors[index] {
+                    let rect = geo[anchor]
+                    let centerX = rect.midX
+                    let centerY = rect.midY
+                    
+                    // Clamp position to keep enlarged view within bounds
+                    let enlargedWidth: CGFloat = 112
+                    let minX = enlargedWidth / 2 + 4
+                    let maxX = geo.size.width - enlargedWidth / 2 - 4
+                    let clampedX = min(max(centerX, minX), maxX)
+                    
+                    EnlargedThumbView(image: thumbs[index].image)
+                        .position(x: clampedX, y: centerY)
+                }
+            }
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+// MARK: - Enlarged thumbnail overlay
+
+private struct EnlargedThumbView: View {
+    let image: NSImage
+    
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        
+        Image(nsImage: image)
+            .resizable()
+            .scaledToFill()
+            .frame(width: 112, height: 72)
+            .clipShape(shape)
+            .overlay(
+                shape.strokeBorder(Color.orange, lineWidth: 2.5)
+            )
+            .shadow(color: .black.opacity(0.5), radius: 10, y: 4)
     }
 }
 
@@ -84,139 +189,23 @@ struct KeyframeThumbnailStrip: View {
 
 private struct ThumbCell: View {
     let image: NSImage
-    let time: Double
     let isHovered: Bool
     
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
         
         Image(nsImage: image)
             .resizable()
-            .scaledToFit()
-            .frame(width: 60, height: 38)
-            .padding(4)
-            .background(.regularMaterial, in: shape)
-            .overlay(shape.strokeBorder(.separator.opacity(0.25), lineWidth: 1))
+            .scaledToFill()
+            .frame(width: 56, height: 36)
+            .clipShape(shape)
+            .overlay(
+                shape.strokeBorder(
+                    isHovered ? Color.orange : Color.white.opacity(0.1),
+                    lineWidth: isHovered ? 2 : 1
+                )
+            )
+            .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
             .contentShape(shape)
-    }
-}
-
-// MARK: - Hover preview
-
-private struct HoverPreview: View {
-    let image: NSImage
-    let time: Double
-    let index: Int
-    let total: Int
-    let previousKeyframeTime: Double?
-    
-    // You can tweak these
-    private let maxContentWidth: CGFloat = 260   // width of the image area
-    private let maxContentHeight: CGFloat = 160  // cap so super-tall images don't explode
-    
-    private var aspect: CGFloat {
-        let s = image.size
-        guard s.width > 0, s.height > 0 else { return 16.0 / 9.0 }
-        return s.width / s.height
-    }
-    
-    private var contentSize: CGSize {
-        // width is fixed; compute height from aspect ratio, clamp to maxContentHeight
-        let w = maxContentWidth
-        let h = min(maxContentHeight, w / aspect)
-        return CGSize(width: w, height: h)
-    }
-    
-    private var gopInterval: Double? {
-        guard let prev = previousKeyframeTime else { return nil }
-        return time - prev
-    }
-    
-    private var formattedTimecode: String {
-        let totalSeconds = Int(time)
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        let millis = Int((time - Double(totalSeconds)) * 1000)
-        
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d.%03d", hours, minutes, seconds, millis)
-        } else {
-            return String(format: "%02d:%02d.%03d", minutes, seconds, millis)
-        }
-    }
-    
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        let imgSize = contentSize
-        
-        VStack(alignment: .leading, spacing: 10) {
-            // Thumbnail image
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(width: imgSize.width, height: imgSize.height)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            
-            // Info grid
-            VStack(alignment: .leading, spacing: 6) {
-                // Keyframe index
-                HStack(spacing: 6) {
-                    Image(systemName: "square.stack.3d.up")
-                        .foregroundStyle(.orange)
-                    Text("Keyframe \(index) of \(total)")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                    Spacer(minLength: 0)
-                }
-                
-                Divider()
-                
-                // Timestamp row
-                HStack(spacing: 6) {
-                    Image(systemName: "clock")
-                        .foregroundStyle(.secondary)
-                    Text(formattedTimecode)
-                        .monospacedDigit()
-                        .font(.caption)
-                    Text("(\(time, specifier: "%.3f")s)")
-                        .monospacedDigit()
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
-                }
-                
-                // GOP interval (if available)
-                if let gop = gopInterval {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.left.and.right")
-                            .foregroundStyle(.secondary)
-                        Text("GOP: \(gop, specifier: "%.3f")s")
-                            .monospacedDigit()
-                            .font(.caption)
-                        Text("(\(gop > 0 ? String(format: "%.1f", 1.0 / gop) : "–") KF/s)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 0)
-                    }
-                }
-            }
-        }
-        .padding(12)
-        .fixedSize()
-        .background(.regularMaterial, in: shape)
-        .overlay(shape.strokeBorder(.separator.opacity(0.25), lineWidth: 1))
-        .shadow(radius: 14)
-        .compositingGroup()
-    }
-}
-
-// MARK: - PreferenceKey
-
-private struct ThumbAnchorKey: PreferenceKey {
-    static var defaultValue: [KeyframeThumbnail.ID: Anchor<CGRect>] = [:]
-    static func reduce(value: inout [KeyframeThumbnail.ID: Anchor<CGRect>],
-                       nextValue: () -> [KeyframeThumbnail.ID: Anchor<CGRect>]) {
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
 }

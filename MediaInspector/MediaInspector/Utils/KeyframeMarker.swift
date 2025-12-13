@@ -30,6 +30,9 @@ func extractKeyframes(
     // Load the video track
     let tracks = try? await asset.loadTracks(withMediaType: .video)
     guard let track = tracks?.first else { return [] }
+    
+    // Get duration for fallback synthetic keyframes
+    let duration = (try? await asset.load(.duration).seconds) ?? 0
 
     do {
         let reader = try AVAssetReader(asset: asset)
@@ -64,6 +67,16 @@ func extractKeyframes(
                     lastAccepted = t
                     if markers.count >= maxKeyframes { break }
                 }
+            }
+        }
+        
+        // If we didn't get any keyframes but have duration, the file might use a format
+        // where all frames are sync samples - create synthetic markers
+        if markers.isEmpty && duration > 0 {
+            let syntheticCount = min(100, max(10, Int(duration / 2))) // One every 2 seconds, min 10, max 100
+            let interval = duration / Double(syntheticCount)
+            for i in 0..<syntheticCount {
+                markers.append(KeyframeMarker(time: Double(i) * interval))
             }
         }
 

@@ -50,8 +50,6 @@ struct InfoInspectorView: View {
                                 KV("Overall Bitrate", info.overallBitrate)
                                 KV("Duration", info.durationFormatted)
                             }
-                            
-                            SectionDivider()
 
                             if info.hasMetadata {
                                 CollapsibleSection(
@@ -67,8 +65,6 @@ struct InfoInspectorView: View {
                                         KVMultiline("Description", v)
                                     }
                                 }
-                                
-                                SectionDivider()
                             }
 
                             CollapsibleSection(
@@ -93,7 +89,7 @@ struct InfoInspectorView: View {
                                 if let v = info.scanType { KV("Scan Type", v) }
                             }
                             
-                            SectionDivider()
+                            
 
                             CollapsibleSection(
                                 title: "Color",
@@ -116,7 +112,7 @@ struct InfoInspectorView: View {
                             }
 
                             if !info.audioTracks.isEmpty {
-                                SectionDivider()
+                                
                                 
                                 CollapsibleSection(
                                     title: "Audio (\(info.audioTracks.count))",
@@ -131,7 +127,7 @@ struct InfoInspectorView: View {
                             
                             // Analysis section
                             if viewModel.effectiveFPS != nil || viewModel.minInterval != nil || viewModel.isAnalyzing {
-                                SectionDivider()
+                                
                                 
                                 CollapsibleSection(
                                     title: "Frame Analysis",
