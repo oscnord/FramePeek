@@ -27,9 +27,10 @@ struct InfoInspectorView: View {
 
                         InspectorCard(title: "File", systemImage: "doc") {
                             KV("Name", info.fileName)
+                            if let v = info.containerFormat { KV("Format", v) }
                             KV("Size", info.fileSize)
                             KV("Overall Bitrate", info.overallBitrate)
-                            KV("Duration", info.duration)
+                            KV("Duration", info.durationFormatted)
                         }
 
                         if info.hasMetadata {
@@ -46,10 +47,17 @@ struct InfoInspectorView: View {
 
                         InspectorCard(title: "Video", systemImage: "film") {
                             KV("Resolution", info.resolution)
+                            if let v = info.displayAspectRatio { KV("Aspect Ratio", v) }
                             KV("Nominal FPS", info.frameRate)
+                            if let v = info.frameRateMode { KV("Frame Rate Mode", v) }
                             KV("Codec", info.codec)
+                            if let v = info.codecProfile { KV("Profile", v) }
+                            if let v = info.codecIdRaw { KV("Codec ID", v) }
 
                             if let v = info.trackBitrate { KV("Video Bitrate", v) }
+                            if let v = info.maxBitrate { KV("Max Bitrate", v) }
+                            if let v = info.videoStreamSize { KV("Stream Size", v) }
+                            if let v = info.bitsPerPixelFrame { KV("Bits/(Pixel*Frame)", v, monospace: true) }
                             if let v = info.orientationDegrees { KV("Orientation", "\(v)°") }
                             if let v = info.pixelAspectRatio { KV("Pixel Aspect Ratio", v) }
                             if let v = info.cleanAperture { KV("Clean Aperture", v) }
@@ -67,6 +75,9 @@ struct InfoInspectorView: View {
                         }
 
                         InspectorCard(title: "Color", systemImage: "paintpalette") {
+                            if let v = info.hdrFormat { KV("HDR Format", v) }
+                            if let v = info.colorSpace { KV("Color Space", v) }
+                            if let v = info.chromaSubsampling { KV("Chroma Subsampling", v) }
                             if let v = info.colorPrimaries { KV("Primaries", v) }
                             if let v = info.transferFunction { KV("Transfer", v) }
                             if let v = info.matrixCoefficients { KV("Matrix", v) }
@@ -76,7 +87,7 @@ struct InfoInspectorView: View {
                             if let v = info.av1CSize { KV("av1C Box", "\(v) bytes", monospace: true) }
                             if let v = info.av1Profile { KV("AV1 Profile", v) }
                             if let v = info.av1Level { KV("AV1 Level", v) }
-                            if let v = info.av1ChromaSubsampling { KV("Chroma Subsampling", v) }
+                            if let v = info.av1ChromaSubsampling { KV("AV1 Chroma", v) }
                             if let v = info.av1FullRange { KV("AV1 Range", v) }
                         }
 
@@ -142,13 +153,6 @@ struct InfoInspectorView: View {
             }
             .buttonStyle(.borderedProminent)
 
-            Button {
-                copySummary(info: info)
-            } label: {
-                Label("Copy Summary", systemImage: "text.quote")
-            }
-            .buttonStyle(.bordered)
-
             Spacer()
         }
         .padding(.top, 2)
@@ -160,12 +164,6 @@ struct InfoInspectorView: View {
         let text = buildCopyText(info: info, includeAll: true)
         copyToPasteboard(text)
         showCopied("Copied all text")
-    }
-
-    private func copySummary(info: ExtendedVideoInfo) {
-        let text = buildCopyText(info: info, includeAll: false)
-        copyToPasteboard(text)
-        showCopied("Copied summary")
     }
 
     private func showCopied(_ message: String) {
@@ -195,6 +193,7 @@ struct InfoInspectorView: View {
 
         lines.append("[File]")
         kv("Name", info.fileName)
+        kv("Format", info.containerFormat)
         kv("Size", info.fileSize)
         kv("Overall Bitrate", info.overallBitrate)
         kv("Duration", info.duration)
@@ -213,8 +212,14 @@ struct InfoInspectorView: View {
         lines.append("[Video]")
         kv("Resolution", info.resolution)
         kv("Nominal FPS", info.frameRate)
+        kv("Frame Rate Mode", info.frameRateMode)
         kv("Codec", info.codec)
+        kv("Profile", info.codecProfile)
+        kv("Codec ID", info.codecIdRaw)
         kv("Video Bitrate", info.trackBitrate)
+        kv("Max Bitrate", info.maxBitrate)
+        kv("Stream Size", info.videoStreamSize)
+        kv("Bits/(Pixel*Frame)", info.bitsPerPixelFrame)
         if let deg = info.orientationDegrees { kv("Orientation", "\(deg)°") }
         kv("Pixel Aspect Ratio", info.pixelAspectRatio)
         kv("Clean Aperture", info.cleanAperture)
@@ -227,6 +232,8 @@ struct InfoInspectorView: View {
 
         if includeAll {
             lines.append("[Color]")
+            kv("Color Space", info.colorSpace)
+            kv("Chroma Subsampling", info.chromaSubsampling)
             kv("Primaries", info.colorPrimaries)
             kv("Transfer", info.transferFunction)
             kv("Matrix", info.matrixCoefficients)
@@ -235,7 +242,7 @@ struct InfoInspectorView: View {
             if let v = info.av1CSize { kv("av1C Box", "\(v) bytes") }
             kv("AV1 Profile", info.av1Profile)
             kv("AV1 Level", info.av1Level)
-            kv("Chroma Subsampling", info.av1ChromaSubsampling)
+            kv("AV1 Chroma", info.av1ChromaSubsampling)
             kv("AV1 Range", info.av1FullRange)
             lines.append("")
         }
@@ -390,7 +397,7 @@ extension AudioTrackInfo {
         }
 
         let lang = languageCode?.uppercased() ?? "N/A"
-        return "\(codec), \(channels) ch, \(sr), \(bitrate), lang \(lang)"
+        return "\(codecDisplayName), \(channelLayout), \(sr), \(bitrate), lang \(lang)"
     }
 }
 
