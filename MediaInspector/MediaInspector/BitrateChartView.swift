@@ -147,12 +147,16 @@ struct BitrateChartView: View {
                 
                 KeyframeTimelineView(
                     keyframes: viewModel.keyframes,
-                    duration: maxTime == 0 ? viewModel.durationSeconds : maxTime
+                    duration: maxTime == 0 ? viewModel.durationSeconds : maxTime,
+                    hoveredKeyframeTime: viewModel.hoveredKeyframeTime
                 )
                 .padding(.horizontal, 12)
                 
                 if !viewModel.keyframeThumbs.isEmpty {
-                    KeyframeThumbnailStrip(thumbs: viewModel.keyframeThumbs)
+                    KeyframeThumbnailStrip(
+                        thumbs: viewModel.keyframeThumbs,
+                        hoveredKeyframeTime: $viewModel.hoveredKeyframeTime
+                    )
                         .padding(.horizontal, 12)
                         .padding(.bottom, 12)
                 }
@@ -179,6 +183,13 @@ struct BitrateChartView: View {
 
             if let hovered = viewModel.hoveredSample {
                 RuleMark(x: .value("Time (s)", hovered.time))
+                    .foregroundStyle(.secondary.opacity(0.55))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            }
+            
+            // Highlight from keyframe thumbnail hover
+            if let keyframeTime = viewModel.hoveredKeyframeTime {
+                RuleMark(x: .value("Keyframe", keyframeTime))
                     .foregroundStyle(.secondary.opacity(0.55))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
             }
@@ -236,12 +247,23 @@ struct BitrateChartView: View {
                                 }
                         )
 
+                    // Tooltip for direct chart interaction
                     if let sample = viewModel.hoveredSample,
                        let xPos = proxy.position(forX: sample.time)
                     {
                         let clampedX = min(max(xPos, 14), geometry.size.width - 200)
 
                         Tooltip(sample: sample, maxBitrateKbps: maxBitrateKbps)
+                            .position(x: clampedX, y: 16)
+                    }
+                    // Tooltip for keyframe thumbnail hover (find nearest sample to keyframe time)
+                    else if let keyframeTime = viewModel.hoveredKeyframeTime,
+                            let nearestSample = viewModel.samples.min(by: { abs($0.time - keyframeTime) < abs($1.time - keyframeTime) }),
+                            let xPos = proxy.position(forX: keyframeTime)
+                    {
+                        let clampedX = min(max(xPos, 14), geometry.size.width - 200)
+
+                        Tooltip(sample: nearestSample, maxBitrateKbps: maxBitrateKbps)
                             .position(x: clampedX, y: 16)
                     }
                 }

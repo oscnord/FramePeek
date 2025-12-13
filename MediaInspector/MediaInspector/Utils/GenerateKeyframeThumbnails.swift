@@ -12,7 +12,7 @@ func GenerateKeyframeThumbnails(
     asset: AVAsset,
     keyframeTimes: [Double],
     maxThumbnails: Int = 90,
-    thumbHeight: CGFloat = 38
+    thumbHeight: CGFloat = 160  // Higher resolution for crisp hover previews
 ) async -> [KeyframeThumbnail] {
 
     guard !keyframeTimes.isEmpty else { return [] }

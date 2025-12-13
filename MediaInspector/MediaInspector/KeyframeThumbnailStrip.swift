@@ -10,6 +10,7 @@ import AppKit
 
 struct KeyframeThumbnailStrip: View {
     let thumbs: [KeyframeThumbnail]
+    @Binding var hoveredKeyframeTime: Double?
     @State private var hoveredID: KeyframeThumbnail.ID? = nil
     
     var body: some View {
@@ -19,17 +20,25 @@ struct KeyframeThumbnailStrip: View {
                 GeometryReader { proxy in
                     if let id = hoveredID,
                        let anchor = anchors[id],
+                       let thumbIndex = thumbs.firstIndex(where: { $0.id == id }),
                        let thumb = thumbs.first(where: { $0.id == id }) {
                         
                         let rect = proxy[anchor]
+                        let previousTime: Double? = thumbIndex > 0 ? thumbs[thumbIndex - 1].time : nil
                         
-                        HoverPreview(image: thumb.image, time: thumb.time)
-                            .position(
-                                x: clamp(rect.midX, min: 120, max: proxy.size.width - 120),
-                                y: rect.minY - 72
-                            )
-                            .allowsHitTesting(false)
-                            .zIndex(999)
+                        HoverPreview(
+                            image: thumb.image,
+                            time: thumb.time,
+                            index: thumbIndex + 1,
+                            total: thumbs.count,
+                            previousKeyframeTime: previousTime
+                        )
+                        .position(
+                            x: clamp(rect.midX, min: 140, max: proxy.size.width - 140),
+                            y: rect.minY - 100
+                        )
+                        .allowsHitTesting(false)
+                        .zIndex(999)
                     }
                 }
             }
@@ -44,7 +53,13 @@ struct KeyframeThumbnailStrip: View {
                             [t.id: anchor]
                         }
                         .onHover { isHovering in
-                            hoveredID = isHovering ? t.id : (hoveredID == t.id ? nil : hoveredID)
+                            if isHovering {
+                                hoveredID = t.id
+                                hoveredKeyframeTime = t.time
+                            } else if hoveredID == t.id {
+                                hoveredID = nil
+                                hoveredKeyframeTime = nil
+                            }
                         }
                 }
             }
@@ -91,9 +106,12 @@ private struct ThumbCell: View {
 private struct HoverPreview: View {
     let image: NSImage
     let time: Double
+    let index: Int
+    let total: Int
+    let previousKeyframeTime: Double?
     
     // You can tweak these
-    private let maxContentWidth: CGFloat = 240   // width of the image area
+    private let maxContentWidth: CGFloat = 260   // width of the image area
     private let maxContentHeight: CGFloat = 160  // cap so super-tall images don't explode
     
     private var aspect: CGFloat {
@@ -109,28 +127,82 @@ private struct HoverPreview: View {
         return CGSize(width: w, height: h)
     }
     
+    private var gopInterval: Double? {
+        guard let prev = previousKeyframeTime else { return nil }
+        return time - prev
+    }
+    
+    private var formattedTimecode: String {
+        let totalSeconds = Int(time)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        let millis = Int((time - Double(totalSeconds)) * 1000)
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d.%03d", hours, minutes, seconds, millis)
+        } else {
+            return String(format: "%02d:%02d.%03d", minutes, seconds, millis)
+        }
+    }
+    
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         let imgSize = contentSize
         
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            // Thumbnail image
             Image(nsImage: image)
                 .resizable()
                 .scaledToFit()
                 .frame(width: imgSize.width, height: imgSize.height)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             
-            HStack(spacing: 6) {
-                Image(systemName: "clock")
-                    .foregroundStyle(.secondary)
-                Text("\(time, specifier: "%.2f") s")
-                    .monospacedDigit()
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                Spacer(minLength: 0)
+            // Info grid
+            VStack(alignment: .leading, spacing: 6) {
+                // Keyframe index
+                HStack(spacing: 6) {
+                    Image(systemName: "square.stack.3d.up")
+                        .foregroundStyle(.orange)
+                    Text("Keyframe \(index) of \(total)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    Spacer(minLength: 0)
+                }
+                
+                Divider()
+                
+                // Timestamp row
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .foregroundStyle(.secondary)
+                    Text(formattedTimecode)
+                        .monospacedDigit()
+                        .font(.caption)
+                    Text("(\(time, specifier: "%.3f")s)")
+                        .monospacedDigit()
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                }
+                
+                // GOP interval (if available)
+                if let gop = gopInterval {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.left.and.right")
+                            .foregroundStyle(.secondary)
+                        Text("GOP: \(gop, specifier: "%.3f")s")
+                            .monospacedDigit()
+                            .font(.caption)
+                        Text("(\(gop > 0 ? String(format: "%.1f", 1.0 / gop) : "–") KF/s)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                    }
+                }
             }
         }
-        .padding(10)
+        .padding(12)
         .fixedSize()
         .background(.regularMaterial, in: shape)
         .overlay(shape.strokeBorder(.separator.opacity(0.25), lineWidth: 1))

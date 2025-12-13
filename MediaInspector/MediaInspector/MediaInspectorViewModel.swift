@@ -22,6 +22,7 @@ final class MediaInspectorViewModel: ObservableObject {
     @Published var keyframes: [KeyframeMarker] = []
     @Published var durationSeconds: Double = 0
     @Published var keyframeThumbs: [KeyframeThumbnail] = []
+    @Published var hoveredKeyframeTime: Double? = nil  // Shared hover state for syncing thumbnails, timeline, and chart
 
     // Sampling UI
     @Published var showSamplingDialog: Bool = false
@@ -114,8 +115,7 @@ final class MediaInspectorViewModel: ObservableObject {
             self.keyframeThumbs = await GenerateKeyframeThumbnails(
                 asset: asset,
                 keyframeTimes: times,
-                maxThumbnails: 90,
-                thumbHeight: 38
+                maxThumbnails: 90
             )
         }
 
@@ -166,6 +166,7 @@ final class MediaInspectorViewModel: ObservableObject {
         minInterval = nil
         maxInterval = nil
         hoveredSample = nil
+        hoveredKeyframeTime = nil
         keyframeThumbs = []
     }
 
