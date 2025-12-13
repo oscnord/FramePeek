@@ -11,7 +11,7 @@ import UniformTypeIdentifiers
 struct MediaInspector: View {
     @StateObject private var viewModel = MediaInspectorViewModel()
 
-    @AppStorage("showInspector") private var showInspector: Bool = true
+    @AppStorage("showInspector") private var showInspector: Bool = false
     @AppStorage("inspectorWidth") private var inspectorWidth: Double = 380
 
     private let inspectorMin: Double = 280
@@ -85,6 +85,14 @@ struct MediaInspector: View {
             }
         }
         .animation(.snappy(duration: 0.25), value: showInspector)
+        .onChange(of: viewModel.extendedInfo?.fileName) {
+            // Auto-show inspector when a video is loaded
+            if viewModel.extendedInfo != nil && !showInspector {
+                withAnimation(.snappy(duration: 0.25)) {
+                    showInspector = true
+                }
+            }
+        }
         .sheet(isPresented: $viewModel.showSamplingDialog) {
             SamplingSheet(viewModel: viewModel)
                 .frame(minWidth: 420, minHeight: 300)
