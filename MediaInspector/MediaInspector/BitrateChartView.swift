@@ -14,7 +14,14 @@ struct BitrateChartView: View {
     // MARK: - Display Settings
     
     /// Maximum points to render in chart for performance (LTTB downsampling)
-    private let maxDisplayPoints = 500
+    /// Increased when zoomed for better accuracy
+    private var maxDisplayPoints: Int {
+        // When zoomed, show more points for better accuracy
+        if viewModel.visibleTimeRange != nil {
+            return 2000  // More points when zoomed
+        }
+        return 1000  // Increased from 500 for better accuracy
+    }
 
     // MARK: - Statistics
     
@@ -30,8 +37,18 @@ struct BitrateChartView: View {
     
     private var avgBitrateKbps: Double {
         guard !viewModel.samples.isEmpty else { return 0 }
-        let sum = viewModel.samples.reduce(0.0) { $0 + $1.bitrate }
-        return (sum / Double(viewModel.samples.count)) / 1000.0
+        
+        // Use weighted average if durations are available
+        let totalDuration = viewModel.samples.reduce(0.0) { $0 + $1.duration }
+        if totalDuration > 0 {
+            // Weighted average: sum(bitrate * duration) / sum(duration)
+            let weightedSum = viewModel.samples.reduce(0.0) { $0 + ($1.bitrate * $1.duration) }
+            return (weightedSum / totalDuration) / 1000.0
+        } else {
+            // Fallback to simple average if no durations
+            let sum = viewModel.samples.reduce(0.0) { $0 + $1.bitrate }
+            return (sum / Double(viewModel.samples.count)) / 1000.0
+        }
     }
     
     private var stdDevKbps: Double {
@@ -50,11 +67,20 @@ struct BitrateChartView: View {
     
     /// Downsampled samples for efficient chart rendering using LTTB algorithm
     private var displaySamples: [BitrateSample] {
-        downsampleLTTB(viewModel.samples, targetCount: maxDisplayPoints)
+        let filteredSamples: [BitrateSample]
+        if let range = viewModel.visibleTimeRange {
+            filteredSamples = viewModel.samples.filter { range.contains($0.time) }
+        } else {
+            filteredSamples = viewModel.samples
+        }
+        return downsampleLTTB(filteredSamples, targetCount: maxDisplayPoints)
     }
 
     private var yTickStep: Double { niceStep(forMax: maxBitrateKbps, targetTicks: 7) }
-    private var xTickStep: Double { niceStep(forMax: maxTime, targetTicks: 6) }
+    private var xTickStep: Double { 
+        let duration = (viewModel.visibleTimeRange?.upperBound ?? maxTime) - (viewModel.visibleTimeRange?.lowerBound ?? 0)
+        return niceStep(forMax: duration, targetTicks: 6) 
+    }
 
     private func niceStep(forMax max: Double, targetTicks: Int) -> Double {
         guard max > 0, targetTicks > 0 else { return 1 }
@@ -111,24 +137,26 @@ struct BitrateChartView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Bitrate over time")
-                    .font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Bitrate over time")
+                        .font(.headline)
 
-                Text(viewModel.isAnalyzing ? "Streaming samples…" : "Drag to inspect a point")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+                    Text(viewModel.isAnalyzing ? "Streaming samples…" : "Drag to inspect a point")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
 
-            Spacer()
+                Spacer()
 
-            HStack(spacing: 14) {
-                StatPill(title: "Points", value: "\(viewModel.samples.count)")
-                StatPill(title: "Avg", value: headerAvgText)
-                StatPill(title: "Peak", value: headerPeakText)
-                StatPill(title: "σ", value: headerStdDevText)
-                StatPill(title: "Span", value: headerDurationText)
+                HStack(spacing: 14) {
+                    StatPill(title: "Points", value: "\(viewModel.samples.count)")
+                    StatPill(title: "Avg", value: headerAvgText)
+                    StatPill(title: "Peak", value: headerPeakText)
+                    StatPill(title: "σ", value: headerStdDevText)
+                    StatPill(title: "Span", value: headerDurationText)
+                }
             }
         }
         .padding(.horizontal, 4)
@@ -181,7 +209,8 @@ struct BitrateChartView: View {
             VStack(spacing: 10) {
                 ChartHeaderRow(
                     hoveredSample: viewModel.hoveredSample,
-                    maxBitrateKbps: maxBitrateKbps
+                    maxBitrateKbps: maxBitrateKbps,
+                    visibleTimeRange: $viewModel.visibleTimeRange
                 )
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
@@ -196,14 +225,17 @@ struct BitrateChartView: View {
                         KeyframeTimelineView(
                             keyframes: viewModel.keyframes,
                             duration: maxTime == 0 ? viewModel.durationSeconds : maxTime,
-                            hoveredKeyframeTime: viewModel.hoveredKeyframeTime
+                            hoveredKeyframeTime: viewModel.hoveredKeyframeTime,
+                            visibleTimeRange: $viewModel.visibleTimeRange
                         )
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                         
                         if !viewModel.keyframeThumbs.isEmpty {
                             KeyframeThumbnailStrip(
                                 thumbs: viewModel.keyframeThumbs,
                                 totalKeyframes: viewModel.keyframes.count,
-                                hoveredKeyframeTime: $viewModel.hoveredKeyframeTime
+                                hoveredKeyframeTime: $viewModel.hoveredKeyframeTime,
+                                visibleTimeRange: viewModel.visibleTimeRange
                             )
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
@@ -242,14 +274,14 @@ struct BitrateChartView: View {
                         endPoint: .bottom
                     )
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.linear)
                 
                 LineMark(
                     x: .value("Time (s)", sample.time),
                     y: .value("Bitrate (kbps)", sample.bitrate / 1000.0)
                 )
                 .foregroundStyle(Color.accentColor.opacity(viewModel.isAnalyzing ? 0.7 : 1.0))
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.linear)
                 .lineStyle(StrokeStyle(lineWidth: 1.5))
             }
             
@@ -269,7 +301,7 @@ struct BitrateChartView: View {
             }
             
             // Keyframe markers on chart - downsampled for performance
-            ForEach(downsampleKeyframes(viewModel.keyframes, maxCount: 200)) { keyframe in
+            ForEach(downsampleKeyframes(viewModel.keyframes, maxCount: 200, visibleRange: viewModel.visibleTimeRange)) { keyframe in
                 RuleMark(x: .value("Keyframe", keyframe.time))
                     .foregroundStyle(.green.opacity(0.25))
                     .lineStyle(StrokeStyle(lineWidth: 1))
@@ -289,6 +321,7 @@ struct BitrateChartView: View {
             }
         }
         .chartYScale(domain: 0...(maxBitrateKbps * 1.1))
+        .chartXScale(domain: (viewModel.visibleTimeRange?.lowerBound ?? 0)...(viewModel.visibleTimeRange?.upperBound ?? maxTime))
         .chartXAxis {
             AxisMarks(position: .bottom, values: .stride(by: xTickStep)) { value in
                 AxisGridLine().foregroundStyle(.secondary.opacity(0.18))
@@ -366,13 +399,19 @@ struct BitrateChartView: View {
             
             if let sample = tooltipSample {
                 // Calculate x position based on time ratio
-                let timeRatio = maxTime > 0 ? sample.time / maxTime : 0
-                let chartWidth = geometry.size.width
-                let xPos = timeRatio * chartWidth
-                let clampedX = min(max(xPos, 80), chartWidth - 80)
+                let startTime = viewModel.visibleTimeRange?.lowerBound ?? 0
+                let endTime = viewModel.visibleTimeRange?.upperBound ?? maxTime
+                let duration = endTime - startTime
                 
-                Tooltip(sample: sample, maxBitrateKbps: maxBitrateKbps)
-                    .position(x: clampedX, y: 50)
+                if duration > 0 && sample.time >= startTime && sample.time <= endTime {
+                    let timeRatio = (sample.time - startTime) / duration
+                    let chartWidth = geometry.size.width
+                    let xPos = timeRatio * chartWidth
+                    let clampedX = min(max(xPos, 80), chartWidth - 80)
+                    
+                    Tooltip(sample: sample, maxBitrateKbps: maxBitrateKbps)
+                        .position(x: clampedX, y: 50)
+                }
             }
         }
     }
@@ -435,12 +474,31 @@ private struct StatPill: View {
 private struct ChartHeaderRow: View {
     let hoveredSample: BitrateSample?
     let maxBitrateKbps: Double
+    @Binding var visibleTimeRange: ClosedRange<Double>?
 
     var body: some View {
         HStack {
-            Text("Chart")
-                .font(.subheadline)
-                .fontWeight(.semibold)
+            HStack(spacing: 8) {
+                Text("Chart")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                
+                if visibleTimeRange != nil {
+                    Button {
+                        withAnimation {
+                            visibleTimeRange = nil
+                        }
+                    } label: {
+                        Label("Reset Zoom", systemImage: "arrow.down.right.and.arrow.up.left")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.mini)
+                    .tint(.orange)
+                }
+            }
 
             Spacer()
 
@@ -598,16 +656,23 @@ private func downsampleLTTB(_ samples: [BitrateSample], targetCount: Int) -> [Bi
 }
 
 /// Downsample keyframes evenly across the video duration for chart display
-private func downsampleKeyframes(_ keyframes: [KeyframeMarker], maxCount: Int) -> [KeyframeMarker] {
-    guard keyframes.count > maxCount else { return keyframes }
+private func downsampleKeyframes(_ keyframes: [KeyframeMarker], maxCount: Int, visibleRange: ClosedRange<Double>?) -> [KeyframeMarker] {
+    let filteredKeyframes: [KeyframeMarker]
+    if let range = visibleRange {
+        filteredKeyframes = keyframes.filter { range.contains($0.time) }
+    } else {
+        filteredKeyframes = keyframes
+    }
     
-    let step = Double(keyframes.count) / Double(maxCount)
+    guard filteredKeyframes.count > maxCount else { return filteredKeyframes }
+    
+    let step = Double(filteredKeyframes.count) / Double(maxCount)
     var result: [KeyframeMarker] = []
     result.reserveCapacity(maxCount)
     
     for i in 0..<maxCount {
-        let index = min(Int(Double(i) * step), keyframes.count - 1)
-        result.append(keyframes[index])
+        let index = min(Int(Double(i) * step), filteredKeyframes.count - 1)
+        result.append(filteredKeyframes[index])
     }
     
     return result

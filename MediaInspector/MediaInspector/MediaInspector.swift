@@ -9,6 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct MediaInspector: View {
+    @EnvironmentObject var appViewModel: MediaInspectorViewModel
     @StateObject private var viewModel = MediaInspectorViewModel()
 
     @AppStorage("showInspector") private var showInspector: Bool = false
@@ -97,6 +98,9 @@ struct MediaInspector: View {
             SamplingSheet(viewModel: viewModel)
                 .frame(minWidth: 420, minHeight: 300)
         }
+        .sheet(isPresented: $appViewModel.showAboutView) {
+            AboutView()
+        }
     }
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
@@ -177,79 +181,101 @@ private struct SamplingSheet: View {
     @ObservedObject var viewModel: MediaInspectorViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Sampling strategy")
-                .font(.title3)
-                .fontWeight(.semibold)
-
-            Text("For long videos, sampling every frame can create millions of points. Choose how densely to sample the timeline.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-
-            Picker("Mode", selection: $viewModel.samplingMode) {
-                Text("Auto (cap points)").tag(MediaInspectorViewModel.SamplingMode.auto)
-                Text("Fixed interval").tag(MediaInspectorViewModel.SamplingMode.interval)
-                Text("Every frame (heavy)").tag(MediaInspectorViewModel.SamplingMode.everyFrame)
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Analysis Settings")
+                    .font(.title2)
+                    .fontWeight(.semibold)
             }
-            .pickerStyle(.radioGroup)
 
-            GroupBox {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Sampling Mode")
+                        .font(.headline)
+                    
+                    Picker("", selection: $viewModel.samplingMode) {
+                        Text("Automatic").tag(MediaInspectorViewModel.SamplingMode.auto)
+                        Text("Fixed Interval").tag(MediaInspectorViewModel.SamplingMode.interval)
+                    }
+                    .pickerStyle(.radioGroup)
+                }
+
+                Divider()
+
                 VStack(alignment: .leading, spacing: 12) {
                     switch viewModel.samplingMode {
                     case .auto:
                         HStack {
-                            Text("Target points")
+                            Text("Target Samples")
+                                .frame(width: 140, alignment: .leading)
                             Spacer()
                             Stepper(value: $viewModel.maxPointsTarget, in: 500...50_000, step: 500) {
                                 Text("\(viewModel.maxPointsTarget)")
                                     .monospacedDigit()
+                                    .frame(minWidth: 80, alignment: .trailing)
                             }
                         }
-
-                        Text("Auto picks an interval based on duration to keep roughly this many points.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
 
                     case .interval:
                         HStack {
-                            Text("Interval (seconds)")
+                            Text("Interval")
+                                .frame(width: 140, alignment: .leading)
                             Spacer()
                             Stepper(value: $viewModel.samplingIntervalSeconds, in: 0.05...10.0, step: 0.05) {
-                                Text("\(viewModel.samplingIntervalSeconds, specifier: "%.2f")")
+                                Text("\(viewModel.samplingIntervalSeconds, specifier: "%.2f") s")
                                     .monospacedDigit()
+                                    .frame(minWidth: 80, alignment: .trailing)
                             }
                         }
 
                         HStack {
-                            Text("Max points")
+                            Text("Max Samples")
+                                .frame(width: 140, alignment: .leading)
                             Spacer()
                             Stepper(value: $viewModel.maxPointsTarget, in: 500...50_000, step: 500) {
                                 Text("\(viewModel.maxPointsTarget)")
                                     .monospacedDigit()
+                                    .frame(minWidth: 80, alignment: .trailing)
                             }
                         }
 
-                        Text("Example: 1.00 s ≈ 1 point per second of video.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-
                     case .everyFrame:
                         HStack {
-                            Text("Max points cap")
+                            Text("Maximum Samples")
+                                .frame(width: 140, alignment: .leading)
                             Spacer()
                             Stepper(value: $viewModel.maxPointsTarget, in: 1_000...200_000, step: 1_000) {
                                 Text("\(viewModel.maxPointsTarget)")
                                     .monospacedDigit()
+                                    .frame(minWidth: 80, alignment: .trailing)
                             }
                         }
+                    }
+                }
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.regularMaterial)
+            }
 
-                        Text("Still capped for safety, but can be slow and memory-heavy.")
-                            .font(.footnote)
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle(isOn: $viewModel.preferAccuracy) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("High Accuracy")
+                            .font(.headline)
+                        Text("More accurate bitrate measurements (may be slower)")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 2)
+            }
+            .padding()
+            .background {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.regularMaterial)
             }
 
             Spacer()
@@ -258,20 +284,23 @@ private struct SamplingSheet: View {
                 Button("Cancel") {
                     viewModel.cancelSamplingDialog()
                 }
+                .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
-                Button("Start") {
+                Button("Analyze") {
                     viewModel.confirmSamplingAndLoad()
                 }
                 .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
             }
         }
-        .padding(16)
+        .padding(20)
         .frame(minWidth: 420, minHeight: 300)
     }
 }
 
 #Preview {
     MediaInspector()
+        .environmentObject(MediaInspectorViewModel())
 }

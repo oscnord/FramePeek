@@ -90,17 +90,72 @@ struct FrameAnalysisResult {
     let maxInterval: Double?
 }
 
+enum BitrateVisualizationMode: String, CaseIterable, Identifiable {
+    case second = "Second"    // 1-second rolling window (default)
+    case frame = "Frame"      // Per-frame bitrate
+    case gop = "GOP"          // Per-GOP (Group of Pictures) bitrate
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .second: return "Second"
+        case .frame: return "Frame"
+        case .gop: return "GOP"
+        }
+    }
+}
+
 struct FrameSamplingOptions {
     let minEmitIntervalSeconds: Double?
     let maxSamples: Int
     let emitEveryNSamples: Int
+    let preferAccuracy: Bool  // If true, uses reader path (accurate) instead of cursor path (fast)
+    let visualizationMode: BitrateVisualizationMode  // How to aggregate bitrate samples
 
-    static func everyFrame(maxSamples: Int = 2000, emitEveryNSamples: Int = 100) -> Self {
-        .init(minEmitIntervalSeconds: nil, maxSamples: maxSamples, emitEveryNSamples: emitEveryNSamples)
+    init(
+        minEmitIntervalSeconds: Double?,
+        maxSamples: Int,
+        emitEveryNSamples: Int,
+        preferAccuracy: Bool = false,
+        visualizationMode: BitrateVisualizationMode = .second
+    ) {
+        self.minEmitIntervalSeconds = minEmitIntervalSeconds
+        self.maxSamples = maxSamples
+        self.emitEveryNSamples = emitEveryNSamples
+        self.preferAccuracy = preferAccuracy
+        self.visualizationMode = visualizationMode
     }
 
-    static func interval(_ seconds: Double, maxSamples: Int = 2000, emitEveryNSamples: Int = 100) -> Self {
-        .init(minEmitIntervalSeconds: max(0, seconds), maxSamples: maxSamples, emitEveryNSamples: emitEveryNSamples)
+    static func everyFrame(
+        maxSamples: Int = 2000,
+        emitEveryNSamples: Int = 100,
+        preferAccuracy: Bool = false,
+        visualizationMode: BitrateVisualizationMode = .second
+    ) -> Self {
+        .init(
+            minEmitIntervalSeconds: nil,
+            maxSamples: maxSamples,
+            emitEveryNSamples: emitEveryNSamples,
+            preferAccuracy: preferAccuracy,
+            visualizationMode: visualizationMode
+        )
+    }
+
+    static func interval(
+        _ seconds: Double,
+        maxSamples: Int = 2000,
+        emitEveryNSamples: Int = 100,
+        preferAccuracy: Bool = false,
+        visualizationMode: BitrateVisualizationMode = .second
+    ) -> Self {
+        .init(
+            minEmitIntervalSeconds: max(0, seconds),
+            maxSamples: maxSamples,
+            emitEveryNSamples: emitEveryNSamples,
+            preferAccuracy: preferAccuracy,
+            visualizationMode: visualizationMode
+        )
     }
 }
 

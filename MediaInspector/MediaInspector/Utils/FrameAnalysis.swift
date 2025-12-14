@@ -55,7 +55,9 @@ func startFrameExtractionProgressive(
     let options = FrameSamplingOptions(
         minEmitIntervalSeconds: nil,
         maxSamples: maxSamples,
-        emitEveryNSamples: emitEveryNSamples
+        emitEveryNSamples: emitEveryNSamples,
+        preferAccuracy: false,
+        visualizationMode: .second
     )
 
     return Task.detached(priority: .userInitiated) {
@@ -82,7 +84,9 @@ func extractFrames(
     let options = FrameSamplingOptions(
         minEmitIntervalSeconds: nil,
         maxSamples: maxSamples,
-        emitEveryNSamples: 200
+        emitEveryNSamples: 200,
+        preferAccuracy: false,
+        visualizationMode: .second
     )
 
     Task.detached(priority: .userInitiated) {

@@ -12,6 +12,12 @@ struct KeyframeTimelineView: View {
     let keyframes: [KeyframeMarker]
     let duration: Double
     var hoveredKeyframeTime: Double? = nil
+    @Binding var visibleTimeRange: ClosedRange<Double>?
+
+    @State private var isDraggingRange = false
+    @State private var dragStartRange: ClosedRange<Double>?
+    @State private var dragStartLocation: CGFloat?
+    @State private var selectionDragStart: CGFloat? // Separate state for selection drag
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -24,6 +30,12 @@ struct KeyframeTimelineView: View {
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
+                
+                if visibleTimeRange == nil {
+                    Text("(Drag to zoom)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary.opacity(0.7))
+                }
                 
                 Spacer()
                 
@@ -84,7 +96,63 @@ struct KeyframeTimelineView: View {
                             ctx.stroke(highlightedPath, with: .color(.orange), lineWidth: 3)
                         }
                     }
+                    
+                    // Zoom Window Overlay
+                    if let range = visibleTimeRange {
+                        let startX = CGFloat(range.lowerBound / duration) * (geo.size.width - 20) + 10
+                        let endX = CGFloat(range.upperBound / duration) * (geo.size.width - 20) + 10
+                        let width = max(endX - startX, 10) // Minimum width handle
+                        
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.2))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                        .stroke(Color.accentColor, lineWidth: 1)
+                                )
+                            
+                            // Drag handles
+                            HStack {
+                                Rectangle()
+                                    .fill(Color.accentColor.opacity(0.5))
+                                    .frame(width: 4)
+                                Spacer()
+                                Rectangle()
+                                    .fill(Color.accentColor.opacity(0.5))
+                                    .frame(width: 4)
+                            }
+                        }
+                        .frame(width: width, height: geo.size.height)
+                        .position(x: startX + width / 2, y: geo.size.height / 2)
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    handleDrag(value: value, geometry: geo)
+                                }
+                                .onEnded { _ in
+                                    isDraggingRange = false
+                                    dragStartRange = nil
+                                    dragStartLocation = nil
+                                }
+                        )
+                        // Double tap to reset zoom
+                        .onTapGesture(count: 2) {
+                            visibleTimeRange = nil
+                        }
+                    }
                 }
+                .gesture(
+                    // Click to set zoom window or drag to create new one
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            if visibleTimeRange == nil || !isDraggingRange {
+                                handleNewSelectionDrag(value: value, geometry: geo)
+                            }
+                        }
+                        .onEnded { _ in
+                            selectionDragStart = nil
+                        }
+                )
             }
             .frame(height: 20)
         }
@@ -96,5 +164,60 @@ struct KeyframeTimelineView: View {
                 .strokeBorder(.separator.opacity(0.25), lineWidth: 1)
         )
         .accessibilityLabel("Keyframe timeline with \(keyframes.count) keyframes")
+    }
+    
+    private func handleDrag(value: DragGesture.Value, geometry: GeometryProxy) {
+        guard duration > 0 else { return }
+        
+        if !isDraggingRange {
+            isDraggingRange = true
+            dragStartRange = visibleTimeRange
+            dragStartLocation = value.startLocation.x
+        }
+        
+        guard let startRange = dragStartRange, let startLoc = dragStartLocation else { return }
+        
+        let totalWidth = geometry.size.width - 20
+        let deltaX = value.location.x - startLoc
+        let timeDelta = (Double(deltaX) / Double(totalWidth)) * duration
+        
+        let newStart = max(0, min(duration, startRange.lowerBound + timeDelta))
+        let newEnd = max(0, min(duration, startRange.upperBound + timeDelta))
+        
+        // Clamp to duration while maintaining window size if possible
+        let windowSize = startRange.upperBound - startRange.lowerBound
+        
+        if newStart == 0 {
+            visibleTimeRange = 0...windowSize
+        } else if newEnd == duration {
+            visibleTimeRange = (duration - windowSize)...duration
+        } else {
+            visibleTimeRange = newStart...newEnd
+        }
+    }
+    
+    private func handleNewSelectionDrag(value: DragGesture.Value, geometry: GeometryProxy) {
+        guard duration > 0 else { return }
+        
+        if selectionDragStart == nil {
+            selectionDragStart = value.startLocation.x
+        }
+        
+        guard let startLoc = selectionDragStart else { return }
+        
+        let totalWidth = geometry.size.width - 20
+        let x = value.location.x - 10
+        let time = max(0, min(duration, (Double(x) / Double(totalWidth)) * duration))
+        
+        // Dragging to create new selection
+        let startX = startLoc - 10
+        let startTime = max(0, min(duration, (Double(startX) / Double(totalWidth)) * duration))
+        
+        let minTime = min(startTime, time)
+        let maxTime = max(startTime, time)
+        
+        if maxTime - minTime > duration * 0.01 { // Minimum zoom size
+            visibleTimeRange = minTime...maxTime
+        }
     }
 }

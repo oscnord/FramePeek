@@ -208,16 +208,6 @@ struct InfoInspectorView: View {
                 Text("\(info.resolution) • \(info.codec)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-
-                if viewModel.isAnalyzing {
-                    Divider().frame(height: 12)
-                    HStack(spacing: 4) {
-                        ProgressView().controlSize(.mini)
-                        Text("Analyzing…")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
         }
     }

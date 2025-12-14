@@ -21,8 +21,15 @@ struct KeyframeThumbnailStrip: View {
     let thumbs: [KeyframeThumbnail]
     let totalKeyframes: Int  // Total keyframes in the video (may be more than thumbs.count)
     @Binding var hoveredKeyframeTime: Double?
+    var visibleTimeRange: ClosedRange<Double>? = nil
     @State private var hoveredThumb: KeyframeThumbnail? = nil
     @State private var hoveredIndex: Int? = nil
+    
+    // Filtered thumbs based on visible time range
+    private var filteredThumbs: [KeyframeThumbnail] {
+        guard let range = visibleTimeRange else { return thumbs }
+        return thumbs.filter { range.contains($0.time) }
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -42,7 +49,7 @@ struct KeyframeThumbnailStrip: View {
                 Group {
                     if let thumb = hoveredThumb, let index = hoveredIndex {
                         HStack(spacing: 8) {
-                            Text("\(index + 1)/\(thumbs.count)")
+                            Text("\(index + 1)/\(filteredThumbs.count)")
                                 .fontWeight(.medium)
                             Text(formatTime(thumb.time))
                                 .monospacedDigit()
@@ -56,7 +63,11 @@ struct KeyframeThumbnailStrip: View {
                         .background(.orange.opacity(0.15))
                         .clipShape(RoundedRectangle(cornerRadius: 5))
                     } else {
-                        if totalKeyframes > thumbs.count {
+                        if visibleTimeRange != nil {
+                            Text("\(filteredThumbs.count) of \(thumbs.count) keyframes (zoomed)")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        } else if totalKeyframes > thumbs.count {
                             Text("\(thumbs.count) of \(totalKeyframes) keyframes")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
@@ -91,14 +102,14 @@ struct KeyframeThumbnailStrip: View {
     }
     
     private func gopInterval(for index: Int) -> Double? {
-        guard index > 0 else { return nil }
-        return thumbs[index].time - thumbs[index - 1].time
+        guard index > 0, index < filteredThumbs.count else { return nil }
+        return filteredThumbs[index].time - filteredThumbs[index - 1].time
     }
     
     private var strip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 6) {
-                ForEach(Array(thumbs.enumerated()), id: \.element.id) { index, t in
+                ForEach(Array(filteredThumbs.enumerated()), id: \.element.id) { index, t in
                     ThumbCell(
                         image: t.image,
                         isHovered: hoveredIndex == index
@@ -144,7 +155,7 @@ struct KeyframeThumbnailStrip: View {
         .overlayPreferenceValue(ThumbAnchorKey.self) { anchors in
             GeometryReader { geo in
                 if let index = hoveredIndex,
-                   index < thumbs.count,
+                   index < filteredThumbs.count,
                    let anchor = anchors[index] {
                     let rect = geo[anchor]
                     let centerX = rect.midX
@@ -156,7 +167,7 @@ struct KeyframeThumbnailStrip: View {
                     let maxX = geo.size.width - enlargedWidth / 2 - 4
                     let clampedX = min(max(centerX, minX), maxX)
                     
-                    EnlargedThumbView(image: thumbs[index].image)
+                    EnlargedThumbView(image: filteredThumbs[index].image)
                         .position(x: clampedX, y: centerY)
                 }
             }
