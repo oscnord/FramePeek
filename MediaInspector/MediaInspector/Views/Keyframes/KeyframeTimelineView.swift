@@ -5,7 +5,6 @@
 //  Created by Oscar Nord on 2025-12-09.
 //
 
-
 import SwiftUI
 
 struct KeyframeTimelineView: View {
@@ -15,10 +14,10 @@ struct KeyframeTimelineView: View {
     @Binding var visibleTimeRange: ClosedRange<Double>?
     var maxKeyframes: Int? = nil  // Optional limit to match chart resolution
 
-    @State private var isDraggingRange = false
-    @State private var dragStartRange: ClosedRange<Double>?
-    @State private var dragStartLocation: CGFloat?
-    @State private var selectionDragStart: CGFloat? // Separate state for selection drag
+    @State var isDraggingRange = false
+    @State var dragStartRange: ClosedRange<Double>?
+    @State var dragStartLocation: CGFloat?
+    @State var selectionDragStart: CGFloat? // Separate state for selection drag
     
     /// Downsampled keyframes to match chart resolution
     /// Evenly distributes keyframes across the video duration
@@ -288,60 +287,5 @@ struct KeyframeTimelineView: View {
                 .strokeBorder(.separator.opacity(0.25), lineWidth: 1)
         )
         .accessibilityLabel("Keyframe timeline with \(displayKeyframes.count) of \(keyframes.count) keyframes")
-    }
-    
-    private func handleDrag(value: DragGesture.Value, geometry: GeometryProxy) {
-        guard duration > 0 else { return }
-        
-        if !isDraggingRange {
-            isDraggingRange = true
-            dragStartRange = visibleTimeRange
-            dragStartLocation = value.startLocation.x
-        }
-        
-        guard let startRange = dragStartRange, let startLoc = dragStartLocation else { return }
-        
-        let totalWidth = geometry.size.width - 20
-        let deltaX = value.location.x - startLoc
-        let timeDelta = (Double(deltaX) / Double(totalWidth)) * duration
-        
-        let newStart = max(0, min(duration, startRange.lowerBound + timeDelta))
-        let newEnd = max(0, min(duration, startRange.upperBound + timeDelta))
-        
-        // Clamp to duration while maintaining window size if possible
-        let windowSize = startRange.upperBound - startRange.lowerBound
-        
-        if newStart == 0 {
-            visibleTimeRange = 0...windowSize
-        } else if newEnd == duration {
-            visibleTimeRange = (duration - windowSize)...duration
-        } else {
-            visibleTimeRange = newStart...newEnd
-        }
-    }
-    
-    private func handleNewSelectionDrag(value: DragGesture.Value, geometry: GeometryProxy) {
-        guard duration > 0 else { return }
-        
-        if selectionDragStart == nil {
-            selectionDragStart = value.startLocation.x
-        }
-        
-        guard let startLoc = selectionDragStart else { return }
-        
-        let totalWidth = geometry.size.width - 20
-        let x = value.location.x - 10
-        let time = max(0, min(duration, (Double(x) / Double(totalWidth)) * duration))
-        
-        // Dragging to create new selection
-        let startX = startLoc - 10
-        let startTime = max(0, min(duration, (Double(startX) / Double(totalWidth)) * duration))
-        
-        let minTime = min(startTime, time)
-        let maxTime = max(startTime, time)
-        
-        if maxTime - minTime > duration * 0.01 { // Minimum zoom size
-            visibleTimeRange = minTime...maxTime
-        }
     }
 }
