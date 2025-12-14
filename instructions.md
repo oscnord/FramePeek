@@ -30,27 +30,40 @@ MediaInspector is a macOS SwiftUI application that inspects local media files an
 
 ```text
 MediaInspector/
-├── MediaInspectorApp.swift      # App entry point (@main)
-├── MediaInspector.swift         # Main window/view
-├── MediaInspectorViewModel.swift # @MainActor ViewModel, coordinates all loading
-├── fileUtils.swift              # NSOpenPanel file dialog helper
-├── BitrateSample.swift          # Identifiable sample for charts
-├── BitrateChartView.swift       # SwiftUI chart for bitrate visualization
-├── InfoInspectorView.swift      # Metadata display panel
-├── KeyframeTimelineView.swift   # Keyframe markers timeline
-├── KeyframeThumbnailStrip.swift # Keyframe thumbnail strip
-└── Utils/
-    ├── MediaModels.swift        # Data models (ExtendedVideoInfo, AudioTrackInfo, etc.)
-    ├── VideoInfoLoader.swift    # Main metadata extraction orchestrator
-    ├── AudioInfoLoader.swift    # Audio track loading
-    ├── FormatUtils.swift        # FourCC, duration, codec name utilities
-    ├── ColorUtils.swift         # HDR detection, color metadata helpers
-    ├── AspectRatioUtils.swift   # Aspect ratio calculations
-    ├── VideoUtils.swift         # File size and bitrate utilities
-    ├── AV1Parser.swift          # AV1 codec configuration parsing
-    ├── FrameAnalysis.swift      # Bitrate/FPS analysis utilities
-    ├── ExtractFramesStream.swift # AsyncStream-based frame extraction
-    ├── KeyframeMarker.swift     # Keyframe detection and thumbnails
+├── MediaInspectorApp.swift          # App entry point (@main)
+├── MediaInspector.swift             # Main window/view
+├── MediaInspectorViewModel.swift    # @MainActor ViewModel, coordinates all loading
+├── AboutView.swift                  # About dialog view
+├── fileUtils.swift                  # NSOpenPanel file dialog helper
+├── BitrateSample.swift              # Identifiable sample for charts
+├── BitrateChartView.swift           # SwiftUI chart for bitrate visualization
+├── KeyframeTimelineView.swift       # Keyframe markers timeline
+├── KeyframeThumbnailStrip.swift     # Keyframe thumbnail strip
+├── InfoInspectorView/               # Inspector panel components
+│   ├── InfoInspectorView.swift      # Main inspector view
+│   ├── QuickSummaryCard.swift       # Summary card component
+│   ├── CollapsibleSection.swift     # Collapsible metadata sections
+│   ├── KeyValueComponents.swift     # Key-value display components
+│   ├── ExtendedVideoInfo+Metadata.swift # Metadata display extensions
+│   ├── AudioTrackInfo+Display.swift # Audio track display extensions
+│   ├── CopiedBanner.swift           # Copy-to-clipboard feedback
+│   ├── EmptyInspectorState.swift    # Empty state view
+│   ├── SectionDivider.swift         # Section divider component
+│   └── ViewHelpers.swift            # View helper utilities
+└── Utils/                           # Core utilities
+    ├── MediaModels.swift            # Data models (ExtendedVideoInfo, AudioTrackInfo, etc.)
+    ├── VideoInfoLoader.swift        # Main metadata extraction orchestrator
+    ├── AudioInfoLoader.swift        # Audio track loading
+    ├── FormatUtils.swift            # FourCC, duration, codec name utilities
+    ├── ColorUtils.swift             # HDR detection, color metadata helpers
+    ├── AspectRatioUtils.swift       # Aspect ratio calculations
+    ├── VideoUtils.swift             # File size and bitrate utilities
+    ├── AV1Parser.swift              # AV1 codec configuration parsing
+    ├── FrameAnalysis.swift          # Bitrate/FPS analysis utilities
+    ├── ExtractFramesStream.swift    # AsyncStream-based frame extraction
+    ├── FrameAggregation.swift       # Frame data aggregation utilities
+    ├── FastBitrateExtractor.swift   # Optimized bitrate extraction
+    ├── KeyframeMarker.swift         # Keyframe detection
     └── GenerateKeyframeThumbnails.swift # Thumbnail generation
 ```
 
@@ -59,14 +72,26 @@ MediaInspector/
 ### UI Layer
 
 - **MediaInspectorApp.swift** – App entry point with `@main`.
-- **MediaInspector.swift** – Main window layout and structure.
+- **MediaInspector.swift** – Main window layout and structure with drag-and-drop support.
 - **MediaInspectorViewModel.swift** – `@MainActor` ViewModel that:
-  - Manages file selection via `openFileDialog()`.
+  - Manages file selection via `openFileDialog()` and `pickFile()`.
   - Coordinates async loading of metadata, frames, and keyframes.
   - Exposes published properties: `samples`, `extendedInfo`, `keyframes`, `keyframeThumbs`, etc.
   - Supports configurable sampling modes (auto, everyFrame, interval).
-- **InfoInspectorView.swift** – Displays all metadata in collapsible cards.
-- **BitrateChartView.swift** – Interactive bitrate chart over time.
+  - Handles analysis cancellation and progress tracking.
+- **AboutView.swift** – About dialog with app information and features.
+- **InfoInspectorView/** – Inspector panel components:
+  - **InfoInspectorView.swift** – Main inspector view orchestrating all metadata display.
+  - **QuickSummaryCard.swift** – Summary card with key metrics.
+  - **CollapsibleSection.swift** – Reusable collapsible section component.
+  - **KeyValueComponents.swift** – Key-value pair display components.
+  - **ExtendedVideoInfo+Display.swift** – Display extensions for video metadata.
+  - **AudioTrackInfo+Display.swift** – Display extensions for audio track info.
+  - **CopiedBanner.swift** – Copy-to-clipboard feedback banner.
+  - **EmptyInspectorState.swift** – Empty state when no file is loaded.
+  - **SectionDivider.swift** – Visual section divider component.
+  - **ViewHelpers.swift** – Helper utilities for views.
+- **BitrateChartView.swift** – Interactive bitrate chart over time using Swift Charts.
 - **KeyframeTimelineView.swift** – Timeline visualization of keyframe positions.
 - **KeyframeThumbnailStrip.swift** – Horizontal strip of keyframe thumbnails.
 
@@ -113,11 +138,17 @@ MediaInspector/
 - **ExtractFramesStream.swift** – AsyncStream-based frame extraction:
   - `extractFramesStream(asset:options:)` → yields `FrameAnalysisUpdate` progressively
 
+- **FrameAggregation.swift** – Frame data aggregation utilities:
+  - Aggregates frame samples and computes statistics.
+
+- **FastBitrateExtractor.swift** – Optimized bitrate extraction:
+  - High-performance bitrate extraction with configurable accuracy.
+
 - **KeyframeMarker.swift** – Keyframe detection:
   - `extractKeyframes(asset:maxKeyframes:minSpacingSeconds:)` → `[KeyframeMarker]`
   - Uses `kCMSampleAttachmentKey_NotSync` to identify sync samples (I-frames).
 
-- **GenerateKeyframeThumbnails.swift**:
+- **GenerateKeyframeThumbnails.swift** – Thumbnail generation:
   - `GenerateKeyframeThumbnails(asset:keyframeTimes:maxThumbnails:thumbHeight:)` → `[KeyframeThumbnail]`
 
 ### Models (MediaModels.swift)
@@ -130,8 +161,9 @@ MediaInspector/
 
 ### Other Files
 
-- **BitrateSample.swift** – `Identifiable` struct with `time` and `bitrate`.
-- **fileUtils.swift** – `openFileDialog(completion:)` using NSOpenPanel.
+- **BitrateSample.swift** – `Identifiable` struct with `time` and `bitrate` for chart data.
+- **fileUtils.swift** – `openFileDialog(completion:)` using NSOpenPanel for file selection.
+- **AboutView.swift** – About dialog displaying app version, features, and author information.
 
 ## Data model (ExtendedVideoInfo)
 
@@ -270,10 +302,12 @@ let keyframes = await extractKeyframes(asset: asset, maxKeyframes: 20_000)
 
 ## Platform notes
 
-- Built for **macOS** using SwiftUI and AppKit (`NSOpenPanel`, `NSImage`).
+- Built for **macOS 15.2+** (Sequoia) using SwiftUI and AppKit (`NSOpenPanel`, `NSImage`).
 - Uses `AVURLAsset`, `AVAssetReader`, `AVAssetImageGenerator` from AVFoundation.
+- Uses Swift Charts framework (macOS 15.0+) for interactive bitrate visualization.
 - Sandboxed apps must have read access to selected file URLs (see `MediaInspector.entitlements`).
 - Supported file types: `.mp4`, `.mov`, `.avi`, `.mpeg`, and other movie types via `UTType`.
+- Minimum deployment target: macOS 15.2 (configured in Xcode project settings).
 
 ## Extending the inspector
 
