@@ -19,7 +19,7 @@ struct CollapsibleSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             Button {
-                withAnimation(.snappy(duration: 0.2)) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     isExpanded.toggle()
                 }
             } label: {
@@ -71,7 +71,16 @@ struct CollapsibleSection<Content: View>: View {
                         .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 1)
                 )
                 .padding(.top, 4)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity
+                            .combined(with: .move(edge: .top))
+                            .combined(with: .scale(scale: 0.95, anchor: .top)),
+                        removal: .opacity
+                            .combined(with: .move(edge: .top))
+                            .combined(with: .scale(scale: 0.98, anchor: .top))
+                    )
+                )
             }
         }
         .padding(.vertical, 4)

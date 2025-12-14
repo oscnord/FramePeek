@@ -165,10 +165,19 @@ struct InfoInspectorView: View {
                     if let banner = copiedBannerText {
                         CopiedBanner(text: banner)
                             .padding(.top, 10)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .transition(
+                                .asymmetric(
+                                    insertion: .move(edge: .top)
+                                        .combined(with: .opacity)
+                                        .combined(with: .scale(scale: 0.9, anchor: .top)),
+                                    removal: .move(edge: .top)
+                                        .combined(with: .opacity)
+                                        .combined(with: .scale(scale: 0.95, anchor: .top))
+                                )
+                            )
                     }
                 }
-                .animation(.snappy(duration: 0.2), value: copiedBannerText)
+                .animation(.spring(response: 0.3, dampingFraction: 0.75), value: copiedBannerText)
                 .onAppear {
                     autoExpandIfNewFile(info.fileName)
                 }
@@ -177,8 +186,10 @@ struct InfoInspectorView: View {
                 }
             } else {
                 EmptyInspectorState()
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.extendedInfo != nil)
         .background(Color(nsColor: .windowBackgroundColor))
     }
     
@@ -189,7 +200,7 @@ struct InfoInspectorView: View {
         lastLoadedFileName = fileName
         
         // Expand key sections when a new video loads
-        withAnimation(.snappy(duration: 0.3)) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             fileExpanded = true
             videoExpanded = true
             analysisExpanded = true
@@ -223,7 +234,7 @@ struct InfoInspectorView: View {
             .controlSize(.small)
             
             Button {
-                withAnimation(.snappy(duration: 0.2)) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     let allExpanded = fileExpanded && videoExpanded && colorExpanded && audioExpanded && analysisExpanded
                     if allExpanded {
                         collapseAll()

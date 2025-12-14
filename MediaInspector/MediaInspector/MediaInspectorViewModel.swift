@@ -24,6 +24,9 @@ final class MediaInspectorViewModel: ObservableObject {
     @Published var keyframeThumbs: [KeyframeThumbnail] = []
     @Published var hoveredKeyframeTime: Double? = nil  // Shared hover state for syncing thumbnails, timeline, and chart
     @Published var visibleTimeRange: ClosedRange<Double>? = nil // Zoom state
+    @Published var isExtractingKeyframes: Bool = false
+    @Published var isGeneratingThumbnails: Bool = false
+    @Published var keyframeExtractionProgress: String? = nil  // Optional progress message
 
     // Sampling UI
     @Published var showSamplingDialog: Bool = false
@@ -121,6 +124,9 @@ final class MediaInspectorViewModel: ObservableObject {
         isAnalyzing = true
         keyframes = []
         keyframeThumbs = []
+        isExtractingKeyframes = false
+        isGeneratingThumbnails = false
+        keyframeExtractionProgress = nil
 
         // Extended info (async)
         infoTask = Task { [weak self] in
@@ -128,33 +134,92 @@ final class MediaInspectorViewModel: ObservableObject {
             self.extendedInfo = await getExtendedInfo(url: url, asset: assetForInfo)
         }
         
-        // Combined keyframe + thumbnail task (extract keyframes once, then generate thumbnails)
-        thumbnailTask = Task.detached(priority: .userInitiated) { [weak self] in
+        // Separate keyframe extraction task - runs in parallel with thumbnail generation
+        keyframeTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
 
-            let duration = (try? await assetForKeyframes.load(.duration).seconds) ?? 0
-            let keyframes = await extractKeyframes(asset: assetForKeyframes, minSpacingSeconds: 0.05)
+            await MainActor.run {
+                self.isExtractingKeyframes = true
+                self.keyframeExtractionProgress = "Loading video track..."
+            }
 
-            if Task.isCancelled { return }
+            let duration = (try? await assetForKeyframes.load(.duration).seconds) ?? 0
             
             await MainActor.run {
                 self.durationSeconds = duration
-                self.keyframes = keyframes
+                self.keyframeExtractionProgress = "Extracting keyframes..."
             }
-
-            // Generate thumbnails from the keyframes we just extracted
-            let times = keyframes.map(\.time)
-            let thumbs = await GenerateKeyframeThumbnails(
-                asset: assetForKeyframes,
-                keyframeTimes: times,
-                maxThumbnails: 90
-            )
             
-            if Task.isCancelled { return }
+            // Stream keyframes progressively as they're found
+            // Extract ALL keyframes for the timeline (no limit)
+            // Don't accumulate in memory - just update UI progressively
+            var pendingBatches: [KeyframeMarker] = []
+            pendingBatches.reserveCapacity(100) // Batch UI updates
+            
+            for await keyframeBatch in extractKeyframesStream(
+                asset: assetForKeyframes,
+                maxKeyframes: 50_000,  // High limit, but extract all keyframes
+                minSpacingSeconds: 0.0,  // No minimum spacing - get all keyframes
+                onProgress: { [weak self] progress in
+                    Task { @MainActor in
+                        self?.keyframeExtractionProgress = progress
+                    }
+                }
+            ) {
+                if Task.isCancelled { break }
+                
+                pendingBatches.append(contentsOf: keyframeBatch)
+                
+                // Batch UI updates to reduce MainActor blocking
+                // Update every 100 keyframes or when we have a large batch
+                if pendingBatches.count >= 100 {
+                    let toAppend = pendingBatches
+                    pendingBatches.removeAll(keepingCapacity: true)
+                    await MainActor.run {
+                        self.keyframes.append(contentsOf: toAppend)
+                    }
+                }
+            }
+            
+            // Append any remaining keyframes
+            if !pendingBatches.isEmpty {
+                await MainActor.run {
+                    self.keyframes.append(contentsOf: pendingBatches)
+                }
+            }
+            
+            // Finalize keyframe extraction state
+            await MainActor.run {
+                self.isExtractingKeyframes = false
+                self.keyframeExtractionProgress = nil
+            }
+        }
+        
+        // Start thumbnail generation in parallel - don't wait for keyframes
+        // Use evenly distributed times based on duration
+        thumbnailTask = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            
+            let duration = (try? await assetForKeyframes.load(.duration).seconds) ?? 0
+            
+            guard duration > 0 else {
+                await MainActor.run {
+                    self.isGeneratingThumbnails = false
+                }
+                return
+            }
             
             await MainActor.run {
-                self.keyframeThumbs = thumbs
+                self.isGeneratingThumbnails = true
             }
+            
+            // Start thumbnail generation immediately with evenly distributed times
+            // This will snap to nearest frames (not necessarily keyframes)
+            await self.startThumbnailGenerationFromDuration(
+                asset: assetForKeyframes,
+                duration: duration,
+                maxThumbnails: 200
+            )
         }
 
         // Frames (async + progressive updates) - use fast bitrate extraction
@@ -201,6 +266,178 @@ final class MediaInspectorViewModel: ObservableObject {
         framesTask = nil
         isAnalyzing = false
     }
+    
+    /// Cancels keyframe extraction but preserves already-loaded keyframes
+    /// Thumbnail generation continues for already-loaded keyframes
+    func cancelKeyframeExtraction() {
+        // Cancel both keyframe extraction and thumbnail generation
+        keyframeTask?.cancel()
+        thumbnailTask?.cancel()
+        isExtractingKeyframes = false
+        isGeneratingThumbnails = false
+        keyframeExtractionProgress = nil
+        
+        // Note: keyframes and keyframeThumbs arrays are preserved
+    }
+    
+    /// Cancels only thumbnail generation
+    func cancelThumbnailGeneration() {
+        thumbnailTask?.cancel()
+        isGeneratingThumbnails = false
+    }
+    
+    /// Starts thumbnail generation from duration - generates evenly distributed times
+    /// This runs in parallel with keyframe extraction
+    private func startThumbnailGenerationFromDuration(
+        asset: AVAsset,
+        duration: Double,
+        maxThumbnails: Int
+    ) async {
+        // Generate evenly distributed target times across the video
+        var targetTimes: [Double] = []
+        targetTimes.reserveCapacity(maxThumbnails)
+        let interval = duration / Double(maxThumbnails - 1)
+        for i in 0..<maxThumbnails {
+            targetTimes.append(Double(i) * interval)
+        }
+        
+        // Guard against empty selection
+        guard !targetTimes.isEmpty else {
+            await MainActor.run {
+                self.isGeneratingThumbnails = false
+            }
+            return
+        }
+        
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            
+            for await thumbnailBatch in GenerateKeyframeThumbnailsStream(
+                asset: asset,
+                keyframeTimes: targetTimes,  // Use target times directly - generator will find nearest frame
+                maxThumbnails: targetTimes.count,
+                batchSize: 10
+            ) {
+                if Task.isCancelled { break }
+                
+                await MainActor.run {
+                    self.keyframeThumbs.append(contentsOf: thumbnailBatch)
+                    self.keyframeThumbs.sort { $0.time < $1.time }
+                }
+            }
+            
+            await MainActor.run {
+                self.isGeneratingThumbnails = false
+            }
+        }
+        
+        await MainActor.run {
+            self.thumbnailTask = task
+        }
+    }
+    
+    /// Starts thumbnail generation evenly distributed across video duration
+    /// Uses actual keyframe times (for when we have all keyframes)
+    private func startThumbnailGenerationEvenly(
+        asset: AVAsset,
+        duration: Double,
+        allKeyframeTimes: [Double],
+        maxThumbnails: Int
+    ) async {
+        // Guard against empty keyframes
+        guard !allKeyframeTimes.isEmpty else {
+            await MainActor.run {
+                self.isGeneratingThumbnails = false
+            }
+            return
+        }
+        
+        // Select keyframe times evenly distributed across the video
+        let selectedTimes: [Double]
+        
+        if allKeyframeTimes.count <= maxThumbnails {
+            // Use all keyframes if we have fewer than max
+            selectedTimes = allKeyframeTimes.sorted()
+        } else {
+            // Distribute evenly across the video duration, snapping to nearest keyframes
+            var selected: [Double] = []
+            selected.reserveCapacity(maxThumbnails)
+            
+            let sortedKeyframes = allKeyframeTimes.sorted()
+            let interval = duration / Double(maxThumbnails - 1)
+            
+            for i in 0..<maxThumbnails {
+                let targetTime = Double(i) * interval
+                
+                // Find nearest keyframe to this target time using binary search for efficiency
+                var bestTime: Double?
+                var bestDistance = Double.greatestFiniteMagnitude
+                
+                for keyframeTime in sortedKeyframes {
+                    let distance = abs(keyframeTime - targetTime)
+                    if distance < bestDistance {
+                        bestDistance = distance
+                        bestTime = keyframeTime
+                    } else {
+                        // Since sorted, we can break early
+                        break
+                    }
+                }
+                
+                if let nearest = bestTime {
+                    // Avoid duplicates
+                    if selected.isEmpty || abs(selected.last! - nearest) > 0.001 {
+                        selected.append(nearest)
+                    }
+                }
+            }
+            
+            // Ensure first and last keyframes are included
+            if let first = sortedKeyframes.first, !selected.contains(where: { abs($0 - first) < 0.001 }) {
+                selected.insert(first, at: 0)
+            }
+            if let last = sortedKeyframes.last, !selected.contains(where: { abs($0 - last) < 0.001 }) {
+                selected.append(last)
+            }
+            
+            selectedTimes = selected.sorted()
+        }
+        
+        // Guard against empty selection
+        guard !selectedTimes.isEmpty else {
+            await MainActor.run {
+                self.isGeneratingThumbnails = false
+            }
+            return
+        }
+        
+        let task = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return }
+            
+            for await thumbnailBatch in GenerateKeyframeThumbnailsStream(
+                asset: asset,
+                keyframeTimes: selectedTimes,
+                maxThumbnails: selectedTimes.count,
+                batchSize: 10
+            ) {
+                if Task.isCancelled { break }
+                
+                await MainActor.run {
+                    self.keyframeThumbs.append(contentsOf: thumbnailBatch)
+                    self.keyframeThumbs.sort { $0.time < $1.time }
+                }
+            }
+            
+            await MainActor.run {
+                self.isGeneratingThumbnails = false
+            }
+        }
+        
+        await MainActor.run {
+            self.thumbnailTask = task
+        }
+    }
+    
 
     func reset() {
         cancelAnalysis()
@@ -214,6 +451,9 @@ final class MediaInspectorViewModel: ObservableObject {
         hoveredKeyframeTime = nil
         keyframeThumbs = []
         visibleTimeRange = nil
+        isExtractingKeyframes = false
+        isGeneratingThumbnails = false
+        keyframeExtractionProgress = nil
     }
     
     /// Re-aggregates samples from stored raw frames based on current visualization mode
@@ -274,4 +514,5 @@ final class MediaInspectorViewModel: ObservableObject {
             )
         }
     }
+        
 }

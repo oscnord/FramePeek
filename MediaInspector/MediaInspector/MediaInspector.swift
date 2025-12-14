@@ -45,7 +45,7 @@ struct MediaInspector: View {
                         Divider()
 
                         Button {
-                            withAnimation(.snappy(duration: 0.25)) {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                                 showInspector.toggle()
                             }
                         } label: {
@@ -61,11 +61,12 @@ struct MediaInspector: View {
                 Rectangle()
                     .fill(.separator.opacity(0.6))
                     .frame(width: 1)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
 
                 InspectorColumn(
                     width: CGFloat(inspectorWidth),
                     onClose: {
-                        withAnimation(.snappy(duration: 0.25)) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                             showInspector = false
                         }
                     }
@@ -73,7 +74,16 @@ struct MediaInspector: View {
                     InfoInspectorView(viewModel: viewModel)
                 }
                 .frame(width: CGFloat(inspectorWidth))
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .transition(
+                    .asymmetric(
+                        insertion: .move(edge: .trailing)
+                            .combined(with: .opacity)
+                            .combined(with: .scale(scale: 0.96, anchor: .trailing)),
+                        removal: .move(edge: .trailing)
+                            .combined(with: .opacity)
+                            .combined(with: .scale(scale: 0.98, anchor: .trailing))
+                    )
+                )
                 .overlay(alignment: .leading) {
                     // Optional: resize handle (feels like pro apps)
                     ResizeHandle(
@@ -85,11 +95,11 @@ struct MediaInspector: View {
                 }
             }
         }
-        .animation(.snappy(duration: 0.25), value: showInspector)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showInspector)
         .onChange(of: viewModel.extendedInfo?.fileName) {
             // Auto-show inspector when a video is loaded
             if viewModel.extendedInfo != nil && !showInspector {
-                withAnimation(.snappy(duration: 0.25)) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                     showInspector = true
                 }
             }

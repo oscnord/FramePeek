@@ -220,17 +220,39 @@ struct BitrateChartView: View {
                     .padding(.bottom, 8)
                 
                 // Keyframe section with animated reveal
-                if !viewModel.keyframes.isEmpty {
+                if !viewModel.keyframes.isEmpty || viewModel.isExtractingKeyframes || viewModel.isGeneratingThumbnails {
                     VStack(spacing: 8) {
-                        KeyframeTimelineView(
-                            keyframes: viewModel.keyframes,
-                            duration: maxTime == 0 ? viewModel.durationSeconds : maxTime,
-                            hoveredKeyframeTime: viewModel.hoveredKeyframeTime,
-                            visibleTimeRange: $viewModel.visibleTimeRange
-                        )
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        // Show loading state or actual timeline
+                        if viewModel.isExtractingKeyframes {
+                            KeyframeLoadingView(
+                                message: viewModel.keyframeExtractionProgress ?? "Extracting keyframes...",
+                                isExtracting: true,
+                                onCancel: {
+                                    viewModel.cancelKeyframeExtraction()
+                                }
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        } else if !viewModel.keyframes.isEmpty {
+                            KeyframeTimelineView(
+                                keyframes: viewModel.keyframes,
+                                duration: maxTime == 0 ? viewModel.durationSeconds : maxTime,
+                                hoveredKeyframeTime: viewModel.hoveredKeyframeTime,
+                                visibleTimeRange: $viewModel.visibleTimeRange
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                         
-                        if !viewModel.keyframeThumbs.isEmpty {
+                        // Show thumbnail loading or actual thumbnails
+                        if viewModel.isGeneratingThumbnails {
+                            KeyframeLoadingView(
+                                message: "Generating thumbnails...",
+                                isExtracting: false,
+                                onCancel: {
+                                    viewModel.cancelThumbnailGeneration()
+                                }
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        } else if !viewModel.keyframeThumbs.isEmpty {
                             KeyframeThumbnailStrip(
                                 thumbs: viewModel.keyframeThumbs,
                                 totalKeyframes: viewModel.keyframes.count,
@@ -247,6 +269,8 @@ struct BitrateChartView: View {
             }
             .animation(.spring(response: 0.5, dampingFraction: 0.85), value: viewModel.keyframes.isEmpty)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.keyframeThumbs.isEmpty)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isExtractingKeyframes)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isGeneratingThumbnails)
 
             if viewModel.isAnalyzing {
                 loadingBadge
@@ -440,6 +464,87 @@ struct BitrateChartView: View {
                 .strokeBorder(.separator.opacity(0.35), lineWidth: 1)
         )
         .shadow(radius: 4)
+    }
+}
+
+// MARK: - Keyframe Loading View
+
+private struct KeyframeLoadingView: View {
+    let message: String
+    let isExtracting: Bool
+    var onCancel: (() -> Void)? = nil
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: isExtracting ? "film" : "photo.on.rectangle.angled")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                Text(isExtracting ? "Keyframe Distribution" : "Keyframe Thumbnails")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 4)
+            
+            HStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(0.9)
+                
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                Spacer()
+                
+                if let onCancel = onCancel {
+                    Button(action: onCancel) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.caption)
+                            Text("Cancel")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Stop extraction and keep loaded keyframes")
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+            .padding(.horizontal, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.black.opacity(0.06),
+                                Color.black.opacity(0.02)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(.separator.opacity(0.15), lineWidth: 1)
+            )
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(.separator.opacity(0.25), lineWidth: 1)
+        )
     }
 }
 
