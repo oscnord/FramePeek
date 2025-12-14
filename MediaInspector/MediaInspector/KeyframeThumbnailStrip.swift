@@ -38,7 +38,7 @@ struct KeyframeThumbnailStrip: View {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.caption2)
                     .foregroundStyle(.orange)
-                Text("Keyframe Thumbnails")
+                Text("Thumbnails")
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
