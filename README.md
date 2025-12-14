@@ -24,8 +24,9 @@ MediaInspector is a native macOS application built with SwiftUI that leverages A
 ### Bitrate Analysis
 - **Interactive Charts**: Per-frame bitrate visualization with Swift Charts
 - **Flexible Sampling**: Automatic, fixed interval, or per-frame sampling modes
+- **Visualization Modes**: Aggregate bitrate by second, frame, or GOP (Group of Pictures)
 - **Progressive Updates**: Real-time bitrate analysis with streaming updates
-- **Performance Optimized**: Efficient frame extraction with configurable accuracy settings
+- **Performance Optimized**: Efficient frame extraction with configurable accuracy settings and LTTB downsampling
 
 ### Keyframe Detection
 - **Visual Timeline**: Timeline visualization of keyframe positions
@@ -84,6 +85,7 @@ Before analyzing a file, you can configure sampling options:
 - **Automatic Mode**: Automatically determines optimal sampling based on video duration
 - **Fixed Interval**: Sample at regular time intervals (configurable)
 - **High Accuracy**: Enable for more precise bitrate measurements (may be slower)
+- **Visualization Mode**: Choose how to aggregate bitrate data (per second, per frame, or per GOP)
 
 ### Interface
 
@@ -107,36 +109,63 @@ Before analyzing a file, you can configure sampling options:
 MediaInspector/
 ├── MediaInspectorApp.swift          # App entry point
 ├── MediaInspector.swift              # Main window and UI
-├── MediaInspectorViewModel.swift     # ViewModel and state management
-├── AboutView.swift                   # About dialog
-├── BitrateChartView.swift            # Bitrate visualization
-├── BitrateSample.swift               # Bitrate data model
-├── KeyframeTimelineView.swift        # Keyframe timeline
-├── KeyframeThumbnailStrip.swift      # Keyframe thumbnails
 ├── fileUtils.swift                   # File dialog utilities
-└── InfoInspectorView/                # Inspector panel components
-    ├── InfoInspectorView.swift
-    ├── QuickSummaryCard.swift
-    ├── CollapsibleSection.swift
-    ├── KeyValueComponents.swift
-    ├── ExtendedVideoInfo+Metadata.swift
-    ├── AudioTrackInfo+Display.swift
-    └── ...
-└── Utils/                            # Core utilities
-    ├── VideoInfoLoader.swift         # Video metadata extraction
-    ├── AudioInfoLoader.swift         # Audio track loading
-    ├── FormatUtils.swift             # Format and codec utilities
-    ├── ColorUtils.swift              # HDR and color detection
-    ├── AspectRatioUtils.swift        # Aspect ratio calculations
-    ├── VideoUtils.swift              # File size and bitrate utilities
-    ├── AV1Parser.swift               # AV1 codec parsing
-    ├── FrameAnalysis.swift           # Frame rate analysis
-    ├── ExtractFramesStream.swift     # AsyncStream frame extraction
-    ├── FrameAggregation.swift        # Frame data aggregation
-    ├── FastBitrateExtractor.swift    # Optimized bitrate extraction
-    ├── KeyframeMarker.swift          # Keyframe detection
-    ├── GenerateKeyframeThumbnails.swift # Thumbnail generation
-    └── MediaModels.swift             # Data models
+│
+├── Models/                           # Data models
+│   ├── BitrateSample.swift           # Bitrate data model
+│   └── MediaModels.swift             # ExtendedVideoInfo, AudioTrackInfo, etc.
+│
+├── ViewModels/                       # ViewModels and extensions
+│   ├── MediaInspectorViewModel.swift      # ViewModel and state management
+│   ├── MediaInspectorViewModel+Keyframes.swift
+│   ├── MediaInspectorViewModel+Sampling.swift
+│   └── MediaInspectorViewModel+Thumbnails.swift
+│
+├── Views/                            # UI components
+│   ├── Chart/                        # Bitrate chart components
+│   │   ├── BitrateChartView.swift
+│   │   ├── BitrateChartComponents.swift
+│   │   ├── BitrateChartDownsampling.swift
+│   │   └── BitrateChartStatistics.swift
+│   ├── Common/                       # Shared components
+│   │   ├── AboutView.swift
+│   │   ├── InspectorColumn.swift
+│   │   ├── ResizeHandle.swift
+│   │   └── SamplingSheet.swift
+│   ├── Inspector/                    # Inspector panel
+│   │   ├── InfoInspectorView/
+│   │   │   ├── InfoInspectorView.swift
+│   │   │   ├── QuickSummaryCard.swift
+│   │   │   ├── CollapsibleSection.swift
+│   │   │   └── ...
+│   │   ├── InfoInspectorView+Copy.swift
+│   │   └── InfoInspectorView+Header.swift
+│   └── Keyframes/                    # Keyframe visualization
+│       ├── KeyframeTimelineView.swift
+│       ├── KeyframeTimelineDragHandling.swift
+│       └── KeyframeThumbnailStrip.swift
+│
+└── Utils/                             # Core utilities
+    ├── Analysis/                     # Frame and bitrate analysis
+    │   ├── ExtractFramesStream.swift
+    │   ├── FrameAggregation.swift
+    │   └── FrameAnalysis.swift
+    ├── Extraction/                    # Bitrate extraction
+    │   ├── FastBitrateExtractor.swift
+    │   ├── FastBitrateExtractor+Cursor.swift
+    │   └── FastBitrateExtractor+Reader.swift
+    ├── Formatting/                    # Formatting utilities
+    │   ├── AspectRatioUtils.swift
+    │   ├── ColorUtils.swift
+    │   ├── FormatUtils.swift
+    │   └── VideoUtils.swift
+    ├── Media/                         # Media loading
+    │   ├── AudioInfoLoader.swift
+    │   ├── GenerateKeyframeThumbnails.swift
+    │   └── VideoInfoLoader.swift
+    └── Parsing/                       # Codec parsing
+        ├── AV1Parser.swift
+        └── KeyframeMarker.swift
 ```
 
 ## Architecture

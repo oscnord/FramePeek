@@ -31,71 +31,130 @@ MediaInspector is a macOS SwiftUI application that inspects local media files an
 ```text
 MediaInspector/
 ├── MediaInspectorApp.swift          # App entry point (@main)
-├── MediaInspector.swift             # Main window/view
-├── MediaInspectorViewModel.swift    # @MainActor ViewModel, coordinates all loading
-├── AboutView.swift                  # About dialog view
+├── MediaInspector.swift             # Main window/view with drag-and-drop
 ├── fileUtils.swift                  # NSOpenPanel file dialog helper
-├── BitrateSample.swift              # Identifiable sample for charts
-├── BitrateChartView.swift           # SwiftUI chart for bitrate visualization
-├── KeyframeTimelineView.swift       # Keyframe markers timeline
-├── KeyframeThumbnailStrip.swift     # Keyframe thumbnail strip
-├── InfoInspectorView/               # Inspector panel components
-│   ├── InfoInspectorView.swift      # Main inspector view
-│   ├── QuickSummaryCard.swift       # Summary card component
-│   ├── CollapsibleSection.swift     # Collapsible metadata sections
-│   ├── KeyValueComponents.swift     # Key-value display components
-│   ├── ExtendedVideoInfo+Metadata.swift # Metadata display extensions
-│   ├── AudioTrackInfo+Display.swift # Audio track display extensions
-│   ├── CopiedBanner.swift           # Copy-to-clipboard feedback
-│   ├── EmptyInspectorState.swift    # Empty state view
-│   ├── SectionDivider.swift         # Section divider component
-│   └── ViewHelpers.swift            # View helper utilities
-└── Utils/                           # Core utilities
-    ├── MediaModels.swift            # Data models (ExtendedVideoInfo, AudioTrackInfo, etc.)
-    ├── VideoInfoLoader.swift        # Main metadata extraction orchestrator
-    ├── AudioInfoLoader.swift        # Audio track loading
-    ├── FormatUtils.swift            # FourCC, duration, codec name utilities
-    ├── ColorUtils.swift             # HDR detection, color metadata helpers
-    ├── AspectRatioUtils.swift       # Aspect ratio calculations
-    ├── VideoUtils.swift             # File size and bitrate utilities
-    ├── AV1Parser.swift              # AV1 codec configuration parsing
-    ├── FrameAnalysis.swift          # Bitrate/FPS analysis utilities
-    ├── ExtractFramesStream.swift    # AsyncStream-based frame extraction
-    ├── FrameAggregation.swift       # Frame data aggregation utilities
-    ├── FastBitrateExtractor.swift   # Optimized bitrate extraction
-    ├── KeyframeMarker.swift         # Keyframe detection
-    └── GenerateKeyframeThumbnails.swift # Thumbnail generation
+├── MediaInspector.entitlements      # App entitlements (sandbox, file access)
+│
+├── Models/                          # Data models
+│   ├── BitrateSample.swift          # Identifiable sample for charts
+│   └── MediaModels.swift            # ExtendedVideoInfo, AudioTrackInfo, etc.
+│
+├── ViewModels/                      # ViewModels and extensions
+│   ├── MediaInspectorViewModel.swift      # @MainActor ViewModel, coordinates all loading
+│   ├── MediaInspectorViewModel+Keyframes.swift    # Keyframe extraction logic
+│   ├── MediaInspectorViewModel+Sampling.swift     # Frame sampling logic
+│   └── MediaInspectorViewModel+Thumbnails.swift   # Thumbnail generation logic
+│
+├── Views/                           # UI components organized by feature
+│   ├── Chart/                       # Bitrate chart components
+│   │   ├── BitrateChartView.swift           # Main chart view
+│   │   ├── BitrateChartComponents.swift     # Chart sub-components
+│   │   ├── BitrateChartDownsampling.swift   # LTTB downsampling algorithm
+│   │   └── BitrateChartStatistics.swift     # Chart statistics display
+│   │
+│   ├── Common/                      # Shared UI components
+│   │   ├── AboutView.swift                 # About dialog
+│   │   ├── InspectorColumn.swift           # Inspector panel container
+│   │   ├── ResizeHandle.swift              # Resizable inspector handle
+│   │   └── SamplingSheet.swift             # Sampling configuration sheet
+│   │
+│   ├── Inspector/                   # Inspector panel
+│   │   ├── InfoInspectorView/              # Main inspector components
+│   │   │   ├── InfoInspectorView.swift     # Main inspector view
+│   │   │   ├── QuickSummaryCard.swift      # Summary card component
+│   │   │   ├── CollapsibleSection.swift    # Collapsible metadata sections
+│   │   │   ├── KeyValueComponents.swift    # Key-value display components
+│   │   │   ├── ExtendedVideoInfo+Metadata.swift # Metadata display extensions
+│   │   │   ├── AudioTrackInfo+Display.swift # Audio track display extensions
+│   │   │   ├── CopiedBanner.swift          # Copy-to-clipboard feedback
+│   │   │   ├── EmptyInspectorState.swift   # Empty state view
+│   │   │   ├── SectionDivider.swift        # Section divider component
+│   │   │   └── ViewHelpers.swift           # View helper utilities
+│   │   ├── InfoInspectorView+Copy.swift    # Copy functionality extensions
+│   │   └── InfoInspectorView+Header.swift  # Header component extensions
+│   │
+│   └── Keyframes/                   # Keyframe visualization
+│       ├── KeyframeTimelineView.swift      # Timeline visualization
+│       ├── KeyframeTimelineDragHandling.swift # Timeline drag interactions
+│       └── KeyframeThumbnailStrip.swift    # Thumbnail strip component
+│
+└── Utils/                           # Core utilities organized by category
+    ├── Analysis/                    # Frame and bitrate analysis
+    │   ├── ExtractFramesStream.swift       # AsyncStream-based frame extraction
+    │   ├── FrameAggregation.swift          # Frame data aggregation utilities
+    │   └── FrameAnalysis.swift             # Bitrate/FPS analysis utilities
+    │
+    ├── Extraction/                  # Bitrate extraction
+    │   ├── FastBitrateExtractor.swift      # Optimized bitrate extraction
+    │   ├── FastBitrateExtractor+Cursor.swift # Cursor-based extraction
+    │   └── FastBitrateExtractor+Reader.swift # Reader-based extraction
+    │
+    ├── Formatting/                  # Formatting and display utilities
+    │   ├── AspectRatioUtils.swift          # Aspect ratio calculations
+    │   ├── ColorUtils.swift                # HDR detection, color metadata helpers
+    │   ├── FormatUtils.swift               # FourCC, duration, codec name utilities
+    │   └── VideoUtils.swift                # File size and bitrate utilities
+    │
+    ├── Media/                       # Media loading and processing
+    │   ├── AudioInfoLoader.swift           # Audio track loading
+    │   ├── GenerateKeyframeThumbnails.swift # Thumbnail generation
+    │   └── VideoInfoLoader.swift           # Main metadata extraction orchestrator
+    │
+    └── Parsing/                     # Codec and format parsing
+        ├── AV1Parser.swift                 # AV1 codec configuration parsing
+        └── KeyframeMarker.swift            # Keyframe detection
 ```
 
 ## Key modules and responsibilities
 
 ### UI Layer
 
-- **MediaInspectorApp.swift** – App entry point with `@main`.
-- **MediaInspector.swift** – Main window layout and structure with drag-and-drop support.
-- **MediaInspectorViewModel.swift** – `@MainActor` ViewModel that:
+- **MediaInspectorApp.swift** – App entry point with `@main`. Creates `MediaInspectorViewModel` as `@StateObject` and provides it via `@EnvironmentObject`.
+- **MediaInspector.swift** – Main window layout and structure with drag-and-drop support. Manages inspector panel visibility and width via `@AppStorage`.
+- **ViewModels/MediaInspectorViewModel.swift** – `@MainActor` ViewModel that:
   - Manages file selection via `openFileDialog()` and `pickFile()`.
   - Coordinates async loading of metadata, frames, and keyframes.
   - Exposes published properties: `samples`, `extendedInfo`, `keyframes`, `keyframeThumbs`, etc.
   - Supports configurable sampling modes (auto, everyFrame, interval).
+  - Supports bitrate visualization modes (second, frame, GOP).
   - Handles analysis cancellation and progress tracking.
-- **AboutView.swift** – About dialog with app information and features.
-- **InfoInspectorView/** – Inspector panel components:
-  - **InfoInspectorView.swift** – Main inspector view orchestrating all metadata display.
-  - **QuickSummaryCard.swift** – Summary card with key metrics.
-  - **CollapsibleSection.swift** – Reusable collapsible section component.
-  - **KeyValueComponents.swift** – Key-value pair display components.
-  - **ExtendedVideoInfo+Display.swift** – Display extensions for video metadata.
-  - **AudioTrackInfo+Display.swift** – Display extensions for audio track info.
-  - **CopiedBanner.swift** – Copy-to-clipboard feedback banner.
-  - **EmptyInspectorState.swift** – Empty state when no file is loaded.
-  - **SectionDivider.swift** – Visual section divider component.
-  - **ViewHelpers.swift** – Helper utilities for views.
-- **BitrateChartView.swift** – Interactive bitrate chart over time using Swift Charts.
-- **KeyframeTimelineView.swift** – Timeline visualization of keyframe positions.
-- **KeyframeThumbnailStrip.swift** – Horizontal strip of keyframe thumbnails.
+  - Extensions: `+Keyframes.swift`, `+Sampling.swift`, `+Thumbnails.swift` organize related functionality.
+
+### Views Organization
+
+- **Views/Chart/** – Bitrate visualization:
+  - **BitrateChartView.swift** – Main interactive chart using Swift Charts.
+  - **BitrateChartComponents.swift** – Chart sub-components and styling.
+  - **BitrateChartDownsampling.swift** – LTTB (Largest-Triangle-Three-Buckets) downsampling algorithm for performance.
+  - **BitrateChartStatistics.swift** – Statistics overlay for chart.
+- **Views/Common/** – Shared components:
+  - **AboutView.swift** – About dialog with app information and features.
+  - **InspectorColumn.swift** – Container view for the inspector panel with header.
+  - **ResizeHandle.swift** – Drag handle for resizing inspector width.
+  - **SamplingSheet.swift** – Configuration sheet for sampling options.
+- **Views/Inspector/** – Inspector panel:
+  - **InfoInspectorView/InfoInspectorView.swift** – Main inspector view orchestrating all metadata display.
+  - **InfoInspectorView/QuickSummaryCard.swift** – Summary card with key metrics.
+  - **InfoInspectorView/CollapsibleSection.swift** – Reusable collapsible section component.
+  - **InfoInspectorView/KeyValueComponents.swift** – Key-value pair display components.
+  - **InfoInspectorView/ExtendedVideoInfo+Metadata.swift** – Metadata display extensions.
+  - **InfoInspectorView/AudioTrackInfo+Display.swift** – Display extensions for audio track info.
+  - **InfoInspectorView/CopiedBanner.swift** – Copy-to-clipboard feedback banner.
+  - **InfoInspectorView/EmptyInspectorState.swift** – Empty state when no file is loaded.
+  - **InfoInspectorView/SectionDivider.swift** – Visual section divider component.
+  - **InfoInspectorView/ViewHelpers.swift** – Helper utilities for views.
+  - **InfoInspectorView+Copy.swift** – Copy functionality extensions.
+  - **InfoInspectorView+Header.swift** – Header component extensions.
+- **Views/Keyframes/** – Keyframe visualization:
+  - **KeyframeTimelineView.swift** – Timeline visualization of keyframe positions.
+  - **KeyframeTimelineDragHandling.swift** – Drag interactions for timeline navigation.
+  - **KeyframeThumbnailStrip.swift** – Horizontal strip of keyframe thumbnails.
 
 ### Core Utilities (Utils/)
+
+Utilities are organized into subdirectories by category:
+
+#### Utils/Media/ – Media loading and processing
 
 - **VideoInfoLoader.swift**
   - Orchestrates metadata extraction from AVAsset via `getExtendedInfo(url:asset:)`.
@@ -105,6 +164,36 @@ MediaInspector/
 
 - **AudioInfoLoader.swift**
   - `loadAudioInfo(asset:)` → returns `[AudioTrackInfo]` with codec, channels, sample rate, bitrate, language.
+
+- **GenerateKeyframeThumbnails.swift** – Thumbnail generation:
+  - `GenerateKeyframeThumbnails(asset:keyframeTimes:maxThumbnails:thumbHeight:)` → `[KeyframeThumbnail]`
+
+#### Utils/Analysis/ – Frame and bitrate analysis
+
+- **ExtractFramesStream.swift** – AsyncStream-based frame extraction:
+  - `extractFramesStream(asset:options:)` → yields `FrameAnalysisUpdate` progressively
+  - Supports `BitrateVisualizationMode` (second, frame, GOP) for different aggregation strategies
+
+- **FrameAnalysis.swift** – Frame rate statistics and extraction:
+  - `frameRateStats(from:)` → average FPS, min/max intervals
+  - `startFrameExtractionProgressive(asset:...)` → progressive updates
+  - `extractFrames(asset:maxSamples:completion:)` → batch extraction
+
+- **FrameAggregation.swift** – Frame data aggregation utilities:
+  - Aggregates frame samples and computes statistics based on visualization mode.
+  - Converts raw frame data to `BitrateSample` arrays for charting.
+
+#### Utils/Extraction/ – Bitrate extraction
+
+- **FastBitrateExtractor.swift** – Optimized bitrate extraction:
+  - High-performance bitrate extraction with configurable accuracy.
+  - Supports both cursor-based and reader-based extraction paths.
+
+- **FastBitrateExtractor+Cursor.swift** – Cursor-based extraction implementation.
+
+- **FastBitrateExtractor+Reader.swift** – Reader-based extraction implementation (more accurate, slower).
+
+#### Utils/Formatting/ – Formatting and display utilities
 
 - **VideoUtils.swift** – File size and bitrate utilities:
   - `getFileSizeString(for: URL)` → formatted size (e.g., "123.45 MiB")
@@ -126,44 +215,35 @@ MediaInspector/
   - `resolutionCategory(width:height:)` → "4K UHD", "Full HD", etc.
   - `gcd(_:_:)` – helper for ratio simplification
 
+#### Utils/Parsing/ – Codec and format parsing
+
 - **AV1Parser.swift** – AV1 codec configuration:
   - `parseAV1C(_:)` → `AV1ConfigSummary` (profile, level, bitDepth, chroma, fullRange)
   - `av1LevelDescription(_:)`, `av1ProfileDescription(_:)`
-
-- **FrameAnalysis.swift** – Frame rate statistics and extraction:
-  - `frameRateStats(from:)` → average FPS, min/max intervals
-  - `startFrameExtractionProgressive(asset:...)` → progressive updates
-  - `extractFrames(asset:maxSamples:completion:)` → batch extraction
-
-- **ExtractFramesStream.swift** – AsyncStream-based frame extraction:
-  - `extractFramesStream(asset:options:)` → yields `FrameAnalysisUpdate` progressively
-
-- **FrameAggregation.swift** – Frame data aggregation utilities:
-  - Aggregates frame samples and computes statistics.
-
-- **FastBitrateExtractor.swift** – Optimized bitrate extraction:
-  - High-performance bitrate extraction with configurable accuracy.
 
 - **KeyframeMarker.swift** – Keyframe detection:
   - `extractKeyframes(asset:maxKeyframes:minSpacingSeconds:)` → `[KeyframeMarker]`
   - Uses `kCMSampleAttachmentKey_NotSync` to identify sync samples (I-frames).
 
-- **GenerateKeyframeThumbnails.swift** – Thumbnail generation:
-  - `GenerateKeyframeThumbnails(asset:keyframeTimes:maxThumbnails:thumbHeight:)` → `[KeyframeThumbnail]`
+### Models
 
-### Models (MediaModels.swift)
+- **Models/MediaModels.swift** – Core data models:
+  - **ExtendedVideoInfo** – All video metadata fields (see Data model section).
+  - **AudioTrackInfo** – Per-track audio info (index, codec, channels, sampleRate, bitrate, language).
+  - **FrameAnalysisResult** – Batch result with samples and FPS stats.
+  - **FrameSamplingOptions** – Configures sampling behavior (interval, maxSamples, emitEveryNSamples, visualizationMode).
+  - **BitrateVisualizationMode** – Enum for bitrate aggregation: `.second`, `.frame`, `.gop`.
+  - **AV1ConfigSummary** – Parsed AV1 configuration.
+  - **KeyframeMarker** – Keyframe position and metadata.
+  - **KeyframeThumbnail** – Thumbnail image with associated time.
+  - **RawFrame** – Raw frame data for aggregation.
 
-- **ExtendedVideoInfo** – All video metadata fields (see Data model section).
-- **AudioTrackInfo** – Per-track audio info (index, codec, channels, sampleRate, bitrate, language).
-- **FrameAnalysisResult** – Batch result with samples and FPS stats.
-- **FrameSamplingOptions** – Configures sampling behavior (interval, maxSamples, emitEveryNSamples).
-- **AV1ConfigSummary** – Parsed AV1 configuration.
+- **Models/BitrateSample.swift** – `Identifiable` struct with `time` and `bitrate` for chart data.
 
 ### Other Files
 
-- **BitrateSample.swift** – `Identifiable` struct with `time` and `bitrate` for chart data.
 - **fileUtils.swift** – `openFileDialog(completion:)` using NSOpenPanel for file selection.
-- **AboutView.swift** – About dialog displaying app version, features, and author information.
+- **MediaInspector.entitlements** – App entitlements for sandboxing and file access permissions.
 
 ## Data model (ExtendedVideoInfo)
 
@@ -266,6 +346,16 @@ The app supports three sampling modes (configured via `MediaInspectorViewModel`)
 - **everyFrame** – Sample every frame (up to `maxSamples`).
 - **interval** – Sample at fixed time intervals.
 
+### Bitrate Visualization Modes
+
+The app supports three visualization modes for aggregating bitrate data:
+
+- **second** – Aggregate bitrate per second (default).
+- **frame** – Show bitrate per individual frame.
+- **gop** – Aggregate by Group of Pictures (GOP) boundaries.
+
+Visualization mode is configured via `MediaInspectorViewModel.visualizationMode` and affects how `FrameAggregation` processes raw frame data into `BitrateSample` arrays.
+
 ### Progressive extraction via AsyncStream
 
 ```swift
@@ -276,12 +366,48 @@ for await update in extractFramesStream(asset: asset, options: options) {
 }
 ```
 
+The `options` parameter includes `FrameSamplingOptions` which specifies:
+- Sampling mode (auto/everyFrame/interval)
+- Visualization mode (second/frame/gop)
+- Accuracy preference (cursor vs reader-based extraction)
+- Maximum samples and batch sizes
+
 ### Keyframe extraction
 
 ```swift
 let keyframes = await extractKeyframes(asset: asset, maxKeyframes: 20_000)
 // Returns [KeyframeMarker] with time positions of sync samples
 ```
+
+Keyframe extraction runs independently of frame analysis and can be triggered separately. Thumbnails are generated asynchronously after keyframes are detected.
+
+## New Features and Improvements
+
+### Chart Performance Optimizations
+
+- **LTTB Downsampling** (`BitrateChartDownsampling.swift`) – Largest-Triangle-Three-Buckets algorithm preserves visual shape while reducing point count for large datasets.
+- Chart automatically downsamples when displaying more than a threshold number of points.
+- Separate chart components for better organization and maintainability.
+
+### Inspector Panel Enhancements
+
+- **Resizable Inspector** – Users can drag the left edge to adjust inspector width (stored via `@AppStorage`).
+- **InspectorColumn** – Dedicated container component with header for better organization.
+- **SamplingSheet** – Dedicated configuration sheet for sampling options.
+- Inspector visibility persists across app launches via `@AppStorage`.
+
+### Bitrate Visualization Modes
+
+- Support for different aggregation strategies: per-second, per-frame, or per-GOP.
+- Configurable via `MediaInspectorViewModel.visualizationMode`.
+- Affects how raw frame data is aggregated into chart samples.
+
+### ViewModel Organization
+
+- ViewModel logic split into extensions for better maintainability:
+  - `+Keyframes.swift` – Keyframe extraction and thumbnail generation.
+  - `+Sampling.swift` – Frame sampling and analysis coordination.
+  - `+Thumbnails.swift` – Thumbnail generation logic.
 
 ## Concurrency and performance
 
@@ -292,6 +418,7 @@ let keyframes = await extractKeyframes(asset: asset, maxKeyframes: 20_000)
 - `AVAssetReaderTrackOutput.alwaysCopiesSampleData = false` for performance.
 - Keyframe extraction avoids decoding by inspecting sample attachment flags.
 - Tasks are cancellable – the ViewModel cancels in-flight tasks when loading a new file.
+- Chart downsampling ensures smooth rendering even with thousands of data points.
 
 ## Error handling and defaults
 
@@ -314,13 +441,13 @@ let keyframes = await extractKeyframes(asset: asset, maxKeyframes: 20_000)
 ### New container/format detection
 
 - Update file extension handling or probe container via AVAsset metadata.
-- Container format is currently derived from file extension in `VideoInfoLoader`.
+- Container format is currently derived from file extension in `Utils/Media/VideoInfoLoader.swift`.
 
 ### New codec parsing
 
-- Add parser for the codec's configuration atom (e.g., in `VideoInfoLoader.swift`).
-- Add FourCC → friendly name mapping in `FormatUtils.swift` (`videoCodecMappings`).
-- See `AV1Parser.swift` for a reference implementation of atom parsing.
+- Add parser for the codec's configuration atom (e.g., in `Utils/Media/VideoInfoLoader.swift`).
+- Add FourCC → friendly name mapping in `Utils/Formatting/FormatUtils.swift` (`videoCodecMappings`).
+- See `Utils/Parsing/AV1Parser.swift` for a reference implementation of atom parsing.
 
 ### Better chroma/bit depth detection
 
@@ -329,25 +456,26 @@ let keyframes = await extractKeyframes(asset: asset, maxKeyframes: 20_000)
 
 ### HDR detection rules
 
-- Expand `detectHDRFormat(...)` in `ColorUtils.swift` for additional transfer functions/primaries.
+- Expand `detectHDRFormat(...)` in `Utils/Formatting/ColorUtils.swift` for additional transfer functions/primaries.
 - Currently supports: Dolby Vision, HDR10, HLG, PQ, Wide Color Gamut (BT.2020).
 
 ### Audio metadata enhancements
 
-- Enhance `loadAudioInfo(asset:)` in `AudioInfoLoader.swift` to parse audio codec config atoms.
+- Enhance `loadAudioInfo(asset:)` in `Utils/Media/AudioInfoLoader.swift` to parse audio codec config atoms.
 - Add Dolby Atmos detection, format profiles, etc.
 
 ### Additional frame analysis
 
-- Add scene change detection using frame difference metrics.
+- Add scene change detection using frame difference metrics in `Utils/Analysis/FrameAnalysis.swift`.
 - Compute GOP structure from keyframe intervals.
 - Track frame types (I/P/B) if decodable from sample attachments.
+- Add new visualization modes in `Models/MediaModels.swift` (`BitrateVisualizationMode`).
 
 ### Placeholder fields to populate
 
-- `containerFormatProfile` – could parse moov/mdat structure or ftyp atom.
+- `containerFormatProfile` – could parse moov/mdat structure or ftyp atom in `Utils/Media/VideoInfoLoader.swift`.
 - `maxBitrate` – requires parsing codec-specific config (e.g., VUI in AVC/HEVC).
-- `frameRateMode` – detect CFR vs VFR from frame interval variance in `FrameAnalysis`.
+- `frameRateMode` – detect CFR vs VFR from frame interval variance in `Utils/Analysis/FrameAnalysis.swift`.
 
 ## Code style and contribution rules
 
