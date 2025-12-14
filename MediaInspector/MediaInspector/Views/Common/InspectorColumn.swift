@@ -29,3 +29,4 @@ struct InspectorColumn<Content: View>: View {
         .background(.background)
     }
 }
+

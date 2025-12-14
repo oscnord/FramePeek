@@ -403,3 +403,4 @@ struct BitrateChartView: View {
 #Preview {
     BitrateChartView(viewModel: MediaInspectorViewModel())
 }
+

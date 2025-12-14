@@ -42,3 +42,4 @@ struct ResizeHandle: View {
             .help("Drag to resize")
     }
 }
+

@@ -161,3 +161,4 @@ final class MediaInspectorViewModel: ObservableObject {
         keyframeExtractionProgress = nil
     }
 }
+

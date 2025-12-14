@@ -260,7 +260,9 @@ struct KeyframeTimelineView: View {
                         )
                         // Double tap to reset zoom
                         .onTapGesture(count: 2) {
-                            visibleTimeRange = nil
+                            withAnimation {
+                                visibleTimeRange = nil
+                            }
                         }
                     }
                 }
@@ -289,3 +291,4 @@ struct KeyframeTimelineView: View {
         .accessibilityLabel("Keyframe timeline with \(displayKeyframes.count) of \(keyframes.count) keyframes")
     }
 }
+

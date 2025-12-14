@@ -85,3 +85,4 @@ struct BitrateChartStatistics {
         return nice * magnitude
     }
 }
+

@@ -79,3 +79,4 @@ func extractBitratesFast(
         continuation.onTermination = { _ in task.cancel() }
     }
 }
+

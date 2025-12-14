@@ -93,3 +93,4 @@ func downsampleKeyframes(_ keyframes: [KeyframeMarker], maxCount: Int, visibleRa
     
     return result
 }
+

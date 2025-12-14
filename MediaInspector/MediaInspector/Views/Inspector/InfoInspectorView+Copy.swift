@@ -110,3 +110,4 @@ extension InfoInspectorView {
         return lines.joined(separator: "\n")
     }
 }
+
