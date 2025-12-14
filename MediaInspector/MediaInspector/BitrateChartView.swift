@@ -237,7 +237,8 @@ struct BitrateChartView: View {
                                 keyframes: viewModel.keyframes,
                                 duration: maxTime == 0 ? viewModel.durationSeconds : maxTime,
                                 hoveredKeyframeTime: viewModel.hoveredKeyframeTime,
-                                visibleTimeRange: $viewModel.visibleTimeRange
+                                visibleTimeRange: $viewModel.visibleTimeRange,
+                                maxKeyframes: viewModel.maxPointsTarget  // Match chart resolution
                             )
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
