@@ -1,12 +1,12 @@
-# MediaInspector
+# FramePeek
 
 A professional macOS application for inspecting video and audio files with comprehensive metadata analysis, bitrate visualization, and keyframe detection.
 
-![MediaInspector Screenshot](screenshot.png)
+![FramePeek Screenshot](screenshot.png)
 
 ## Overview
 
-MediaInspector is a native macOS application built with SwiftUI that leverages AVFoundation and CoreMedia to provide detailed analysis of media files. It offers an intuitive interface for examining video and audio properties, visualizing bitrate patterns, and exploring keyframe structures.
+FramePeek is a native macOS application built with SwiftUI that leverages AVFoundation and CoreMedia to provide detailed analysis of media files. It offers an intuitive interface for examining video and audio properties, visualizing bitrate patterns, and exploring keyframe structures.
 
 ## Features
 
@@ -45,13 +45,13 @@ MediaInspector is a native macOS application built with SwiftUI that leverages A
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/MediaInspector.git
-   cd MediaInspector
+   git clone https://github.com/yourusername/FramePeek.git
+   cd FramePeek
    ```
 
 2. **Open the project**:
    ```bash
-   open MediaInspector/MediaInspector.xcodeproj
+   open FramePeek/FramePeek.xcodeproj
    ```
 
 3. **Build and run**:
@@ -106,9 +106,9 @@ Before analyzing a file, you can configure sampling options:
 ## Project Structure
 
 ```
-MediaInspector/
-├── MediaInspectorApp.swift          # App entry point
-├── MediaInspector.swift              # Main window and UI
+FramePeek/
+├── FramePeekApp.swift          # App entry point
+├── FramePeek.swift              # Main window and UI
 ├── fileUtils.swift                   # File dialog utilities
 │
 ├── Models/                           # Data models
@@ -116,10 +116,10 @@ MediaInspector/
 │   └── MediaModels.swift             # ExtendedVideoInfo, AudioTrackInfo, etc.
 │
 ├── ViewModels/                       # ViewModels and extensions
-│   ├── MediaInspectorViewModel.swift      # ViewModel and state management
-│   ├── MediaInspectorViewModel+Keyframes.swift
-│   ├── MediaInspectorViewModel+Sampling.swift
-│   └── MediaInspectorViewModel+Thumbnails.swift
+│   ├── FramePeekViewModel.swift      # ViewModel and state management
+│   ├── FramePeekViewModel+Keyframes.swift
+│   ├── FramePeekViewModel+Sampling.swift
+│   └── FramePeekViewModel+Thumbnails.swift
 │
 ├── Views/                            # UI components
 │   ├── Chart/                        # Bitrate chart components
@@ -170,7 +170,7 @@ MediaInspector/
 
 ## Architecture
 
-MediaInspector follows a clean architecture pattern:
+FramePeek follows a clean architecture pattern:
 
 - **UI Layer**: SwiftUI views with `@MainActor` ViewModels
 - **Business Logic**: Pure utility functions for parsing and analysis

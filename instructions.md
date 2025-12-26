@@ -1,10 +1,10 @@
-# MediaInspector – Agent and Contributor Guide
+# FramePeek – Agent and Contributor Guide
 
-This document is a concise guide for AI agents and human contributors to understand, navigate, and extend the MediaInspector codebase efficiently.
+This document is a concise guide for AI agents and human contributors to understand, navigate, and extend the FramePeek codebase efficiently.
 
 ## Goal of the project
 
-MediaInspector is a macOS SwiftUI application that inspects local media files and extracts rich, user-friendly metadata using AVFoundation and CoreMedia. It provides:
+FramePeek is a macOS SwiftUI application that inspects local media files and extracts rich, user-friendly metadata using AVFoundation and CoreMedia. It provides:
 
 - Video metadata (container, codec, resolution, frame rate, HDR/color info, PAR/DAR, bitrate estimations)
 - Audio track details (codec, channels, sample rate, bitrate, language)
@@ -21,7 +21,7 @@ MediaInspector is a macOS SwiftUI application that inspects local media files an
 
 - Primary flow
   - Input: A file URL is selected via NSOpenPanel → turned into an AVURLAsset.
-  - Orchestration: `MediaInspectorViewModel` coordinates loading via `getExtendedInfo(url:asset:)`.
+  - Orchestration: `FramePeekViewModel` coordinates loading via `getExtendedInfo(url:asset:)`.
   - Frame Analysis: `extractFramesStream(asset:options:)` provides progressive bitrate sampling.
   - Keyframe Detection: `extractKeyframes(asset:)` identifies sync samples (I-frames).
   - Output: `ExtendedVideoInfo` model and `[BitrateSample]` for UI consumption.
@@ -29,21 +29,21 @@ MediaInspector is a macOS SwiftUI application that inspects local media files an
 ## Project structure
 
 ```text
-MediaInspector/
-├── MediaInspectorApp.swift          # App entry point (@main)
-├── MediaInspector.swift             # Main window/view with drag-and-drop
+FramePeek/
+├── FramePeekApp.swift          # App entry point (@main)
+├── FramePeek.swift             # Main window/view with drag-and-drop
 ├── fileUtils.swift                  # NSOpenPanel file dialog helper
-├── MediaInspector.entitlements      # App entitlements (sandbox, file access)
+├── FramePeek.entitlements      # App entitlements (sandbox, file access)
 │
 ├── Models/                          # Data models
 │   ├── BitrateSample.swift          # Identifiable sample for charts
 │   └── MediaModels.swift            # ExtendedVideoInfo, AudioTrackInfo, etc.
 │
 ├── ViewModels/                      # ViewModels and extensions
-│   ├── MediaInspectorViewModel.swift      # @MainActor ViewModel, coordinates all loading
-│   ├── MediaInspectorViewModel+Keyframes.swift    # Keyframe extraction logic
-│   ├── MediaInspectorViewModel+Sampling.swift     # Frame sampling logic
-│   └── MediaInspectorViewModel+Thumbnails.swift   # Thumbnail generation logic
+│   ├── FramePeekViewModel.swift      # @MainActor ViewModel, coordinates all loading
+│   ├── FramePeekViewModel+Keyframes.swift    # Keyframe extraction logic
+│   ├── FramePeekViewModel+Sampling.swift     # Frame sampling logic
+│   └── FramePeekViewModel+Thumbnails.swift   # Thumbnail generation logic
 │
 ├── Views/                           # UI components organized by feature
 │   ├── Chart/                       # Bitrate chart components
@@ -109,9 +109,9 @@ MediaInspector/
 
 ### UI Layer
 
-- **MediaInspectorApp.swift** – App entry point with `@main`. Creates `MediaInspectorViewModel` as `@StateObject` and provides it via `@EnvironmentObject`.
-- **MediaInspector.swift** – Main window layout and structure with drag-and-drop support. Manages inspector panel visibility and width via `@AppStorage`.
-- **ViewModels/MediaInspectorViewModel.swift** – `@MainActor` ViewModel that:
+- **FramePeekApp.swift** – App entry point with `@main`. Creates `FramePeekViewModel` as `@StateObject` and provides it via `@EnvironmentObject`.
+- **FramePeek.swift** – Main window layout and structure with drag-and-drop support. Manages inspector panel visibility and width via `@AppStorage`.
+- **ViewModels/FramePeekViewModel.swift** – `@MainActor` ViewModel that:
   - Manages file selection via `openFileDialog()` and `pickFile()`.
   - Coordinates async loading of metadata, frames, and keyframes.
   - Exposes published properties: `samples`, `extendedInfo`, `keyframes`, `keyframeThumbs`, etc.
@@ -243,7 +243,7 @@ Utilities are organized into subdirectories by category:
 ### Other Files
 
 - **fileUtils.swift** – `openFileDialog(completion:)` using NSOpenPanel for file selection.
-- **MediaInspector.entitlements** – App entitlements for sandboxing and file access permissions.
+- **FramePeek.entitlements** – App entitlements for sandboxing and file access permissions.
 
 ## Data model (ExtendedVideoInfo)
 
@@ -340,7 +340,7 @@ struct AudioTrackInfo {
 
 ## Frame Analysis Flow
 
-The app supports three sampling modes (configured via `MediaInspectorViewModel`):
+The app supports three sampling modes (configured via `FramePeekViewModel`):
 
 - **auto** – Automatic downsampling based on duration.
 - **everyFrame** – Sample every frame (up to `maxSamples`).
@@ -354,7 +354,7 @@ The app supports three visualization modes for aggregating bitrate data:
 - **frame** – Show bitrate per individual frame.
 - **gop** – Aggregate by Group of Pictures (GOP) boundaries.
 
-Visualization mode is configured via `MediaInspectorViewModel.visualizationMode` and affects how `FrameAggregation` processes raw frame data into `BitrateSample` arrays.
+Visualization mode is configured via `FramePeekViewModel.visualizationMode` and affects how `FrameAggregation` processes raw frame data into `BitrateSample` arrays.
 
 ### Progressive extraction via AsyncStream
 
@@ -399,7 +399,7 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 ### Bitrate Visualization Modes
 
 - Support for different aggregation strategies: per-second, per-frame, or per-GOP.
-- Configurable via `MediaInspectorViewModel.visualizationMode`.
+- Configurable via `FramePeekViewModel.visualizationMode`.
 - Affects how raw frame data is aggregated into chart samples.
 
 ### ViewModel Organization
@@ -412,7 +412,7 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 ## Concurrency and performance
 
 - Uses Swift Concurrency (`async`/`await`) throughout.
-- `MediaInspectorViewModel` is `@MainActor` to safely update `@Published` properties.
+- `FramePeekViewModel` is `@MainActor` to safely update `@Published` properties.
 - Heavy work runs on `.userInitiated` priority via `Task.detached`.
 - Frame extraction uses `AsyncStream` for progressive UI updates.
 - `AVAssetReaderTrackOutput.alwaysCopiesSampleData = false` for performance.
@@ -432,7 +432,7 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 - Built for **macOS 15.2+** (Sequoia) using SwiftUI and AppKit (`NSOpenPanel`, `NSImage`).
 - Uses `AVURLAsset`, `AVAssetReader`, `AVAssetImageGenerator` from AVFoundation.
 - Uses Swift Charts framework (macOS 15.0+) for interactive bitrate visualization.
-- Sandboxed apps must have read access to selected file URLs (see `MediaInspector.entitlements`).
+- Sandboxed apps must have read access to selected file URLs (see `FramePeek.entitlements`).
 - Supported file types: `.mp4`, `.mov`, `.avi`, `.mpeg`, and other movie types via `UTType`.
 - Minimum deployment target: macOS 15.2 (configured in Xcode project settings).
 
@@ -491,7 +491,7 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 
 ## Testing
 
-- Unit tests are located in `MediaInspectorTests/`.
-- UI tests are in `MediaInspectorUITests/`.
+- Unit tests are located in `FramePeekTests/`.
+- UI tests are in `FramePeekUITests/`.
 - Parsing helpers should be pure functions for easy unit testing.
 - Use sample media files with known properties for integration testing.
