@@ -24,37 +24,6 @@ struct FramePeek: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
-                .toolbar {
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        Button {
-                            viewModel.pickFile()
-                        } label: {
-                            Label("Open…", systemImage: "folder")
-                        }
-                        .keyboardShortcut("o", modifiers: [.command])
-
-                        if viewModel.isAnalyzing {
-                            ProgressView().controlSize(.small)
-                            Button {
-                                viewModel.cancelAnalysis()
-                            } label: {
-                                Label("Cancel", systemImage: "xmark.circle.fill")
-                            }
-                        }
-
-                        Divider()
-
-                        Button {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                                showInspector.toggle()
-                            }
-                        } label: {
-                            Label(showInspector ? "Hide Inspector" : "Show Inspector",
-                                  systemImage: "sidebar.right")
-                        }
-                        .keyboardShortcut("i", modifiers: [.command, .option])
-                    }
-                }
 
             // Right inspector that *takes space* (does not overlay)
             if showInspector {
@@ -93,6 +62,46 @@ struct FramePeek: View {
                     )
                     .offset(x: -4) // sits just on top of divider
                 }
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Spacer()
+            }
+            
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    viewModel.pickFile()
+                } label: {
+                    Label("Open…", systemImage: "folder")
+                }
+                .keyboardShortcut("o", modifiers: [.command])
+            }
+            
+            if viewModel.isAnalyzing {
+                ToolbarItem(placement: .confirmationAction) {
+                    ProgressView().controlSize(.small)
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        viewModel.cancelAnalysis()
+                    } label: {
+                        Label("Cancel", systemImage: "xmark.circle.fill")
+                    }
+                }
+            }
+            
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                        showInspector.toggle()
+                    }
+                } label: {
+                    Label(showInspector ? "Hide Inspector" : "Show Inspector",
+                          systemImage: "sidebar.right")
+                }
+                .keyboardShortcut("i", modifiers: [.command, .option])
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showInspector)

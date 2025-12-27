@@ -19,7 +19,7 @@ struct FramePeekApp: App {
                 .preferredColorScheme(appearanceMode.colorScheme)
                 .animation(.easeInOut(duration: 0.3), value: appearanceMode)
         }
-        .windowStyle(.titleBar)
+        .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unifiedCompact)
         .defaultSize(width: 850, height: 650)
         .commands {
