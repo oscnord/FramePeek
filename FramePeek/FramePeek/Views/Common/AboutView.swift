@@ -48,8 +48,8 @@ struct AboutView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         FeatureRow(
                             icon: "chart.line.uptrend.xyaxis",
-                            title: "Bitrate Analysis",
-                            description: "Per-frame bitrate visualization with interactive charts"
+                            title: String(localized: "Bitrate Analysis"),
+                            description: String(localized: "Per-frame bitrate visualization with interactive charts")
                         )
                         
                         FeatureRow(
@@ -60,8 +60,8 @@ struct AboutView: View {
                         
                         FeatureRow(
                             icon: "photo.on.rectangle",
-                            title: "Keyframe Detection",
-                            description: "Visualize keyframes with thumbnails and timeline"
+                            title: String(localized: "Keyframe Detection"),
+                            description: String(localized: "Visualize keyframes with thumbnails and timeline")
                         )
                     }
                     .padding(.horizontal, 40)

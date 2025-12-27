@@ -44,7 +44,7 @@ struct TabBarView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("New Tab")
+            .help(String(localized: "New Tab"))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
         }

@@ -34,6 +34,7 @@ FramePeek/
 ├── FramePeek.swift             # Main window/view with drag-and-drop
 ├── fileUtils.swift                  # NSOpenPanel file dialog helper
 ├── FramePeek.entitlements      # App entitlements (sandbox, file access)
+├── Localizable.xcstrings        # Localization strings (i18n)
 │
 ├── Models/                          # Data models
 │   ├── BitrateSample.swift          # Identifiable sample for charts
@@ -43,7 +44,9 @@ FramePeek/
 │   ├── FramePeekViewModel.swift      # @MainActor ViewModel, coordinates all loading
 │   ├── FramePeekViewModel+Keyframes.swift    # Keyframe extraction logic
 │   ├── FramePeekViewModel+Sampling.swift     # Frame sampling logic
-│   └── FramePeekViewModel+Thumbnails.swift   # Thumbnail generation logic
+│   ├── FramePeekViewModel+Thumbnails.swift   # Thumbnail generation logic
+│   ├── FramePeekViewModel+FileHandling.swift # File loading and tab choice handling
+│   └── TabManager.swift             # Multi-tab management
 │
 ├── Views/                           # UI components organized by feature
 │   ├── Chart/                       # Bitrate chart components
@@ -56,7 +59,10 @@ FramePeek/
 │   │   ├── AboutView.swift                 # About dialog
 │   │   ├── InspectorColumn.swift           # Inspector panel container
 │   │   ├── ResizeHandle.swift              # Resizable inspector handle
-│   │   └── SamplingSheet.swift             # Sampling configuration sheet
+│   │   ├── SamplingSheet.swift           # Sampling configuration sheet
+│   │   ├── SettingsView.swift              # Settings/preferences view
+│   │   ├── TabBarView.swift                # Tab bar UI component
+│   │   └── TabChoiceDialog.swift           # Dialog for choosing tab when file already open
 │   │
 │   ├── Inspector/                   # Inspector panel
 │   │   ├── InfoInspectorView/              # Main inspector components
@@ -109,8 +115,8 @@ FramePeek/
 
 ### UI Layer
 
-- **FramePeekApp.swift** – App entry point with `@main`. Creates `FramePeekViewModel` as `@StateObject` and provides it via `@EnvironmentObject`.
-- **FramePeek.swift** – Main window layout and structure with drag-and-drop support. Manages inspector panel visibility and width via `@AppStorage`.
+- **FramePeekApp.swift** – App entry point with `@main`. Creates `TabManager` and provides it via `@EnvironmentObject`.
+- **FramePeek.swift** – Main window layout and structure with drag-and-drop support. Manages inspector panel visibility and width via `@AppStorage`. Integrates with `TabManager` for multi-tab support.
 - **ViewModels/FramePeekViewModel.swift** – `@MainActor` ViewModel that:
   - Manages file selection via `openFileDialog()` and `pickFile()`.
   - Coordinates async loading of metadata, frames, and keyframes.
@@ -118,7 +124,12 @@ FramePeek/
   - Supports configurable sampling modes (auto, everyFrame, interval).
   - Supports bitrate visualization modes (second, frame, GOP).
   - Handles analysis cancellation and progress tracking.
-  - Extensions: `+Keyframes.swift`, `+Sampling.swift`, `+Thumbnails.swift` organize related functionality.
+  - Extensions: `+Keyframes.swift`, `+Sampling.swift`, `+Thumbnails.swift`, `+FileHandling.swift` organize related functionality.
+- **ViewModels/TabManager.swift** – `@MainActor` ObservableObject that manages multiple tabs:
+  - Each tab has its own `FramePeekViewModel` instance.
+  - Tracks tab selection, creation, and removal.
+  - Updates tab display names based on loaded files.
+  - Handles tab switching and cleanup when tabs are closed.
 
 ### Views Organization
 
@@ -132,6 +143,9 @@ FramePeek/
   - **InspectorColumn.swift** – Container view for the inspector panel with header.
   - **ResizeHandle.swift** – Drag handle for resizing inspector width.
   - **SamplingSheet.swift** – Configuration sheet for sampling options.
+  - **SettingsView.swift** – Settings/preferences view with appearance, inspector, and sampling mode options.
+  - **TabBarView.swift** – Tab bar UI component for displaying and managing multiple tabs.
+  - **TabChoiceDialog.swift** – Dialog shown when attempting to open a file in a tab that already has a file loaded.
 - **Views/Inspector/** – Inspector panel:
   - **InfoInspectorView/InfoInspectorView.swift** – Main inspector view orchestrating all metadata display.
   - **InfoInspectorView/QuickSummaryCard.swift** – Summary card with key metrics.
@@ -383,6 +397,22 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 
 ## New Features and Improvements
 
+### Multi-Tab Support
+
+- **TabManager** – Manages multiple tabs, each with its own `FramePeekViewModel` instance.
+- **TabBarView** – Native-style tab bar UI for switching between tabs.
+- **TabChoiceDialog** – Prompts users to choose between opening a file in the current tab or a new tab when a file is already loaded.
+- Tabs can be created, closed, and switched independently.
+- Each tab maintains its own analysis state, samples, and keyframes.
+
+### Settings and Preferences
+
+- **SettingsView** – Comprehensive settings interface accessible via `Cmd+,`.
+- **Appearance Settings** – Choose between System, Light, or Dark appearance.
+- **Inspector Settings** – Control inspector visibility and default state.
+- **Sampling Settings** – Configure default sampling mode and preferences.
+- Settings persist via `UserDefaults` and are shared across tabs.
+
 ### Chart Performance Optimizations
 
 - **LTTB Downsampling** (`BitrateChartDownsampling.swift`) – Largest-Triangle-Three-Buckets algorithm preserves visual shape while reducing point count for large datasets.
@@ -408,6 +438,15 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
   - `+Keyframes.swift` – Keyframe extraction and thumbnail generation.
   - `+Sampling.swift` – Frame sampling and analysis coordination.
   - `+Thumbnails.swift` – Thumbnail generation logic.
+  - `+FileHandling.swift` – File loading, tab choice handling, and state management.
+
+### Localization (i18n)
+
+- **Localizable.xcstrings** – Centralized localization file using SwiftUI's built-in localization system.
+- **Automatic Localization** – All `Text()` views with string literals automatically localize.
+- **Explicit Localization** – For computed strings and `.help()` modifiers, use `String(localized:)`.
+- **System Language** – App automatically follows the user's macOS system language preference.
+- See [LOCALIZATION.md](LOCALIZATION.md) for detailed localization guide.
 
 ## Concurrency and performance
 
@@ -477,12 +516,55 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 - `maxBitrate` – requires parsing codec-specific config (e.g., VUI in AVC/HEVC).
 - `frameRateMode` – detect CFR vs VFR from frame interval variance in `Utils/Analysis/FrameAnalysis.swift`.
 
+## Localization Guidelines
+
+FramePeek supports localization (i18n) using SwiftUI's built-in localization system. When adding or modifying user-facing strings:
+
+1. **Text() Views**: Use string literals directly – they automatically localize when present in `Localizable.xcstrings`.
+   ```swift
+   Text("Settings")  // Automatically localized
+   ```
+
+2. **Computed Strings**: Use `String(localized:)` for strings passed as parameters or computed properties.
+   ```swift
+   Text(String(localized: "Settings"))
+   FeatureRow(title: String(localized: "Bitrate Analysis"), ...)
+   ```
+
+3. **Help Modifiers**: Always use `String(localized:)` for `.help()` modifiers.
+   ```swift
+   .help(String(localized: "New Tab"))
+   ```
+
+4. **String Interpolation**: Use format strings with `String(localized:)`.
+   ```swift
+   Text(String(format: String(localized: "Version %@"), version))
+   ```
+
+5. **Adding New Strings**: When adding new user-facing strings:
+   - Use the string literal in your code.
+   - Xcode will automatically extract it to `Localizable.xcstrings` when you build.
+   - Or manually add entries to `Localizable.xcstrings` following the existing format.
+
+6. **Enum Display Names**: For enum `displayName` properties, use `String(localized:)`.
+   ```swift
+   var displayName: String {
+       switch self {
+       case .auto: return String(localized: "Automatic")
+       case .interval: return String(localized: "Fixed Interval")
+       }
+   }
+   ```
+
+See [LOCALIZATION.md](LOCALIZATION.md) for complete localization documentation.
+
 ## Code style and contribution rules
 
 - Prefer Swift and Apple frameworks; use Swift Concurrency over GCD/Combine unless the surrounding code dictates otherwise.
 - Keep parsing helpers pure and testable; isolate I/O at the orchestration layer.
 - Use `@MainActor` for ViewModels and ensure UI updates happen on the main thread.
 - Follow existing naming conventions: `load*`, `get*`, `parse*`, `extract*`, `detect*`.
+- **Always use localization** for user-facing strings (see Localization Guidelines above).
 - When proposing changes to an existing file, always include the entire file content in a single code block, prefixed with the filename:
 
 ```swift:SomeFile.swift

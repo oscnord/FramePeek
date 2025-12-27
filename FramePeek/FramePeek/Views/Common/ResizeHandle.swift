@@ -39,7 +39,7 @@ struct ResizeHandle: View {
                         startWidth = nil
                     }
             )
-            .help("Drag to resize")
+            .help(String(localized: "Drag to resize"))
     }
 }
 

@@ -640,7 +640,15 @@
       }
     },
     "New Tab" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Tab"
+          }
+        }
+      }
     },
     "No file loaded" : {
       "comment" : "A message indicating that no file has been loaded.",
