@@ -95,5 +95,21 @@ final class TabManager: ObservableObject {
         }
         return tabs[currentIndex - 1].id
     }
+    
+    func moveTab(from source: IndexSet, to destination: Int) {
+        tabs.move(fromOffsets: source, toOffset: destination)
+    }
+    
+    func reorderTab(from sourceIndex: Int, to destinationIndex: Int) {
+        guard sourceIndex != destinationIndex,
+              sourceIndex >= 0 && sourceIndex < tabs.count,
+              destinationIndex >= 0 && destinationIndex <= tabs.count else {
+            return
+        }
+        
+        let tab = tabs.remove(at: sourceIndex)
+        let insertIndex = destinationIndex > sourceIndex ? destinationIndex - 1 : destinationIndex
+        tabs.insert(tab, at: insertIndex)
+    }
 }
 
