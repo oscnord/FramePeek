@@ -23,12 +23,6 @@ struct QuickSummaryCard: View {
             }
         }
         .padding(12)
-        .background(.secondary.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(.separator.opacity(0.5), lineWidth: 1)
-        )
     }
 }
 

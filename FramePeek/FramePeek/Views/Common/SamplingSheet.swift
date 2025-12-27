@@ -110,6 +110,12 @@ struct SamplingSheet: View {
 
             Spacer()
 
+            Text("You can disable this dialog in Settings (⌘,)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, 4)
+
             HStack {
                 Button("Cancel") {
                     viewModel.cancelSamplingDialog()

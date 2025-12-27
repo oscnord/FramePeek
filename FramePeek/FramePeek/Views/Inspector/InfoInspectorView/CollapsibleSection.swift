@@ -23,11 +23,11 @@ struct CollapsibleSection<Content: View>: View {
                     isExpanded.toggle()
                 }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Image(systemName: "chevron.right")
                         .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.tertiary)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         .frame(width: 12)
                     
@@ -37,44 +37,32 @@ struct CollapsibleSection<Content: View>: View {
                     
                     Text(title)
                         .font(.subheadline)
-                        .fontWeight(.medium)
+                        .fontWeight(.semibold)
                         .foregroundStyle(.primary)
                     
                     if isLoading {
                         ProgressView()
                             .controlSize(.mini)
+                            .padding(.leading, 4)
                     }
                     
                     Spacer()
                 }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(.quaternary.opacity(0.5))
-                )
+                .padding(.vertical, 8)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             
             // Content
             if isExpanded {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     content
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(.secondary.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(.separator.opacity(0.5), lineWidth: 1)
-                )
-                .padding(.top, 4)
+                .padding(.top, 8)
+                .padding(.leading, 20)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(.vertical, 4)
     }
 }
 

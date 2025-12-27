@@ -14,14 +14,6 @@ struct InspectorColumn<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Text("Inspector")
-                    .font(.headline)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(.background)
-
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.background)

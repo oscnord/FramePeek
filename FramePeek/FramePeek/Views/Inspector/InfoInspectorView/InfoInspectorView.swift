@@ -38,7 +38,7 @@ struct InfoInspectorView: View {
                         QuickSummaryCard(info: info)
                         
                         // Collapsible sections
-                        VStack(spacing: 0) {
+                        VStack(spacing: 12) {
                             CollapsibleSection(
                                 title: "File Details",
                                 systemImage: "doc.fill",
@@ -88,8 +88,6 @@ struct InfoInspectorView: View {
                                 if let v = info.cleanAperture { KV("Clean Aperture", v) }
                                 if let v = info.scanType { KV("Scan Type", v) }
                             }
-                            
-                            
 
                             CollapsibleSection(
                                 title: "Color",
@@ -112,8 +110,6 @@ struct InfoInspectorView: View {
                             }
 
                             if !info.audioTracks.isEmpty {
-                                
-                                
                                 CollapsibleSection(
                                     title: "Audio (\(info.audioTracks.count))",
                                     systemImage: "speaker.wave.2.fill",
@@ -127,8 +123,6 @@ struct InfoInspectorView: View {
                             
                             // Analysis section
                             if viewModel.effectiveFPS != nil || viewModel.minInterval != nil || viewModel.isAnalyzing {
-                                
-                                
                                 CollapsibleSection(
                                     title: "Frame Analysis",
                                     systemImage: "waveform.badge.magnifyingglass",
@@ -155,9 +149,6 @@ struct InfoInspectorView: View {
                                 }
                             }
                         }
-                        .padding(8)
-                        .background(.quaternary.opacity(0.3))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .padding(14)
                 }

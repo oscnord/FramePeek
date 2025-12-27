@@ -82,14 +82,16 @@ struct BitrateChartView: View {
 
                 Spacer()
 
-                HStack(spacing: 14) {
-                    StatPill(title: "Points", value: "\(viewModel.samples.count)")
-                    StatPill(title: "Avg", value: statistics.headerAvgText)
-                    StatPill(title: "Peak", value: statistics.headerPeakText)
-                    StatPill(title: "σ", value: statistics.headerStdDevText)
-                    StatPill(title: "Span", value: statistics.headerDurationText)
+                if !viewModel.samples.isEmpty {
+                    HStack(spacing: 14) {
+                        StatPill(title: "Points", value: "\(viewModel.samples.count)")
+                        StatPill(title: "Avg", value: statistics.headerAvgText)
+                        StatPill(title: "Peak", value: statistics.headerPeakText)
+                        StatPill(title: "σ", value: statistics.headerStdDevText)
+                        StatPill(title: "Span", value: statistics.headerDurationText)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
                 }
-                .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, 4)

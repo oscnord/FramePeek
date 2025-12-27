@@ -8,6 +8,7 @@
 import Foundation
 import AVFoundation
 import CoreMedia
+import SwiftUI
 
 @MainActor
 final class FramePeekViewModel: ObservableObject {
@@ -32,12 +33,56 @@ final class FramePeekViewModel: ObservableObject {
     @Published var showSamplingDialog: Bool = false
     @Published var showAboutView: Bool = false
     @Published var showSettingsView: Bool = false
+    
+    // Settings loaded from AppStorage (synced on init and when needed)
     @Published var samplingMode: SamplingMode = .auto
     @Published var samplingIntervalSeconds: Double = 0.5   // used if mode == .interval
     @Published var maxPointsTarget: Int = 2000             // used if mode == .auto / caps
     @Published var emitEveryNSamples: Int = 100            // UI update batch size
-    @Published var preferAccuracy: Bool = true             // Use reader path for accurate bitrate (slower but matches ffprobe)
+    @Published var preferAccuracy: Bool = false             // Use reader path for accurate bitrate (slower but matches ffprobe)
     @Published var visualizationMode: BitrateVisualizationMode = .second  // How to visualize bitrate (Second/Frame/GOP)
+    
+    init() {
+        loadSettingsFromUserDefaults()
+    }
+    
+    /// Loads settings from UserDefaults (AppStorage)
+    func loadSettingsFromUserDefaults() {
+        let defaults = UserDefaults.standard
+        
+        // Load sampling mode (convert from SamplingModeSetting string to SamplingMode)
+        if let modeString = defaults.string(forKey: "samplingMode") {
+            // SamplingModeSetting and SamplingMode use the same raw values
+            if let mode = SamplingMode(rawValue: modeString) {
+                samplingMode = mode
+            }
+        }
+        
+        // Load other settings
+        if defaults.object(forKey: "samplingIntervalSeconds") != nil {
+            samplingIntervalSeconds = defaults.double(forKey: "samplingIntervalSeconds")
+        }
+        if defaults.object(forKey: "maxPointsTarget") != nil {
+            maxPointsTarget = defaults.integer(forKey: "maxPointsTarget")
+        }
+        if defaults.object(forKey: "preferAccuracy") != nil {
+            preferAccuracy = defaults.bool(forKey: "preferAccuracy")
+        }
+        if let vizString = defaults.string(forKey: "visualizationMode"),
+           let vizMode = BitrateVisualizationMode(rawValue: vizString) {
+            visualizationMode = vizMode
+        }
+    }
+    
+    /// Saves current settings to UserDefaults (called when settings change)
+    func saveSettingsToUserDefaults() {
+        let defaults = UserDefaults.standard
+        defaults.set(samplingMode.rawValue, forKey: "samplingMode")
+        defaults.set(samplingIntervalSeconds, forKey: "samplingIntervalSeconds")
+        defaults.set(maxPointsTarget, forKey: "maxPointsTarget")
+        defaults.set(preferAccuracy, forKey: "preferAccuracy")
+        defaults.set(visualizationMode.rawValue, forKey: "visualizationMode")
+    }
     
     private var pendingURL: URL?
     private var currentURL: URL?  // Store current URL for re-analysis
@@ -56,8 +101,19 @@ final class FramePeekViewModel: ObservableObject {
     }
 
     func handleIncomingFile(url: URL) {
+        // Reload settings from UserDefaults in case they changed
+        loadSettingsFromUserDefaults()
         pendingURL = url
-        showSamplingDialog = true
+        
+        // Check if user wants to see settings dialog on file load
+        let showDialog = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
+        
+        if showDialog {
+            showSamplingDialog = true
+        } else {
+            // Skip dialog and use settings directly
+            confirmSamplingAndLoad()
+        }
     }
 
     func pickFile() {
@@ -72,9 +128,12 @@ final class FramePeekViewModel: ObservableObject {
             showSamplingDialog = false
             return
         }
+        // Save current settings to UserDefaults before loading
+        saveSettingsToUserDefaults()
         showSamplingDialog = false
+        let urlToLoad = url
         pendingURL = nil
-        loadAsset(url: url)
+        loadAsset(url: urlToLoad)
     }
 
     func cancelSamplingDialog() {
