@@ -303,8 +303,13 @@ private func extractEveryFrame(
     }
     
     // Collect raw frames for re-aggregation
+    // Reserve capacity based on estimated frame count for better performance
+    let duration = (try? await asset.load(.duration)) ?? .zero
+    let durationSeconds = duration.seconds
+    let nominalFrameRate = (try? await videoTrack.load(.nominalFrameRate)) ?? 30.0
+    let estimatedFrameCount = Int(durationSeconds * Double(nominalFrameRate))
     var allRawFrames: [RawFrame] = []
-    allRawFrames.reserveCapacity(8192)
+    allRawFrames.reserveCapacity(min(estimatedFrameCount, 1_000_000)) // Cap at 1M to avoid excessive memory
 
     while !Task.isCancelled, let sampleBuffer = output.copyNextSampleBuffer() {
         autoreleasepool {

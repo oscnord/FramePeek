@@ -91,24 +91,38 @@ func extractWithReader(
     }
 
     // Collect all samples first (they may be out of order)
+    // Reserve capacity based on estimated frame count for better performance
+    let estimatedFrameCount = Int(durationSeconds * estimatedFPS)
     var allSamples: [(pts: Double, size: Int64)] = []
-    allSamples.reserveCapacity(8192)
+    allSamples.reserveCapacity(min(estimatedFrameCount, 1_000_000)) // Cap at 1M to avoid excessive memory
 
     var readCount = 0
-    while !Task.isCancelled, let sb = output.copyNextSampleBuffer() {
+    var lastReadPTS: Double = 0
+    while !Task.isCancelled {
+        guard let sb = output.copyNextSampleBuffer() else {
+            // Check if reader completed successfully or if there was an error
+            if reader.status == .failed {
+                // Reader failed - error details available in reader.error if needed
+            } else if reader.status != .completed {
+                // Reader didn't complete - may have stopped early
+            }
+            break
+        }
+        
         autoreleasepool {
             let pts = CMSampleBufferGetPresentationTimeStamp(sb).seconds
             let size = CMSampleBufferGetTotalSampleSize(sb)
             guard size > 0, pts.isFinite else { return }
             allSamples.append((pts: pts, size: Int64(size)))
             readCount += 1
+            lastReadPTS = max(lastReadPTS, pts) // Track the latest PTS we've read
         }
 
         if readCount % 500 == 0 {
             await Task.yield()
         }
     }
-
+    
     // Sort by PTS to ensure chronological order
     allSamples.sort { $0.pts < $1.pts }
 
@@ -118,15 +132,9 @@ func extractWithReader(
 
     var previousPTS: Double? = nil
     var nextEmitPTS: Double? = nil
-    var firstPTS: Double? = nil
 
     for (pts, size) in allSamples {
         if Task.isCancelled || totalEmitted >= options.maxSamples { break }
-
-        // Track first PTS
-        if firstPTS == nil {
-            firstPTS = pts
-        }
         
         // FPS stats
         if let prev = previousPTS, pts > prev {

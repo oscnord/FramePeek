@@ -187,9 +187,8 @@ func extractWithCursor(
             await Task.yield()
         }
 
-        if totalEmitted >= options.maxSamples {
-            break
-        }
+        // Note: We continue reading even after hitting maxSamples to collect all raw frames
+        // for re-aggregation. The maxSamples limit only affects emitted samples, not raw frame collection.
     }
 
     if !pending.isEmpty {

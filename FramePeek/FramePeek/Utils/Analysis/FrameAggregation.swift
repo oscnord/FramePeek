@@ -57,19 +57,17 @@ private func aggregateBySecond(
     let numBuckets = Int(ceil(totalDuration / bucketSize))
     guard numBuckets > 0 else { return [] }
     
-    // Determine step size if we need to skip buckets to stay under maxSamples
-    let bucketStep = max(1, numBuckets / maxSamples)
-    
-    samples.reserveCapacity(min(maxSamples, numBuckets))
-    
     // Pre-sort frames (should already be sorted, but ensure it)
     let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
     
-    // Group frames into fixed time buckets
+    // First, process ALL buckets to get complete data
+    var allBucketSamples: [BitrateSample] = []
+    allBucketSamples.reserveCapacity(numBuckets)
+    
     var frameIndex = 0
     var bucketIndex = 0
     
-    while bucketIndex < numBuckets && samples.count < maxSamples {
+    while bucketIndex < numBuckets {
         let bucketStart = startTime + Double(bucketIndex) * bucketSize
         let bucketEnd = bucketStart + bucketSize
         
@@ -96,10 +94,39 @@ private func aggregateBySecond(
             let bitrate = (Double(totalBytes) * 8.0) / bucketSize
             let sampleTime = bucketStart + bucketSize / 2.0 // Center of bucket
             
-            samples.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: bucketSize))
+            allBucketSamples.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: bucketSize))
         }
         
-        bucketIndex += bucketStep
+        bucketIndex += 1
+    }
+    
+    // Now downsample to maxSamples if needed, ensuring we always include first and last buckets
+    if allBucketSamples.count <= maxSamples {
+        return allBucketSamples
+    }
+    
+    // Downsample: always include first and last, then evenly sample the rest
+    samples.reserveCapacity(maxSamples)
+    
+    // Always include first sample
+    samples.append(allBucketSamples.first!)
+    
+    if maxSamples > 2 {
+        // Calculate step to evenly distribute remaining samples
+        let remainingSlots = maxSamples - 2 // Reserve one for first, one for last
+        let step = Double(allBucketSamples.count - 2) / Double(remainingSlots)
+        
+        for i in 1..<remainingSlots {
+            let sourceIndex = Int(round(Double(i) * step)) + 1
+            if sourceIndex < allBucketSamples.count - 1 {
+                samples.append(allBucketSamples[sourceIndex])
+            }
+        }
+    }
+    
+    // Always include last sample
+    if allBucketSamples.count > 1 {
+        samples.append(allBucketSamples.last!)
     }
     
     return samples

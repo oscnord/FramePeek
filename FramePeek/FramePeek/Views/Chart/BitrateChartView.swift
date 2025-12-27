@@ -48,6 +48,22 @@ struct BitrateChartView: View {
         let duration = (viewModel.visibleTimeRange?.upperBound ?? statistics.maxTime) - (viewModel.visibleTimeRange?.lowerBound ?? 0)
         return statistics.niceStep(forMax: duration, targetTicks: 6)
     }
+    
+    /// X-axis domain with padding for better visibility of start/end points
+    private var xAxisDomain: ClosedRange<Double> {
+        if let range = viewModel.visibleTimeRange {
+            // When zoomed, use the visible range with small padding
+            let padding = (range.upperBound - range.lowerBound) * 0.02 // 2% padding
+            let start = max(0, range.lowerBound - padding) // Don't go below 0
+            return start...(range.upperBound + padding)
+        } else {
+            // Full view: add padding to start and end
+            let duration = statistics.maxTime
+            let padding = min(duration * 0.02, 5.0) // 2% of duration, but max 5 seconds
+            let start = max(0, -padding) // Don't go below 0
+            return start...(statistics.maxTime + padding)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -281,7 +297,7 @@ struct BitrateChartView: View {
             }
         }
         .chartYScale(domain: 0...(statistics.maxBitrateKbps * 1.1))
-        .chartXScale(domain: (viewModel.visibleTimeRange?.lowerBound ?? 0)...(viewModel.visibleTimeRange?.upperBound ?? statistics.maxTime))
+        .chartXScale(domain: xAxisDomain)
         .chartXAxis {
             AxisMarks(position: .bottom, values: .stride(by: xTickStep)) { value in
                 AxisGridLine().foregroundStyle(.secondary.opacity(0.18))
