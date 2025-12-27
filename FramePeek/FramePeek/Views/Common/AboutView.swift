@@ -24,7 +24,7 @@ struct AboutView: View {
                         .font(.system(size: 32, weight: .bold, design: .default))
                     
                     if let version = appVersion {
-                        Text("Version \(version)")
+                        Text(String(format: String(localized: "Version %@"), version))
                             .font(.system(size: 14, weight: .regular))
                             .foregroundStyle(.secondary)
                     }
@@ -54,8 +54,8 @@ struct AboutView: View {
                         
                         FeatureRow(
                             icon: "info.circle.fill",
-                            title: "Rich Metadata",
-                            description: "Detailed video and audio track information"
+                            title: String(localized: "Rich Metadata"),
+                            description: String(localized: "Detailed video and audio track information")
                         )
                         
                         FeatureRow(

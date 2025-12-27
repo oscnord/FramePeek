@@ -99,9 +99,9 @@ enum BitrateVisualizationMode: String, CaseIterable, Identifiable {
     
     var displayName: String {
         switch self {
-        case .second: return "Second"
-        case .frame: return "Frame"
-        case .gop: return "GOP"
+        case .second: return String(localized: "Second")
+        case .frame: return String(localized: "Frame")
+        case .gop: return String(localized: "GOP")
         }
     }
 }

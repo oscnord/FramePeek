@@ -16,9 +16,9 @@ enum AppearanceMode: String, CaseIterable, Identifiable, Codable {
     
     var displayName: String {
         switch self {
-        case .system: return "System"
-        case .light: return "Light"
-        case .dark: return "Dark"
+        case .system: return String(localized: "System")
+        case .light: return String(localized: "Light")
+        case .dark: return String(localized: "Dark")
         }
     }
     
@@ -40,9 +40,9 @@ enum SamplingModeSetting: String, CaseIterable, Identifiable, Codable {
     
     var displayName: String {
         switch self {
-        case .auto: return "Automatic"
-        case .interval: return "Fixed Interval"
-        case .everyFrame: return "Every Frame"
+        case .auto: return String(localized: "Automatic")
+        case .interval: return String(localized: "Fixed Interval")
+        case .everyFrame: return String(localized: "Every Frame")
         }
     }
 }
