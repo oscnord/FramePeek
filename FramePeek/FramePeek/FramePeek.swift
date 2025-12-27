@@ -10,20 +10,33 @@ import UniformTypeIdentifiers
 
 struct FramePeek: View {
     @EnvironmentObject var appViewModel: FramePeekViewModel
-    @StateObject private var viewModel = FramePeekViewModel()
+    @StateObject private var tabManager = TabManager()
 
     @AppStorage("showInspector") private var showInspector: Bool = false
     @AppStorage("inspectorWidth") private var inspectorWidth: Double = 380
 
     private let inspectorMin: Double = 280
     private let inspectorMax: Double = 520
+    
+    @State private var showTabChoiceDialog: Bool = false
+    @State private var tabChoiceURL: URL?
+    
+    private var currentViewModel: FramePeekViewModel? {
+        tabManager.currentViewModel
+    }
 
     var body: some View {
-        HStack(spacing: 0) {
-            BitrateChartView(viewModel: viewModel)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+        VStack(spacing: 0) {
+            // Tab bar
+            TabBarView(tabManager: tabManager)
+            
+            // Main content
+            if let viewModel = currentViewModel {
+                HStack(spacing: 0) {
+                    BitrateChartView(viewModel: viewModel)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
 
             // Right inspector that *takes space* (does not overlay)
             if showInspector {
@@ -63,6 +76,13 @@ struct FramePeek: View {
                     .offset(x: -4) // sits just on top of divider
                 }
             }
+                }
+            } else {
+                // Empty state when no tabs
+                Text("No tabs available")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -71,7 +91,7 @@ struct FramePeek: View {
             
             ToolbarItem(placement: .confirmationAction) {
                 Button {
-                    viewModel.pickFile()
+                    currentViewModel?.pickFile()
                 } label: {
                     Label("Open…", systemImage: "folder")
                 }
@@ -79,7 +99,17 @@ struct FramePeek: View {
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
             
-            if viewModel.isAnalyzing {
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    tabManager.addTab()
+                } label: {
+                    Label("New Tab", systemImage: "plus.square.on.square")
+                }
+                .keyboardShortcut("t", modifiers: [.command])
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+            
+            if let viewModel = currentViewModel, viewModel.isAnalyzing {
                 ToolbarItem(placement: .confirmationAction) {
                     ProgressView().controlSize(.small)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -109,18 +139,104 @@ struct FramePeek: View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showInspector)
-        .animation(.spring(response: 0.7, dampingFraction: 0.8), value: viewModel.isAnalyzing)
-        .onChange(of: viewModel.extendedInfo?.fileName) {
+        .animation(.spring(response: 0.7, dampingFraction: 0.8), value: currentViewModel?.isAnalyzing ?? false)
+        .onChange(of: currentViewModel?.extendedInfo?.fileName) {
             // Auto-show inspector when a video is loaded
-            if viewModel.extendedInfo != nil && !showInspector {
+            if currentViewModel?.extendedInfo != nil && !showInspector {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                     showInspector = true
                 }
             }
+            
+            // Update tab display name when file loads (this ensures it's correct even if it changed)
+            if let fileName = currentViewModel?.extendedInfo?.fileName,
+               let currentTabId = tabManager.selectedTabId {
+                tabManager.updateTabDisplayName(id: currentTabId, name: fileName)
+            }
         }
-        .sheet(isPresented: $viewModel.showSamplingDialog) {
-            SamplingSheet(viewModel: viewModel)
-                .frame(minWidth: 420, minHeight: 300)
+        .onChange(of: currentViewModel?.pendingURL) {
+            // Update tab name immediately when a file URL is set (before it loads)
+            if let url = currentViewModel?.pendingURL,
+               let currentTabId = tabManager.selectedTabId {
+                tabManager.updateTabDisplayName(id: currentTabId, name: url.lastPathComponent)
+            }
+        }
+        .onChange(of: currentViewModel?.showTabChoiceDialog) {
+            // Sync local state with viewModel state for immediate reactivity
+            let shouldShow = currentViewModel?.showTabChoiceDialog ?? false
+            showTabChoiceDialog = shouldShow
+            
+            // Always sync the URL when dialog state changes
+            if shouldShow, let url = currentViewModel?.pendingURLForTabChoice {
+                tabChoiceURL = url
+            } else if !shouldShow {
+                // Clear URL when dialog is dismissed
+                tabChoiceURL = nil
+            }
+        }
+        .onChange(of: currentViewModel?.pendingURLForTabChoice) {
+            // Update URL when it changes (in case it's set before showTabChoiceDialog)
+            if let url = currentViewModel?.pendingURLForTabChoice {
+                tabChoiceURL = url
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { currentViewModel?.showSamplingDialog ?? false },
+            set: { if let viewModel = currentViewModel { viewModel.showSamplingDialog = $0 } }
+        )) {
+            if let viewModel = currentViewModel {
+                SamplingSheet(viewModel: viewModel)
+                    .frame(minWidth: 420, minHeight: 300)
+            }
+        }
+        .sheet(isPresented: $showTabChoiceDialog) {
+            // Ensure we have a URL - fallback to viewModel if local state is nil
+            let url = tabChoiceURL ?? currentViewModel?.pendingURLForTabChoice
+            
+            if let url = url {
+                TabChoiceDialog(
+                    fileName: url.lastPathComponent,
+                    onChooseCurrentTab: {
+                        // Update tab name immediately
+                        if let currentTabId = tabManager.selectedTabId {
+                            tabManager.updateTabDisplayName(id: currentTabId, name: url.lastPathComponent)
+                        }
+                        if let viewModel = currentViewModel {
+                            viewModel.handleTabChoice(action: .currentTab)
+                        }
+                        showTabChoiceDialog = false
+                        tabChoiceURL = nil
+                    },
+                    onChooseNewTab: {
+                        if let viewModel = currentViewModel {
+                            viewModel.cancelTabChoice()
+                        }
+                        // Create new tab and load file there
+                        tabManager.addTab()
+                        if let newViewModel = tabManager.currentViewModel,
+                           let newTabId = tabManager.selectedTabId {
+                            // Update tab name immediately
+                            tabManager.updateTabDisplayName(id: newTabId, name: url.lastPathComponent)
+                            newViewModel.pendingURL = url
+                            let showDialog = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
+                            if showDialog {
+                                newViewModel.showSamplingDialog = true
+                            } else {
+                                newViewModel.confirmSamplingAndLoad()
+                            }
+                        }
+                        showTabChoiceDialog = false
+                        tabChoiceURL = nil
+                    },
+                    onCancel: {
+                        if let viewModel = currentViewModel {
+                            viewModel.cancelTabChoice()
+                        }
+                        showTabChoiceDialog = false
+                        tabChoiceURL = nil
+                    }
+                )
+            }
         }
         .sheet(isPresented: $appViewModel.showAboutView) {
             AboutView()
@@ -131,13 +247,30 @@ struct FramePeek: View {
     }
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
+        guard let provider = providers.first,
+              let viewModel = currentViewModel else { return false }
+        
+        // Process immediately on main thread for responsiveness
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
             guard let data = item as? Data,
                   let url = URL(dataRepresentation: data, relativeTo: nil)
             else { return }
+            
+            // All UI updates must happen on MainActor
             Task { @MainActor in
+                // Update tab name immediately for feedback
+                if let currentTabId = tabManager.selectedTabId {
+                    tabManager.updateTabDisplayName(id: currentTabId, name: url.lastPathComponent)
+                }
+                
+                // Handle file - this will set showTabChoiceDialog if needed
                 viewModel.handleIncomingFile(url: url)
+                
+                // Immediately sync the URL to local state if dialog is shown
+                if viewModel.showTabChoiceDialog, let pendingURL = viewModel.pendingURLForTabChoice {
+                    tabChoiceURL = pendingURL
+                    showTabChoiceDialog = true
+                }
             }
         }
         return true
