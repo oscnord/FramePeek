@@ -10,17 +10,7 @@ import AVFoundation
 import CoreMedia
 
 extension FramePeekViewModel {
-    /// Call this when visualization mode changes to re-aggregate samples
-    func handleVisualizationModeChange() {
-        guard !rawFrames.isEmpty && !isAnalyzing else { return }
-        
-        // Defer to next run loop to avoid publishing during view updates
-        DispatchQueue.main.async { [weak self] in
-            self?.reAggregateSamples()
-        }
-    }
-    
-    /// Re-aggregates samples from stored raw frames based on current visualization mode
+    /// Re-aggregates samples from stored raw frames (always uses second-based mode)
     private func reAggregateSamples() {
         guard !rawFrames.isEmpty else { return }
         

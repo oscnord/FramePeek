@@ -58,7 +58,6 @@ struct SettingsView: View {
     @AppStorage("samplingIntervalSeconds") private var samplingIntervalSeconds: Double = 0.5
     @AppStorage("maxPointsTarget") private var maxPointsTarget: Int = 2000
     @AppStorage("preferAccuracy") private var preferAccuracy: Bool = false
-    @AppStorage("visualizationMode") private var visualizationMode: BitrateVisualizationMode = .second
     
     var body: some View {
         VStack(spacing: 0) {
@@ -195,21 +194,6 @@ struct SettingsView: View {
                                         }
                                     }
                                 }
-                            }
-                            
-                            Divider()
-                            
-                            VStack(alignment: .leading, spacing: 12) {
-                                Picker("Visualization Mode", selection: $visualizationMode) {
-                                    ForEach(BitrateVisualizationMode.allCases) { mode in
-                                        Text(mode.displayName).tag(mode)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                
-                                Text("How bitrate is aggregated: per second, per frame, or per GOP.")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
                             }
                             
                             Divider()

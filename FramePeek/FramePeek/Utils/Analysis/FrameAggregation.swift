@@ -147,30 +147,38 @@ private func aggregateByFrame(
     // Pre-sort frames by PTS (should already be sorted, but ensure it)
     let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
     
+    // Use a 1-second rolling window approach, but sample at frame intervals
+    // This gives comparable bitrate values to seconds mode, but with frame-level granularity
+    let windowSize: Double = 1.0
+    
     // If we have too many frames, sample them
     let step = max(1, sortedFrames.count / maxSamples)
     
+    // Use sliding window for efficiency
+    var windowStartIndex = 0
+    var windowEndIndex = 0
+    var windowTotalBytes: Int64 = 0
+    
     for i in stride(from: 0, to: sortedFrames.count, by: step) {
         let frame = sortedFrames[i]
+        let windowStart = frame.pts - windowSize / 2.0
+        let windowEnd = frame.pts + windowSize / 2.0
         
-        // Calculate frame duration from actual frame timing
-        let frameDuration: Double
-        if i + 1 < sortedFrames.count {
-            let nextDuration = sortedFrames[i + 1].pts - frame.pts
-            // Use actual duration if it's positive and reasonable
-            frameDuration = nextDuration > 0 ? nextDuration : defaultFrameDuration
-        } else if i > 0 {
-            // Last frame: use previous frame's duration
-            let prevDuration = frame.pts - sortedFrames[i - 1].pts
-            frameDuration = prevDuration > 0 ? prevDuration : defaultFrameDuration
-        } else {
-            frameDuration = defaultFrameDuration
+        // Advance window start index to remove frames before windowStart
+        while windowStartIndex < windowEndIndex && sortedFrames[windowStartIndex].pts < windowStart {
+            windowTotalBytes -= sortedFrames[windowStartIndex].size
+            windowStartIndex += 1
         }
         
-        // Bitrate = frame bits / frame duration
-        let bitrate = (Double(frame.size) * 8.0) / frameDuration
+        // Advance window end index to include frames up to windowEnd
+        while windowEndIndex < sortedFrames.count && sortedFrames[windowEndIndex].pts < windowEnd {
+            windowTotalBytes += sortedFrames[windowEndIndex].size
+            windowEndIndex += 1
+        }
         
-        samples.append(BitrateSample(time: frame.pts, bitrate: bitrate, duration: frameDuration))
+        // Calculate bitrate over the 1-second window (same as seconds mode)
+        let bitrate = (Double(windowTotalBytes) * 8.0) / windowSize
+        samples.append(BitrateSample(time: frame.pts, bitrate: bitrate, duration: windowSize))
         
         if samples.count >= maxSamples {
             break
@@ -246,17 +254,19 @@ private func aggregateByGOP(
         if isGOPBoundary && !currentGOP.isEmpty {
             // Emit the previous GOP with correct duration calculation
             let gopStart = currentGOP.first!.pts
-            let gopEnd = currentGOP.last!.pts
+            // GOP duration is from the start of the first frame to the start of the next GOP
+            // The next GOP starts at the current frame's PTS
+            let gopDuration = frame.pts - gopStart
             
-            // GOP duration should include the last frame's duration
-            // Use the gap to the next frame (current frame) as the last frame's duration
-            let lastFrameDuration = frame.pts - gopEnd
-            let gopDuration = (gopEnd - gopStart) + (lastFrameDuration > 0 ? lastFrameDuration : typicalInterval)
+            // Ensure duration is positive and reasonable
+            let validDuration = max(gopDuration, typicalInterval)
             
             let totalBytes = currentGOP.reduce(0) { $0 + $1.size }
-            let bitrate = (Double(totalBytes) * 8.0) / gopDuration
+            let bitrate = (Double(totalBytes) * 8.0) / validDuration
             
-            samples.append(BitrateSample(time: gopEnd, bitrate: bitrate, duration: gopDuration))
+            // Use the end of the GOP (last frame's PTS) as the sample time
+            let gopEnd = currentGOP.last!.pts
+            samples.append(BitrateSample(time: gopEnd, bitrate: bitrate, duration: validDuration))
             
             currentGOP.removeAll()
             
@@ -275,7 +285,8 @@ private func aggregateByGOP(
         let gopStart = currentGOP.first!.pts
         let gopEnd = currentGOP.last!.pts
         
-        // For the last GOP, add typical frame duration for the last frame
+        // For the last GOP, estimate duration from start to end plus one frame duration
+        // This approximates the duration until the next GOP would start
         let gopDuration = (gopEnd - gopStart) + typicalInterval
         
         let totalBytes = currentGOP.reduce(0) { $0 + $1.size }
@@ -295,14 +306,15 @@ private func aggregateByGOP(
             guard let gopStart = gopFrames.first?.pts,
                   let gopEnd = gopFrames.last?.pts else { continue }
             
-            // Calculate proper GOP duration
-            let lastFrameDuration: Double
+            // Calculate proper GOP duration: from start of this GOP to start of next GOP
+            let gopDuration: Double
             if endIndex < sortedFrames.count {
-                lastFrameDuration = sortedFrames[endIndex].pts - gopEnd
+                // Next GOP starts at the next frame's PTS
+                gopDuration = sortedFrames[endIndex].pts - gopStart
             } else {
-                lastFrameDuration = typicalInterval
+                // Last GOP: estimate duration from start to end plus one frame
+                gopDuration = (gopEnd - gopStart) + typicalInterval
             }
-            let gopDuration = (gopEnd - gopStart) + lastFrameDuration
             
             let totalBytes = gopFrames.reduce(0) { $0 + $1.size }
             let bitrate = (Double(totalBytes) * 8.0) / max(gopDuration, typicalInterval)

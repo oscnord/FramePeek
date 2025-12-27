@@ -40,7 +40,8 @@ final class FramePeekViewModel: ObservableObject {
     @Published var maxPointsTarget: Int = 2000             // used if mode == .auto / caps
     @Published var emitEveryNSamples: Int = 100            // UI update batch size
     @Published var preferAccuracy: Bool = false             // Use reader path for accurate bitrate (slower but matches ffprobe)
-    @Published var visualizationMode: BitrateVisualizationMode = .second  // How to visualize bitrate (Second/Frame/GOP)
+    // Always use second-based visualization mode
+    var visualizationMode: BitrateVisualizationMode { .second }
     
     init() {
         loadSettingsFromUserDefaults()
@@ -68,10 +69,6 @@ final class FramePeekViewModel: ObservableObject {
         if defaults.object(forKey: "preferAccuracy") != nil {
             preferAccuracy = defaults.bool(forKey: "preferAccuracy")
         }
-        if let vizString = defaults.string(forKey: "visualizationMode"),
-           let vizMode = BitrateVisualizationMode(rawValue: vizString) {
-            visualizationMode = vizMode
-        }
     }
     
     /// Saves current settings to UserDefaults (called when settings change)
@@ -81,7 +78,6 @@ final class FramePeekViewModel: ObservableObject {
         defaults.set(samplingIntervalSeconds, forKey: "samplingIntervalSeconds")
         defaults.set(maxPointsTarget, forKey: "maxPointsTarget")
         defaults.set(preferAccuracy, forKey: "preferAccuracy")
-        defaults.set(visualizationMode.rawValue, forKey: "visualizationMode")
     }
     
     private var pendingURL: URL?
