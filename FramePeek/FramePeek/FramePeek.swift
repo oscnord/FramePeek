@@ -76,11 +76,13 @@ struct FramePeek: View {
                     Label("Open…", systemImage: "folder")
                 }
                 .keyboardShortcut("o", modifiers: [.command])
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
             
             if viewModel.isAnalyzing {
                 ToolbarItem(placement: .confirmationAction) {
                     ProgressView().controlSize(.small)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
                 
                 ToolbarItem(placement: .confirmationAction) {
@@ -89,6 +91,7 @@ struct FramePeek: View {
                     } label: {
                         Label("Cancel", systemImage: "xmark.circle.fill")
                     }
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             
@@ -102,9 +105,11 @@ struct FramePeek: View {
                           systemImage: "sidebar.right")
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option])
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showInspector)
+        .animation(.spring(response: 0.7, dampingFraction: 0.8), value: viewModel.isAnalyzing)
         .onChange(of: viewModel.extendedInfo?.fileName) {
             // Auto-show inspector when a video is loaded
             if viewModel.extendedInfo != nil && !showInspector {
