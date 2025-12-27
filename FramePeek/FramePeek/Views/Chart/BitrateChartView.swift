@@ -10,9 +10,9 @@ import Charts
 
 struct BitrateChartView: View {
     @ObservedObject var viewModel: FramePeekViewModel
-    
+
     // MARK: - Display Settings
-    
+
     /// Maximum points to render in chart for performance (LTTB downsampling)
     /// Increased when zoomed for better accuracy
     private var maxDisplayPoints: Int {
@@ -20,7 +20,7 @@ struct BitrateChartView: View {
         if viewModel.visibleTimeRange != nil {
             return 2000  // More points when zoomed
         }
-        return 1000  // Increased from 500 for better accuracy
+        return 1000
     }
     
     // MARK: - Statistics
@@ -89,6 +89,7 @@ struct BitrateChartView: View {
                     StatPill(title: "σ", value: statistics.headerStdDevText)
                     StatPill(title: "Span", value: statistics.headerDurationText)
                 }
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, 4)

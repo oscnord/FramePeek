@@ -212,7 +212,7 @@ private struct ThumbCell: View {
             .clipShape(shape)
             .overlay(
                 shape.strokeBorder(
-                    isHovered ? Color.orange : Color.white.opacity(0.1),
+                    isHovered ? Color.orange : Color.primary.opacity(0.15),
                     lineWidth: isHovered ? 2 : 1
                 )
             )

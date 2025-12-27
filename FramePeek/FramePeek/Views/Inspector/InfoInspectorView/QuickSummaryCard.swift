@@ -23,11 +23,11 @@ struct QuickSummaryCard: View {
             }
         }
         .padding(12)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(.secondary.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 1)
+                .strokeBorder(.separator.opacity(0.5), lineWidth: 1)
         )
     }
 }

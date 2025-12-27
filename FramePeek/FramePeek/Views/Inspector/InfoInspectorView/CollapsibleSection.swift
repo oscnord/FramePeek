@@ -51,7 +51,7 @@ struct CollapsibleSection<Content: View>: View {
                 .padding(.horizontal, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                        .fill(.quaternary.opacity(0.5))
                 )
                 .contentShape(Rectangle())
             }
@@ -64,11 +64,11 @@ struct CollapsibleSection<Content: View>: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(Color(nsColor: .textBackgroundColor))
+                .background(.secondary.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 1)
+                        .strokeBorder(.separator.opacity(0.5), lineWidth: 1)
                 )
                 .padding(.top, 4)
                 .transition(.opacity.combined(with: .move(edge: .top)))

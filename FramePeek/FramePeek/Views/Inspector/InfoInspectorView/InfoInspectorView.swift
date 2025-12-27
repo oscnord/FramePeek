@@ -156,7 +156,7 @@ struct InfoInspectorView: View {
                             }
                         }
                         .padding(8)
-                        .background(Color(nsColor: .controlBackgroundColor).opacity(0.3))
+                        .background(.quaternary.opacity(0.3))
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .padding(14)
@@ -179,7 +179,7 @@ struct InfoInspectorView: View {
                 EmptyInspectorState()
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.background)
     }
     
     // MARK: - Auto Expand

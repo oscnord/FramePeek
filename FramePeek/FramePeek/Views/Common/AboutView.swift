@@ -32,66 +32,66 @@ struct AboutView: View {
             }
             .padding(.top, 40)
             .padding(.bottom, 30)
-            
-            Divider()
-                .padding(.horizontal, 40)
-            
-            // Description
-            VStack(spacing: 16) {
-                Text("A macOS application for inspecting video and audio files")
-                    .font(.system(size: 15))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 40)
-                    .padding(.top, 24)
                 
-                VStack(alignment: .leading, spacing: 12) {
-                    FeatureRow(
-                        icon: "chart.line.uptrend.xyaxis",
-                        title: "Bitrate Analysis",
-                        description: "Per-frame bitrate visualization with interactive charts"
-                    )
-                    
-                    FeatureRow(
-                        icon: "info.circle.fill",
-                        title: "Rich Metadata",
-                        description: "Detailed video and audio track information"
-                    )
-                    
-                    FeatureRow(
-                        icon: "photo.on.rectangle",
-                        title: "Keyframe Detection",
-                        description: "Visualize keyframes with thumbnails and timeline"
-                    )
-                }
-                .padding(.horizontal, 40)
-                .padding(.top, 8)
-            }
-            
-            Spacer()
-            
-            // Footer
-            VStack(spacing: 8) {
                 Divider()
                     .padding(.horizontal, 40)
                 
-                Text("Built by Oscar Nord in Stockholm, Sweden")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
+                // Description
+                VStack(spacing: 16) {
+                    Text("A macOS application for inspecting video and audio files")
+                        .font(.system(size: 15))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 40)
+                        .padding(.top, 24)
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        FeatureRow(
+                            icon: "chart.line.uptrend.xyaxis",
+                            title: "Bitrate Analysis",
+                            description: "Per-frame bitrate visualization with interactive charts"
+                        )
+                        
+                        FeatureRow(
+                            icon: "info.circle.fill",
+                            title: "Rich Metadata",
+                            description: "Detailed video and audio track information"
+                        )
+                        
+                        FeatureRow(
+                            icon: "photo.on.rectangle",
+                            title: "Keyframe Detection",
+                            description: "Visualize keyframes with thumbnails and timeline"
+                        )
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.top, 8)
+                }
                 
-                if let copyright = copyrightText {
-                    Text(copyright)
-                        .font(.system(size: 11))
+                Spacer()
+                
+                // Footer
+                VStack(spacing: 8) {
+                    Divider()
+                        .padding(.horizontal, 40)
+                    
+                    Text("Built by Oscar Nord in Stockholm, Sweden")
+                        .font(.system(size: 12))
                         .foregroundStyle(.tertiary)
+                    
+                    if let copyright = copyrightText {
+                        Text(copyright)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
+                    
+                    Button("Close") {
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 12)
                 }
-                
-                Button("Close") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.top, 12)
-            }
-            .padding(.bottom, 24)
+                .padding(.bottom, 24)
         }
         .frame(width: 500, height: 600)
         .background(.background)

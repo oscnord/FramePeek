@@ -16,11 +16,15 @@ struct StatPill: View {
             Text(title)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
             Text(value)
                 .font(.caption)
                 .fontWeight(.semibold)
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
@@ -30,6 +34,7 @@ struct StatPill: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(.separator.opacity(0.30), lineWidth: 1)
         )
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

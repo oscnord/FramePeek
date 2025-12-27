@@ -11,7 +11,7 @@ import AppKit
 struct SectionDivider: View {
     var body: some View {
         Rectangle()
-            .fill(Color(nsColor: .separatorColor).opacity(0.5))
+            .fill(.separator.opacity(0.5))
             .frame(height: 1)
             .padding(.horizontal, 8)
             .padding(.vertical, 2)

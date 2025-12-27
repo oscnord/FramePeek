@@ -31,6 +31,7 @@ final class FramePeekViewModel: ObservableObject {
     // Sampling UI
     @Published var showSamplingDialog: Bool = false
     @Published var showAboutView: Bool = false
+    @Published var showSettingsView: Bool = false
     @Published var samplingMode: SamplingMode = .auto
     @Published var samplingIntervalSeconds: Double = 0.5   // used if mode == .interval
     @Published var maxPointsTarget: Int = 2000             // used if mode == .auto / caps

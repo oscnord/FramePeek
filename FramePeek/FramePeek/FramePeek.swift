@@ -111,6 +111,9 @@ struct FramePeek: View {
         .sheet(isPresented: $appViewModel.showAboutView) {
             AboutView()
         }
+        .sheet(isPresented: $appViewModel.showSettingsView) {
+            SettingsView()
+        }
     }
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
