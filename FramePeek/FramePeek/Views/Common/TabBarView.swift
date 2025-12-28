@@ -343,7 +343,7 @@ struct NativeStyleTabButton: View {
         viewModel.isAnalyzing || viewModel.isExtractingKeyframes || viewModel.isGeneratingThumbnails
     }
     
-    init(tab: TabItem, isSelected: Bool, isProcessing: Bool = false, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
+    init(tab: TabItem, isSelected: Bool, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
         self.tab = tab
         self.isSelected = isSelected
         self.onSelect = onSelect
