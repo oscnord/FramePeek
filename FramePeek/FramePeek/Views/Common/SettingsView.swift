@@ -47,11 +47,28 @@ enum SamplingModeSetting: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+enum FileOpeningBehavior: String, CaseIterable, Identifiable, Codable {
+    case prompt
+    case newTab
+    case currentTab
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .prompt: return String(localized: "Prompt")
+        case .newTab: return String(localized: "Always Open in New Tab")
+        case .currentTab: return String(localized: "Always Overwrite Current Tab")
+        }
+    }
+}
+
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("showInspector") private var showInspector: Bool = false
     @AppStorage("showSettingsOnFileLoad") private var showSettingsOnFileLoad: Bool = true
+    @AppStorage("fileOpeningBehavior") private var fileOpeningBehavior: FileOpeningBehavior = .prompt
     
     // Analysis settings
     @AppStorage("samplingMode") private var samplingMode: SamplingModeSetting = .auto
@@ -118,6 +135,24 @@ struct SettingsView: View {
                                     .font(.system(size: 14, weight: .medium))
                                 
                                 Text("When enabled, analysis settings will be shown when you load a new file. You can always adjust settings in Settings.")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Divider()
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Picker("", selection: $fileOpeningBehavior) {
+                                        ForEach(FileOpeningBehavior.allCases) { behavior in
+                                            Text(behavior.displayName).tag(behavior)
+                                        }
+                                    }
+                                    .pickerStyle(.menu)
+                                    .frame(width: 200)
+                                }
+                                
+                                Text("Choose what happens when you open a file while another file is already open in the current tab.")
                                     .font(.system(size: 12))
                                     .foregroundStyle(.secondary)
                             }

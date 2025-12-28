@@ -197,7 +197,7 @@ struct KeyframeLoadingView: View {
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .help("Stop extraction and keep loaded keyframes")
+                    .help(String(localized: "Stop extraction and keep loaded keyframes"))
                 }
             }
             .frame(maxWidth: .infinity)

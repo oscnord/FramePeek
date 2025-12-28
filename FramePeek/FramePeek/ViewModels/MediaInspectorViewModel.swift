@@ -34,6 +34,13 @@ final class FramePeekViewModel: ObservableObject {
     @Published var showAboutView: Bool = false
     @Published var showSettingsView: Bool = false
     
+    // Tab choice dialog
+    @Published var showTabChoiceDialog: Bool = false
+    @Published var pendingURLForTabChoice: URL?
+    
+    // Signal to open file in new tab (set by view model, handled by FramePeek.swift)
+    @Published var shouldOpenInNewTab: URL?
+    
     // Settings loaded from AppStorage (synced on init and when needed)
     @Published var samplingMode: SamplingMode = .auto
     @Published var samplingIntervalSeconds: Double = 0.5   // used if mode == .interval
@@ -80,10 +87,10 @@ final class FramePeekViewModel: ObservableObject {
         defaults.set(preferAccuracy, forKey: "preferAccuracy")
     }
     
-    private var pendingURL: URL?
+    var pendingURL: URL?
     private var currentURL: URL?  // Store current URL for re-analysis
     var rawFrames: [RawFrame] = []  // Store raw frame data for re-aggregation
-    private var infoTask: Task<Void, Never>?
+    var infoTask: Task<Void, Never>?
     var keyframeTask: Task<Void, Never>?
     var thumbnailTask: Task<Void, Never>?
     var framesTask: Task<Void, Never>?
@@ -94,127 +101,6 @@ final class FramePeekViewModel: ObservableObject {
         case interval
 
         var id: String { rawValue }
-    }
-
-    func handleIncomingFile(url: URL) {
-        // Reload settings from UserDefaults in case they changed
-        loadSettingsFromUserDefaults()
-        pendingURL = url
-        
-        // Check if user wants to see settings dialog on file load
-        let showDialog = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
-        
-        if showDialog {
-            showSamplingDialog = true
-        } else {
-            // Skip dialog and use settings directly
-            confirmSamplingAndLoad()
-        }
-    }
-
-    func pickFile() {
-        openFileDialog { [weak self] path in
-            guard let self, let path else { return }
-            self.handleIncomingFile(url: URL(fileURLWithPath: path))
-        }
-    }
-
-    func confirmSamplingAndLoad() {
-        guard let url = pendingURL else {
-            showSamplingDialog = false
-            return
-        }
-        // Save current settings to UserDefaults before loading
-        saveSettingsToUserDefaults()
-        showSamplingDialog = false
-        let urlToLoad = url
-        pendingURL = nil
-        loadAsset(url: urlToLoad)
-    }
-
-    func cancelSamplingDialog() {
-        showSamplingDialog = false
-        pendingURL = nil
-    }
-
-    private func loadAsset(url: URL) {
-        currentURL = url
-        loadAssetInternal(url: url)
-    }
-    
-    private func loadAssetInternal(url: URL) {
-        // Create separate asset instances for each reader to avoid blocking
-        // AVAsset can only have one active AVAssetReader at a time
-        let assetForInfo = AVURLAsset(url: url)
-        let assetForKeyframes = AVURLAsset(url: url)
-        let assetForFrames = AVURLAsset(url: url)
-
-        // cancel in-flight work
-        infoTask?.cancel()
-        framesTask?.cancel()
-        keyframeTask?.cancel()
-        thumbnailTask?.cancel()
-        infoTask = nil
-        keyframeTask = nil
-        thumbnailTask = nil
-        framesTask = nil
-
-        // reset state for new asset
-        samples = []
-        rawFrames = []
-        effectiveFPS = nil
-        minInterval = nil
-        maxInterval = nil
-        hoveredSample = nil
-        extendedInfo = nil
-        isAnalyzing = true
-        keyframes = []
-        keyframeThumbs = []
-        isExtractingKeyframes = false
-        isGeneratingThumbnails = false
-        keyframeExtractionProgress = nil
-
-        // Extended info (async)
-        infoTask = Task { [weak self] in
-            guard let self else { return }
-            self.extendedInfo = await getExtendedInfo(url: url, asset: assetForInfo)
-        }
-        
-        // Start keyframe extraction
-        startKeyframeExtraction(asset: assetForKeyframes)
-        
-        // Start thumbnail generation
-        startThumbnailGeneration(asset: assetForKeyframes)
-        
-        // Start frame analysis
-        startFrameAnalysis(asset: assetForFrames)
-    }
-
-    func cancelAnalysis() {
-        infoTask?.cancel()
-        keyframeTask?.cancel()
-        thumbnailTask?.cancel()
-        framesTask?.cancel()
-        infoTask = nil
-        framesTask = nil
-        isAnalyzing = false
-    }
-
-    func reset() {
-        cancelAnalysis()
-        samples = []
-        rawFrames = []
-        extendedInfo = nil
-        effectiveFPS = nil
-        minInterval = nil
-        maxInterval = nil
-        hoveredSample = nil
-        hoveredKeyframeTime = nil
-        keyframeThumbs = []
-        visibleTimeRange = nil
-        isExtractingKeyframes = false
-        isGeneratingThumbnails = false
-        keyframeExtractionProgress = nil
     }
 }
 
