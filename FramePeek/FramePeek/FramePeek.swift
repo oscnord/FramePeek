@@ -25,6 +25,10 @@ struct FramePeek: View {
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
     }
+    
+    private var shouldShowSettingsDialog: Bool {
+        UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
+    }
 
     var body: some View {
         mainContent
@@ -269,8 +273,7 @@ struct FramePeek: View {
             // Update tab name immediately
             tabManager.updateTabDisplayName(id: newTabId, name: url.lastPathComponent)
             newViewModel.pendingURL = url
-            let showDialog = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
-            if showDialog {
+            if shouldShowSettingsDialog {
                 newViewModel.showSamplingDialog = true
             } else {
                 newViewModel.confirmSamplingAndLoad()
@@ -301,8 +304,7 @@ struct FramePeek: View {
             // Update tab name immediately
             tabManager.updateTabDisplayName(id: newTabId, name: url.lastPathComponent)
             newViewModel.pendingURL = url
-            let showDialog = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
-            if showDialog {
+            if shouldShowSettingsDialog {
                 newViewModel.showSamplingDialog = true
             } else {
                 newViewModel.confirmSamplingAndLoad()
