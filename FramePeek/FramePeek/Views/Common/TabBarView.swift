@@ -230,13 +230,13 @@ private struct IntelligenceGlowView<S: InsettableShape>: View {
     let isProcessing: Bool
     @State private var trimOffset: Double = 0
     @State private var animationTask: Task<Void, Never>?
-    @State private var shouldAnimate: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     private let lineWidths: [CGFloat] = [1.5, 3, 4.5]
     private let blurs: [CGFloat] = [0, 3, 6]
     private let animationDuration: TimeInterval = 6.0
     private let segmentLength: Double = 0.15 // Smaller segment for pill shape
+    private let updateInterval: TimeInterval = 0.016 // ~60fps
     
     var body: some View {
         let accentColor = Color(NSColor.controlAccentColor)
@@ -259,39 +259,68 @@ private struct IntelligenceGlowView<S: InsettableShape>: View {
             
             // Animated glow segment that travels around
             ForEach(0..<lineWidths.count, id: \.self) { i in
-                shape
-                    .trim(from: trimOffset, to: trimOffset + segmentLength)
-                    .stroke(
-                        gradient,
-                        style: StrokeStyle(lineWidth: lineWidths[i], lineCap: .round)
-                    )
-                    .blur(radius: blurs[i])
+                // Use modulo that always returns positive value in [0, 1)
+                let mod1 = { (value: Double) -> Double in
+                    let result = value.truncatingRemainder(dividingBy: 1.0)
+                    return result < 0 ? result + 1.0 : result
+                }
+                let from = mod1(trimOffset)
+                let to = mod1(trimOffset + segmentLength)
+                
+                Group {
+                    if from < to {
+                        // Normal case: segment doesn't wrap around
+                        shape
+                            .trim(from: from, to: to)
+                            .stroke(
+                                gradient,
+                                style: StrokeStyle(lineWidth: lineWidths[i], lineCap: .round)
+                            )
+                            .blur(radius: blurs[i])
+                    } else {
+                        // Wrap-around case: split into two segments
+                        ZStack {
+                            // First segment: from to 1.0
+                            shape
+                                .trim(from: from, to: 1.0)
+                                .stroke(
+                                    gradient,
+                                    style: StrokeStyle(lineWidth: lineWidths[i], lineCap: .round)
+                                )
+                                .blur(radius: blurs[i])
+                            // Second segment: 0.0 to to
+                            shape
+                                .trim(from: 0.0, to: to)
+                                .stroke(
+                                    gradient,
+                                    style: StrokeStyle(lineWidth: lineWidths[i], lineCap: .round)
+                                )
+                                .blur(radius: blurs[i])
+                        }
+                    }
+                }
             }
         }
-        .animation(shouldAnimate ? .linear(duration: animationDuration) : nil, value: trimOffset)
+        .animation(.linear(duration: updateInterval), value: trimOffset)
         .onChange(of: isProcessing) { oldValue, newValue in
             // Cancel any existing animation
             animationTask?.cancel()
             animationTask = nil
             
-            if newValue && !reduceMotion {
-                // Start continuous animation
-                shouldAnimate = true
-                trimOffset = 0
+                    if newValue && !reduceMotion {
+                // Start continuous animation that increments continuously
                 animationTask = Task { @MainActor in
+                    let startTime = Date()
                     while !Task.isCancelled && isProcessing {
-                        withAnimation(.linear(duration: animationDuration)) {
-                            trimOffset = 1.0
-                        }
-                        try? await Task.sleep(for: .seconds(animationDuration))
-                        if !Task.isCancelled && isProcessing {
-                            trimOffset = 0
-                        }
+                        let elapsed = Date().timeIntervalSince(startTime)
+                        // Continuously increment trimOffset, wrapping around at 1.0
+                        let value = (elapsed / animationDuration).truncatingRemainder(dividingBy: 1.0)
+                        trimOffset = value < 0 ? value + 1.0 : value
+                        try? await Task.sleep(for: .seconds(updateInterval))
                     }
                 }
             } else {
                 // Stop animation and reset immediately (no animation to prevent lingering glow)
-                shouldAnimate = false
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
@@ -301,17 +330,14 @@ private struct IntelligenceGlowView<S: InsettableShape>: View {
         }
         .onAppear {
             if isProcessing && !reduceMotion {
-                shouldAnimate = true
-                trimOffset = 0
                 animationTask = Task { @MainActor in
+                    let startTime = Date()
                     while !Task.isCancelled && isProcessing {
-                        withAnimation(.linear(duration: animationDuration)) {
-                            trimOffset = 1.0
-                        }
-                        try? await Task.sleep(for: .seconds(animationDuration))
-                        if !Task.isCancelled && isProcessing {
-                            trimOffset = 0
-                        }
+                        let elapsed = Date().timeIntervalSince(startTime)
+                        // Continuously increment trimOffset, wrapping around at 1.0
+                        let value = (elapsed / animationDuration).truncatingRemainder(dividingBy: 1.0)
+                        trimOffset = value < 0 ? value + 1.0 : value
+                        try? await Task.sleep(for: .seconds(updateInterval))
                     }
                 }
             }
@@ -319,7 +345,6 @@ private struct IntelligenceGlowView<S: InsettableShape>: View {
         .onDisappear {
             animationTask?.cancel()
             animationTask = nil
-            shouldAnimate = false
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) {
