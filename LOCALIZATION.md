@@ -71,3 +71,4 @@ To test different languages:
 2. Restart the app to see the new language
 3. Or use Xcode's scheme editor to set a different language for debugging
 
+

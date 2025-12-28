@@ -98,10 +98,8 @@ extension FramePeekViewModel {
             }
             
         case .newTab:
-            // This will be handled by TabManager - just notify via a callback
-            // For now, we'll return the URL and let the caller handle it
-            // This is a bit of a workaround - ideally TabManager would handle this
-            break
+            // Signal to open in new tab (FramePeek.swift will handle this via onChange observer)
+            shouldOpenInNewTab = url
         }
     }
     

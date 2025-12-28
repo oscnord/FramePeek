@@ -92,3 +92,4 @@ func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> C
     }
 }
 
+
