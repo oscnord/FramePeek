@@ -130,7 +130,7 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
         duration: duration.duration,
         durationFormatted: duration.durationFormatted,
         containerFormat: basicInfo.containerFormat,
-        containerFormatProfile: nil, // Not extracted in modular version
+        containerFormatProfile: basicInfo.containerFormatProfile,
         codecIdRaw: codecInfo?.codecIdRaw,
         resolution: videoInfo?.resolution ?? "N/A",
         displayAspectRatio: displayAspectRatio,
@@ -140,7 +140,7 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
         codecIdInfo: codecInfo?.codecIdInfo,
         orientationDegrees: videoInfo?.orientationDegrees,
         trackBitrate: videoInfo?.trackBitrate,
-        maxBitrate: nil, // Not extracted in modular version
+        maxBitrate: codecInfo?.maxBitrate,
         pixelAspectRatio: videoInfo?.pixelAspectRatio,
         cleanAperture: videoInfo?.cleanAperture,
         scanType: videoInfo?.scanType,

@@ -16,6 +16,7 @@ struct CodecInfo {
     let codecIdInfo: String?
     let chromaSubsampling: String?
     let hasDolbyVision: Bool
+    let maxBitrate: String?
 }
 
 func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
@@ -33,6 +34,7 @@ func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
         var codecProfile: String? = nil
         var chromaSubsampling: String? = nil
         var hasDolbyVision = false
+        var maxBitrate: String? = nil
         
         if let extDict = CMFormatDescriptionGetExtensions(formatDesc) as? [CFString: Any] {
             // Sample description extension atoms
@@ -47,6 +49,8 @@ func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
                     if let profile = parseHEVCProfile(hvcCData) {
                         codecProfile = profile
                     }
+                    // Try to extract max bitrate from HEVC config
+                    maxBitrate = parseHEVCMaxBitrate(hvcCData)
                     // HEVC is typically 4:2:0
                     if chromaSubsampling == nil {
                         chromaSubsampling = "4:2:0"
@@ -57,6 +61,10 @@ func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
                 if let avcCData = atoms["avcC" as CFString] as? Data {
                     if let profile = parseAVCProfile(avcCData) {
                         codecProfile = profile
+                    }
+                    // Try to extract max bitrate from AVC config
+                    if maxBitrate == nil {
+                        maxBitrate = parseAVCMaxBitrate(avcCData)
                     }
                     // AVC is typically 4:2:0
                     if chromaSubsampling == nil {
@@ -79,7 +87,8 @@ func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
             codecProfile: codecProfile,
             codecIdInfo: codecIdInfo,
             chromaSubsampling: chromaSubsampling,
-            hasDolbyVision: hasDolbyVision
+            hasDolbyVision: hasDolbyVision,
+            maxBitrate: maxBitrate
         )
     } catch {
         print("Error extracting codec info: \(error.localizedDescription)")

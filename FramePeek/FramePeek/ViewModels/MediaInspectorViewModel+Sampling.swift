@@ -22,6 +22,67 @@ extension FramePeekViewModel {
         )
         
         samples = aggregated
+        // Update maxBitrate after re-aggregation
+        updateMaxBitrateFromSamples()
+    }
+    
+    /// Updates maxBitrate in extendedInfo with peak bitrate calculated from samples
+    private func updateMaxBitrateFromSamples() {
+        guard var info = extendedInfo, !samples.isEmpty else { return }
+        
+        // Calculate peak bitrate from samples (same as BitrateChartStatistics)
+        let maxBits = samples.map(\.bitrate).max() ?? 0
+        let maxBitrateKbps = Double(maxBits) / 1000.0
+        let maxBitrateString = String(format: "%.0f kb/s", maxBitrateKbps)
+        
+        // Create new ExtendedVideoInfo with updated maxBitrate
+        let updatedInfo = ExtendedVideoInfo(
+            fileName: info.fileName,
+            fileSize: info.fileSize,
+            fileSizeBytes: info.fileSizeBytes,
+            overallBitrate: info.overallBitrate,
+            duration: info.duration,
+            durationFormatted: info.durationFormatted,
+            containerFormat: info.containerFormat,
+            containerFormatProfile: info.containerFormatProfile,
+            codecIdRaw: info.codecIdRaw,
+            resolution: info.resolution,
+            displayAspectRatio: info.displayAspectRatio,
+            frameRate: info.frameRate,
+            codec: info.codec,
+            codecProfile: info.codecProfile,
+            codecIdInfo: info.codecIdInfo,
+            orientationDegrees: info.orientationDegrees,
+            trackBitrate: info.trackBitrate,
+            maxBitrate: maxBitrateString, // Use peak from analysis
+            pixelAspectRatio: info.pixelAspectRatio,
+            cleanAperture: info.cleanAperture,
+            scanType: info.scanType,
+            frameRateMode: info.frameRateMode,
+            colorSpace: info.colorSpace,
+            chromaSubsampling: info.chromaSubsampling,
+            bitsPerPixelFrame: info.bitsPerPixelFrame,
+            videoStreamSize: info.videoStreamSize,
+            colorPrimaries: info.colorPrimaries,
+            transferFunction: info.transferFunction,
+            matrixCoefficients: info.matrixCoefficients,
+            colorRange: info.colorRange,
+            bitDepth: info.bitDepth,
+            hdrFormat: info.hdrFormat,
+            av1CSize: info.av1CSize,
+            av1Profile: info.av1Profile,
+            av1Level: info.av1Level,
+            av1ChromaSubsampling: info.av1ChromaSubsampling,
+            av1FullRange: info.av1FullRange,
+            creationDate: info.creationDate,
+            metadataTitle: info.metadataTitle,
+            metadataArtist: info.metadataArtist,
+            metadataEncoder: info.metadataEncoder,
+            metadataDescription: info.metadataDescription,
+            audioTracks: info.audioTracks
+        )
+        
+        extendedInfo = updatedInfo
     }
 
     func makeSamplingOptions(asset: AVAsset) async -> FrameSamplingOptions {
@@ -97,6 +158,8 @@ extension FramePeekViewModel {
 
                     if update.isFinished {
                         self.isAnalyzing = false
+                        // Update maxBitrate in extendedInfo with peak bitrate from analysis
+                        self.updateMaxBitrateFromSamples()
                     }
                 }
 

@@ -244,3 +244,77 @@ func parseVP9Profile(_ data: Data) -> String? {
     
     return "\(profileName) Level \(level)"
 }
+
+// MARK: - Max Bitrate Parsing
+
+// MARK: - Max Bitrate Parsing
+// Note: Max bitrate parsing is implemented in VUIParser.swift
+// The parseAVCMaxBitrate and parseHEVCMaxBitrate functions are defined there
+
+// MARK: - Container Format Profile Parsing
+
+/// Parses container format profile from file structure
+/// For MP4/MOV, this reads the ftyp atom to get brand and compatible brands
+func parseContainerFormatProfile(url: URL) -> String? {
+    guard let fileHandle = FileHandle(forReadingAtPath: url.path) else { return nil }
+    defer { fileHandle.closeFile() }
+    
+    // Try reading from offset 0 first (standard MP4)
+    if let profile = parseFtypAtom(fileHandle: fileHandle, offset: 0) {
+        return profile
+    }
+    
+    // Try offset 4 for QuickTime files
+    if let profile = parseFtypAtom(fileHandle: fileHandle, offset: 4) {
+        return profile
+    }
+    
+    return nil
+}
+
+/// Helper to parse ftyp atom at a specific offset
+private func parseFtypAtom(fileHandle: FileHandle, offset: UInt64) -> String? {
+    do {
+        try fileHandle.seek(toOffset: offset)
+        guard let headerData = try? fileHandle.read(upToCount: 8) else { return nil }
+        guard headerData.count == 8 else { return nil }
+        
+        let bytes = [UInt8](headerData)
+        let size = (UInt32(bytes[0]) << 24) | (UInt32(bytes[1]) << 16) | (UInt32(bytes[2]) << 8) | UInt32(bytes[3])
+        let type = String(bytes: [bytes[4], bytes[5], bytes[6], bytes[7]], encoding: .ascii) ?? ""
+        
+        // Check if this is an ftyp atom
+        guard type == "ftyp" else { return nil }
+        
+        // Read ftyp atom content
+        let atomSize = Int(size)
+        guard atomSize >= 16, atomSize <= 1024 else { return nil } // Reasonable size limit
+        
+        guard let ftypData = try? fileHandle.read(upToCount: atomSize - 8) else { return nil }
+        guard ftypData.count >= 8 else { return nil }
+        
+        let ftypBytes = [UInt8](ftypData)
+        let majorBrand = String(bytes: [ftypBytes[0], ftypBytes[1], ftypBytes[2], ftypBytes[3]], encoding: .ascii) ?? ""
+        
+        var compatibleBrands: [String] = []
+        var brandOffset = 8
+        while brandOffset + 4 <= ftypData.count {
+            let brand = String(bytes: [ftypBytes[brandOffset], ftypBytes[brandOffset + 1], ftypBytes[brandOffset + 2], ftypBytes[brandOffset + 3]], encoding: .ascii) ?? ""
+            if !brand.isEmpty && brand.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == " " || $0 == "-") }) {
+                compatibleBrands.append(brand)
+            }
+            brandOffset += 4
+        }
+        
+        // Format as "MajorBrand (CompatibleBrand1, CompatibleBrand2, ...)"
+        if !compatibleBrands.isEmpty {
+            return "\(majorBrand) (\(compatibleBrands.joined(separator: ", ")))"
+        } else if !majorBrand.isEmpty {
+            return majorBrand
+        }
+    } catch {
+        return nil
+    }
+    
+    return nil
+}
