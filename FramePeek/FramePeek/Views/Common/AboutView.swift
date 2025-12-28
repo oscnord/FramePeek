@@ -66,8 +66,7 @@ struct AboutView: View {
     }
     
     private var appVersion: String? {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ??
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
     }
     
     private var buildNumber: String? {
