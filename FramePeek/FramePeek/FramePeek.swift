@@ -27,7 +27,10 @@ struct FramePeek: View {
     }
     
     private var shouldShowSettingsDialog: Bool {
-        UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
+        if let value = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") as? Bool {
+            return value
+        }
+        return true
     }
 
     var body: some View {
