@@ -269,12 +269,12 @@ private struct IntelligenceGlowView<S: InsettableShape>: View {
             }
         }
         .animation(shouldAnimate ? .linear(duration: animationDuration) : nil, value: trimOffset)
-        .onChange(of: isProcessing) { processing in
+        .onChange(of: isProcessing) { oldValue, newValue in
             // Cancel any existing animation
             animationTask?.cancel()
             animationTask = nil
             
-            if processing && !reduceMotion {
+            if newValue && !reduceMotion {
                 // Start continuous animation
                 shouldAnimate = true
                 trimOffset = 0

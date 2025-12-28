@@ -38,6 +38,9 @@ final class FramePeekViewModel: ObservableObject {
     @Published var showTabChoiceDialog: Bool = false
     @Published var pendingURLForTabChoice: URL?
     
+    // Signal to open file in new tab (set by view model, handled by FramePeek.swift)
+    @Published var shouldOpenInNewTab: URL?
+    
     // Settings loaded from AppStorage (synced on init and when needed)
     @Published var samplingMode: SamplingMode = .auto
     @Published var samplingIntervalSeconds: Double = 0.5   // used if mode == .interval

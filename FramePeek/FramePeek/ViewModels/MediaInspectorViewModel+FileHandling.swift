@@ -25,9 +25,37 @@ extension FramePeekViewModel {
         
         // Check if a file is already loaded in this tab
         if extendedInfo != nil {
-            // File is loaded, show tab choice dialog immediately
-            pendingURLForTabChoice = url
-            showTabChoiceDialog = true
+            // File is loaded, check user's preference for file opening behavior
+            let behaviorString = UserDefaults.standard.string(forKey: "fileOpeningBehavior") ?? "prompt"
+            let behavior = FileOpeningBehavior(rawValue: behaviorString) ?? .prompt
+            
+            switch behavior {
+            case .prompt:
+                // Show dialog to let user choose
+                pendingURLForTabChoice = url
+                showTabChoiceDialog = true
+                
+            case .newTab:
+                // Signal to open in new tab (FramePeek.swift will handle this)
+                // Clear any pending tab choice dialog state
+                pendingURLForTabChoice = nil
+                showTabChoiceDialog = false
+                shouldOpenInNewTab = url
+                
+            case .currentTab:
+                // Load in current tab (replaces existing file)
+                pendingURL = url
+                
+                // Check if user wants to see settings dialog on file load
+                let showDialog = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
+                
+                if showDialog {
+                    showSamplingDialog = true
+                } else {
+                    // Skip dialog and use settings directly
+                    confirmSamplingAndLoad()
+                }
+            }
         } else {
             // No file loaded, proceed directly
             pendingURL = url
