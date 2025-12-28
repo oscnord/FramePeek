@@ -206,7 +206,6 @@ struct EnhancedTabBarView: View {
                         NativeStyleTabButton(
                             tab: tab,
                             isSelected: tab.id == tabManager.selectedTabId,
-                            isProcessing: tab.viewModel.isAnalyzing || tab.viewModel.isExtractingKeyframes || tab.viewModel.isGeneratingThumbnails,
                             onSelect: {
                                 tabManager.switchToTab(id: tab.id)
                             },
@@ -218,35 +217,139 @@ struct EnhancedTabBarView: View {
                 }
                 .padding(.horizontal, 8)
             }
-            
-            // Add new tab button
-            Button {
-                tabManager.addTab()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help(String(localized: "New Tab"))
-            .padding(.horizontal, 8)
         }
         .frame(height: 32)
         .background(Color(NSColor.controlBackgroundColor))
     }
 }
 
+// MARK: - Apple Intelligence Style Glow Effect
+
+private struct IntelligenceGlowView<S: InsettableShape>: View {
+    let shape: S
+    let isProcessing: Bool
+    @State private var trimOffset: Double = 0
+    @State private var animationTask: Task<Void, Never>?
+    @State private var shouldAnimate: Bool = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    
+    private let lineWidths: [CGFloat] = [1.5, 3, 4.5]
+    private let blurs: [CGFloat] = [0, 3, 6]
+    private let animationDuration: TimeInterval = 6.0
+    private let segmentLength: Double = 0.15 // Smaller segment for pill shape
+    
+    var body: some View {
+        let accentColor = Color(NSColor.controlAccentColor)
+        let gradient = LinearGradient(
+            gradient: Gradient(stops: [
+                .init(color: accentColor.opacity(0.0), location: 0.0),
+                .init(color: accentColor.opacity(0.3), location: 0.3),
+                .init(color: accentColor.opacity(0.5), location: 0.5),
+                .init(color: accentColor.opacity(0.3), location: 0.7),
+                .init(color: accentColor.opacity(0.0), location: 1.0)
+            ]),
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        
+        ZStack {
+            // Base subtle border
+            shape
+                .strokeBorder(accentColor.opacity(0.1), lineWidth: 1.5)
+            
+            // Animated glow segment that travels around
+            ForEach(0..<lineWidths.count, id: \.self) { i in
+                shape
+                    .trim(from: trimOffset, to: trimOffset + segmentLength)
+                    .stroke(
+                        gradient,
+                        style: StrokeStyle(lineWidth: lineWidths[i], lineCap: .round)
+                    )
+                    .blur(radius: blurs[i])
+            }
+        }
+        .animation(shouldAnimate ? .linear(duration: animationDuration) : nil, value: trimOffset)
+        .onChange(of: isProcessing) { processing in
+            // Cancel any existing animation
+            animationTask?.cancel()
+            animationTask = nil
+            
+            if processing && !reduceMotion {
+                // Start continuous animation
+                shouldAnimate = true
+                trimOffset = 0
+                animationTask = Task { @MainActor in
+                    while !Task.isCancelled && isProcessing {
+                        withAnimation(.linear(duration: animationDuration)) {
+                            trimOffset = 1.0
+                        }
+                        try? await Task.sleep(for: .seconds(animationDuration))
+                        if !Task.isCancelled && isProcessing {
+                            trimOffset = 0
+                        }
+                    }
+                }
+            } else {
+                // Stop animation and reset immediately (no animation to prevent lingering glow)
+                shouldAnimate = false
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    trimOffset = 0
+                }
+            }
+        }
+        .onAppear {
+            if isProcessing && !reduceMotion {
+                shouldAnimate = true
+                trimOffset = 0
+                animationTask = Task { @MainActor in
+                    while !Task.isCancelled && isProcessing {
+                        withAnimation(.linear(duration: animationDuration)) {
+                            trimOffset = 1.0
+                        }
+                        try? await Task.sleep(for: .seconds(animationDuration))
+                        if !Task.isCancelled && isProcessing {
+                            trimOffset = 0
+                        }
+                    }
+                }
+            }
+        }
+        .onDisappear {
+            animationTask?.cancel()
+            animationTask = nil
+            shouldAnimate = false
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                trimOffset = 0
+            }
+        }
+    }
+}
+
 struct NativeStyleTabButton: View {
     let tab: TabItem
     let isSelected: Bool
-    var isProcessing: Bool = false
     let onSelect: () -> Void
     let onClose: () -> Void
     
+    @ObservedObject private var viewModel: FramePeekViewModel
     @State private var isHovered: Bool = false
-    @State private var breathingOpacity: Double = 1.0
+    @State private var gradientStops: [Gradient.Stop] = []
+    
+    private var isProcessing: Bool {
+        viewModel.isAnalyzing || viewModel.isExtractingKeyframes || viewModel.isGeneratingThumbnails
+    }
+    
+    init(tab: TabItem, isSelected: Bool, isProcessing: Bool = false, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
+        self.tab = tab
+        self.isSelected = isSelected
+        self.onSelect = onSelect
+        self.onClose = onClose
+        self._viewModel = ObservedObject(wrappedValue: tab.viewModel)
+    }
     
     var body: some View {
         Button(action: onSelect) {
@@ -326,16 +429,18 @@ struct NativeStyleTabButton: View {
                     }
                 }
             )
-            .opacity(isProcessing ? breathingOpacity : 1.0)
             .overlay(
-                // Subtle breathing glow effect when processing
+                // Apple Intelligence-style glow effect when processing
+                IntelligenceGlowView(shape: Capsule(), isProcessing: isProcessing)
+                    .opacity(isProcessing ? 1.0 : 0.0)
+                    .allowsHitTesting(false)
+            )
+            .background(
+                // Subtle background glow when processing
                 Group {
                     if isProcessing {
                         Capsule()
-                            .strokeBorder(
-                                Color(NSColor.controlAccentColor).opacity(0.2 + (1.0 - breathingOpacity) * 0.3),
-                                lineWidth: 1.5
-                            )
+                            .fill(Color(NSColor.controlAccentColor).opacity(0.05))
                     }
                 }
             )
@@ -344,26 +449,6 @@ struct NativeStyleTabButton: View {
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
-            }
-        }
-        .onChange(of: isProcessing) { processing in
-            if processing {
-                // Start breathing animation - subtle pulse between 0.85 and 1.0
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    breathingOpacity = 0.85
-                }
-            } else {
-                // Stop breathing animation
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    breathingOpacity = 1.0
-                }
-            }
-        }
-        .onAppear {
-            if isProcessing {
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    breathingOpacity = 0.85
-                }
             }
         }
     }

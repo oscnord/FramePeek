@@ -14,54 +14,51 @@ struct TabChoiceDialog: View {
     let onCancel: () -> Void
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Open File")
-                .font(.headline)
+        VStack(spacing: 24) {
+            VStack(spacing: 8) {
+                Text("A file is already open")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.primary)
+                
+                Text("Open \"\(fileName)\" in:")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
             
-            Text("A file is already open in this tab.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            
-            Text(fileName)
-                .font(.system(.body, design: .monospaced))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(6)
-            
-            Text("Would you like to open this file in the current tab or a new tab?")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Button {
                     onChooseCurrentTab()
                 } label: {
-                    Label("Open in Current Tab", systemImage: "doc.fill")
-                        .frame(maxWidth: .infinity)
+                    VStack(spacing: 6) {
+                        Image(systemName: "doc.fill")
+                            .font(.system(size: 20))
+                        Text("Current Tab")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
                 }
                 .buttonStyle(.borderedProminent)
                 
                 Button {
                     onChooseNewTab()
                 } label: {
-                    Label("Open in New Tab", systemImage: "plus.square.on.square")
-                        .frame(maxWidth: .infinity)
+                    VStack(spacing: 6) {
+                        Image(systemName: "plus.square.on.square")
+                            .font(.system(size: 20))
+                        Text("New Tab")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
                 }
                 .buttonStyle(.bordered)
             }
-            
-            Button("Cancel", role: .cancel) {
-                onCancel()
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
         }
-        .padding(24)
-        .frame(width: 420)
+        .padding(28)
+        .frame(width: 360)
     }
 }
 

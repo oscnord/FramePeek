@@ -20,6 +20,7 @@ struct FramePeek: View {
     
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
+    @State private var isProcessing: Bool = false
     
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
@@ -109,22 +110,6 @@ struct FramePeek: View {
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
             
-            if let viewModel = currentViewModel, viewModel.isAnalyzing {
-                ToolbarItem(placement: .confirmationAction) {
-                    ProgressView().controlSize(.small)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        viewModel.cancelAnalysis()
-                    } label: {
-                        Label("Cancel", systemImage: "xmark.circle.fill")
-                    }
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-                }
-            }
-            
             ToolbarItem(placement: .confirmationAction) {
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
@@ -139,7 +124,22 @@ struct FramePeek: View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showInspector)
-        .animation(.spring(response: 0.7, dampingFraction: 0.8), value: currentViewModel?.isAnalyzing ?? false)
+        .animation(.spring(response: 0.7, dampingFraction: 0.8), value: isProcessing)
+        .onChange(of: currentViewModel?.isAnalyzing) { _ in
+            updateProcessingState()
+        }
+        .onChange(of: currentViewModel?.isExtractingKeyframes) { _ in
+            updateProcessingState()
+        }
+        .onChange(of: currentViewModel?.isGeneratingThumbnails) { _ in
+            updateProcessingState()
+        }
+        .onChange(of: tabManager.selectedTabId) { _ in
+            updateProcessingState()
+        }
+        .onAppear {
+            updateProcessingState()
+        }
         .onChange(of: currentViewModel?.extendedInfo?.fileName) {
             // Auto-show inspector when a video is loaded
             if currentViewModel?.extendedInfo != nil && !showInspector {
@@ -274,6 +274,14 @@ struct FramePeek: View {
             }
         }
         return true
+    }
+    
+    private func updateProcessingState() {
+        guard let viewModel = currentViewModel else {
+            isProcessing = false
+            return
+        }
+        isProcessing = viewModel.isAnalyzing || viewModel.isExtractingKeyframes || viewModel.isGeneratingThumbnails
     }
 }
 
