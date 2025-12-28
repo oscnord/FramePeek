@@ -979,7 +979,7 @@
       }
     },
     "When Opening a File in an Occupied Tab" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
