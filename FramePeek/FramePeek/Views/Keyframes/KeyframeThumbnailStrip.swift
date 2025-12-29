@@ -107,7 +107,7 @@ struct KeyframeThumbnailStrip: View {
     }
     
     private var strip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        DraggableScrollView(showsIndicators: false) {
             LazyHStack(spacing: 6) {
                 ForEach(Array(filteredThumbs.enumerated()), id: \.element.id) { index, t in
                     ThumbCell(
@@ -193,6 +193,99 @@ private struct EnlargedThumbView: View {
                 shape.strokeBorder(Color.orange, lineWidth: 2.5)
             )
             .shadow(color: .black.opacity(0.5), radius: 10, y: 4)
+    }
+}
+
+// MARK: - Draggable Scroll View
+
+private struct DraggableScrollView<Content: View>: NSViewRepresentable {
+    let showsIndicators: Bool
+    let content: Content
+    
+    init(showsIndicators: Bool, @ViewBuilder content: () -> Content) {
+        self.showsIndicators = showsIndicators
+        self.content = content()
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.hasHorizontalScroller = showsIndicators
+        scrollView.hasVerticalScroller = false
+        scrollView.horizontalScrollElasticity = .automatic
+        scrollView.verticalScrollElasticity = .none
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
+        
+        let hostingView = NSHostingView(rootView: content)
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        
+        scrollView.documentView = hostingView
+        
+        // Enable drag-to-scroll
+        scrollView.allowsMagnification = false
+        
+        // Store references in coordinator
+        context.coordinator.hostingView = hostingView
+        context.coordinator.scrollView = scrollView
+        
+        // Add pan gesture for drag-to-scroll
+        let panGesture = NSPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
+        panGesture.allowedTouchTypes = .direct
+        scrollView.addGestureRecognizer(panGesture)
+        
+        // Set up constraints
+        if let documentView = scrollView.documentView {
+            NSLayoutConstraint.activate([
+                hostingView.topAnchor.constraint(equalTo: documentView.topAnchor),
+                hostingView.leadingAnchor.constraint(equalTo: documentView.leadingAnchor),
+                hostingView.trailingAnchor.constraint(equalTo: documentView.trailingAnchor),
+                hostingView.bottomAnchor.constraint(equalTo: documentView.bottomAnchor)
+            ])
+        }
+        
+        return scrollView
+    }
+    
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        nsView.hasHorizontalScroller = showsIndicators
+        
+        // Update the hosting view's content
+        if let hostingView = context.coordinator.hostingView {
+            hostingView.rootView = content
+        }
+    }
+    
+    class Coordinator: NSObject {
+        var hostingView: NSHostingView<Content>?
+        var scrollView: NSScrollView?
+        var lastScrollOrigin: NSPoint = .zero
+        
+        @objc func handlePan(_ gesture: NSPanGestureRecognizer) {
+            guard let scrollView = scrollView else { return }
+            
+            switch gesture.state {
+            case .began:
+                lastScrollOrigin = scrollView.contentView.bounds.origin
+            case .changed:
+                let translation = gesture.translation(in: scrollView)
+                var newOrigin = lastScrollOrigin
+                newOrigin.x -= translation.x
+                
+                // Clamp to valid scroll range
+                let documentWidth = scrollView.documentView?.frame.width ?? 0
+                let visibleWidth = scrollView.contentView.bounds.width
+                let maxX = max(0, documentWidth - visibleWidth)
+                newOrigin.x = max(0, min(newOrigin.x, maxX))
+                
+                scrollView.contentView.scroll(to: newOrigin)
+            default:
+                break
+            }
+        }
     }
 }
 

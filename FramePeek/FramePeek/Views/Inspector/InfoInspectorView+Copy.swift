@@ -70,6 +70,7 @@ extension InfoInspectorView {
         kv("Codec ID", info.codecIdRaw)
         kv("Video Bitrate", info.trackBitrate)
         kv("Max Bitrate", info.maxBitrate)
+        kv("Min Bitrate", info.minBitrate)
         kv("Stream Size", info.videoStreamSize)
         kv("Bits/(Pixel*Frame)", info.bitsPerPixelFrame)
         if let deg = info.orientationDegrees { kv("Orientation", "\(deg)°") }

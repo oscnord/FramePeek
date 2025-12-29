@@ -81,6 +81,7 @@ struct InfoInspectorView: View {
                                 if let v = info.codecIdRaw { KV("Codec ID", v) }
                                 if let v = info.trackBitrate { KV("Video Bitrate", v) }
                                 if let v = info.maxBitrate { KV("Max Bitrate", v) }
+                                if let v = info.minBitrate { KV("Min Bitrate", v) }
                                 if let v = info.videoStreamSize { KV("Stream Size", v) }
                                 if let v = info.bitsPerPixelFrame { KV("Bits/(Pixel*Frame)", v, monospace: true) }
                                 if let v = info.orientationDegrees { KV("Orientation", "\(v)°") }

@@ -21,6 +21,7 @@ struct FramePeek: View {
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
     @State private var isProcessing: Bool = false
+    @State private var showSamplingDialog: Bool = false
     
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
@@ -31,6 +32,45 @@ struct FramePeek: View {
     }
 
     var body: some View {
+        contentWithObservers
+            .sheet(isPresented: $showSamplingDialog) {
+                samplingSheet
+            }
+            .sheet(isPresented: $showTabChoiceDialog) {
+                tabChoiceSheet
+            }
+            .sheet(isPresented: $appViewModel.showAboutView) {
+                AboutView()
+            }
+            .sheet(isPresented: $appViewModel.showSettingsView) {
+                SettingsView()
+            }
+    }
+    
+    private var contentWithObservers: some View {
+        contentWithProcessingObservers
+            .onChange(of: currentViewModel?.extendedInfo?.fileName) {
+                handleExtendedInfoChange()
+            }
+            .onChange(of: currentViewModel?.pendingURL) {
+                handlePendingURLChange()
+            }
+            .onChange(of: currentViewModel?.showTabChoiceDialog) {
+                handleTabChoiceDialogChange()
+            }
+            .onChange(of: currentViewModel?.pendingURLForTabChoice) {
+                handlePendingURLForTabChoiceChange()
+            }
+            .onChange(of: currentViewModel?.shouldOpenInNewTab) {
+                handleShouldOpenInNewTabChange()
+            }
+            .onChange(of: currentViewModel?.showSamplingDialog) { newValue in
+                // Sync local state with view model state
+                showSamplingDialog = newValue ?? false
+            }
+    }
+    
+    private var contentWithProcessingObservers: some View {
         mainContent
             .toolbar { toolbarContent }
             .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showInspector)
@@ -49,33 +89,6 @@ struct FramePeek: View {
             }
             .onAppear {
                 updateProcessingState()
-            }
-            .onChange(of: currentViewModel?.extendedInfo?.fileName) {
-                handleExtendedInfoChange()
-            }
-            .onChange(of: currentViewModel?.pendingURL) {
-                handlePendingURLChange()
-            }
-            .onChange(of: currentViewModel?.showTabChoiceDialog) {
-                handleTabChoiceDialogChange()
-            }
-            .onChange(of: currentViewModel?.pendingURLForTabChoice) {
-                handlePendingURLForTabChoiceChange()
-            }
-            .onChange(of: currentViewModel?.shouldOpenInNewTab) {
-                handleShouldOpenInNewTabChange()
-            }
-            .sheet(isPresented: samplingDialogBinding) {
-                samplingSheet
-            }
-            .sheet(isPresented: $showTabChoiceDialog) {
-                tabChoiceSheet
-            }
-            .sheet(isPresented: $appViewModel.showAboutView) {
-                AboutView()
-            }
-            .sheet(isPresented: $appViewModel.showSettingsView) {
-                SettingsView()
             }
     }
     
@@ -178,13 +191,6 @@ struct FramePeek: View {
             .keyboardShortcut("i", modifiers: [.command, .option])
             .transition(.move(edge: .trailing).combined(with: .opacity))
         }
-    }
-    
-    private var samplingDialogBinding: Binding<Bool> {
-        Binding(
-            get: { currentViewModel?.showSamplingDialog ?? false },
-            set: { if let viewModel = currentViewModel { viewModel.showSamplingDialog = $0 } }
-        )
     }
     
     @ViewBuilder

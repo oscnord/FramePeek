@@ -141,6 +141,7 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
         orientationDegrees: videoInfo?.orientationDegrees,
         trackBitrate: videoInfo?.trackBitrate,
         maxBitrate: codecInfo?.maxBitrate,
+        minBitrate: nil,
         pixelAspectRatio: videoInfo?.pixelAspectRatio,
         cleanAperture: videoInfo?.cleanAperture,
         scanType: videoInfo?.scanType,

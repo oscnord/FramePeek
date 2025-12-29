@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SamplingSheet: View {
     @ObservedObject var viewModel: FramePeekViewModel
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -119,6 +120,7 @@ struct SamplingSheet: View {
             HStack {
                 Button("Cancel") {
                     viewModel.cancelSamplingDialog()
+                    dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
 
@@ -126,6 +128,7 @@ struct SamplingSheet: View {
 
                 Button("Analyze") {
                     viewModel.confirmSamplingAndLoad()
+                    dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
@@ -133,6 +136,12 @@ struct SamplingSheet: View {
         }
         .padding(20)
         .frame(minWidth: 420, minHeight: 300)
+        .onDisappear {
+            // Handle case where user dismisses by clicking outside or pressing ESC
+            if viewModel.showSamplingDialog || viewModel.pendingURL != nil {
+                viewModel.cancelSamplingDialog()
+            }
+        }
     }
 }
 

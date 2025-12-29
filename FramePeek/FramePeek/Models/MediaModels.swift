@@ -46,6 +46,7 @@ struct ExtendedVideoInfo {
     let orientationDegrees: Int?
     let trackBitrate: String?
     let maxBitrate: String?
+    let minBitrate: String?
     let pixelAspectRatio: String?
     let cleanAperture: String?
     let scanType: String?

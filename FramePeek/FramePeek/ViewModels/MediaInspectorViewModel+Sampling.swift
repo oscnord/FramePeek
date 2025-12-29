@@ -26,7 +26,7 @@ extension FramePeekViewModel {
         updateMaxBitrateFromSamples()
     }
     
-    /// Updates maxBitrate in extendedInfo with peak bitrate calculated from samples
+    /// Updates maxBitrate and minBitrate in extendedInfo with peak and minimum bitrate calculated from samples
     private func updateMaxBitrateFromSamples() {
         guard var info = extendedInfo, !samples.isEmpty else { return }
         
@@ -35,7 +35,12 @@ extension FramePeekViewModel {
         let maxBitrateKbps = Double(maxBits) / 1000.0
         let maxBitrateString = String(format: "%.0f kb/s", maxBitrateKbps)
         
-        // Create new ExtendedVideoInfo with updated maxBitrate
+        // Calculate minimum bitrate from samples (same as BitrateChartStatistics)
+        let minBits = samples.map(\.bitrate).min() ?? 0
+        let minBitrateKbps = Double(minBits) / 1000.0
+        let minBitrateString = String(format: "%.0f kb/s", minBitrateKbps)
+        
+        // Create new ExtendedVideoInfo with updated maxBitrate and minBitrate
         let updatedInfo = ExtendedVideoInfo(
             fileName: info.fileName,
             fileSize: info.fileSize,
@@ -55,6 +60,7 @@ extension FramePeekViewModel {
             orientationDegrees: info.orientationDegrees,
             trackBitrate: info.trackBitrate,
             maxBitrate: maxBitrateString, // Use peak from analysis
+            minBitrate: minBitrateString, // Use minimum from analysis
             pixelAspectRatio: info.pixelAspectRatio,
             cleanAperture: info.cleanAperture,
             scanType: info.scanType,
