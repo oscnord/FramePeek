@@ -157,15 +157,18 @@ extension FramePeekViewModel {
         infoTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             let info = await getExtendedInfo(url: url, asset: assetForInfo)
+            // Also load duration for timeline view
+            let duration = (try? await assetForInfo.load(.duration).seconds) ?? 0
             await MainActor.run {
                 self.extendedInfo = info
+                self.durationSeconds = duration
             }
         }
         
-        // Start keyframe extraction
-        startKeyframeExtraction(asset: assetForKeyframes)
+        // Keyframe extraction disabled - was too slow
+        // startKeyframeExtraction(asset: assetForKeyframes)
         
-        // Start thumbnail generation
+        // Start thumbnail generation (works without keyframes - uses evenly distributed times)
         startThumbnailGeneration(asset: assetForKeyframes)
         
         // Start frame analysis

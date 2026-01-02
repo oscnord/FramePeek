@@ -145,7 +145,7 @@ private func extractKeyframesWithReaderStream(
             if isKeyframe {
                 if let last = lastAccepted, minSpacingSeconds > 0, (t - last) < minSpacingSeconds {
                     sampleCount += 1
-                    // Yield every 2000 samples (optimized from 1000)
+                    // Yield every 2000 samples
                     if sampleCount % 2000 == 0 {
                         await Task.yield()
                     }
@@ -157,8 +157,8 @@ private func extractKeyframesWithReaderStream(
                 totalKeyframeCount += 1
                 lastAccepted = t
                 
-                // Emit batch every 10 keyframes or every 50 keyframes processed (based on count, not array size)
-                if pendingMarkers.count >= 10 || (totalKeyframeCount - lastEmitCount) >= 50 {
+                // Emit batch every 20 keyframes or every 100 keyframes processed (optimized balance)
+                if pendingMarkers.count >= 20 || (totalKeyframeCount - lastEmitCount) >= 100 {
                     continuation.yield(pendingMarkers)
                     pendingMarkers.removeAll(keepingCapacity: true)
                     lastEmitCount = totalKeyframeCount
@@ -179,7 +179,7 @@ private func extractKeyframesWithReaderStream(
                 }
             }
             
-            // Yield every 2000 samples (optimized from 1000 for better performance)
+            // Yield every 2000 samples (balanced for performance and responsiveness)
             if sampleCount % 2000 == 0 {
                 await Task.yield()
             }

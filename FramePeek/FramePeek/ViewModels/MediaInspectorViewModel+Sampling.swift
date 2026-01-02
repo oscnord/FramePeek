@@ -26,18 +26,76 @@ extension FramePeekViewModel {
         updateMaxBitrateFromSamples()
     }
     
-    /// Updates maxBitrate and minBitrate in extendedInfo with peak and minimum bitrate calculated from samples
+    /// Updates maxBitrate and minBitrate in extendedInfo with peak and minimum bitrate calculated from raw frames
+    /// Uses rawFrames instead of aggregated samples to avoid missing peaks due to downsampling
     private func updateMaxBitrateFromSamples() {
-        guard var info = extendedInfo, !samples.isEmpty else { return }
+        guard var info = extendedInfo else { return }
         
-        // Calculate peak bitrate from samples (same as BitrateChartStatistics)
-        let maxBits = samples.map(\.bitrate).max() ?? 0
-        let maxBitrateKbps = Double(maxBits) / 1000.0
+        // Calculate from rawFrames if available (more accurate, no downsampling)
+        // Otherwise fall back to samples
+        let maxBitrateKbps: Double
+        let minBitrateKbps: Double
+        
+        if !rawFrames.isEmpty {
+            // Calculate bitrate for all 1-second windows from raw frames
+            let estimatedFPS = effectiveFPS ?? 30.0
+            let defaultFrameDuration = 1.0 / estimatedFPS
+            let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
+            
+            guard !sortedFrames.isEmpty else { return }
+            
+            let startTime = sortedFrames.first!.pts
+            let endTime = sortedFrames.last!.pts
+            let totalDuration = endTime - startTime + defaultFrameDuration
+            let numBuckets = Int(ceil(totalDuration / 1.0))
+            
+            guard numBuckets > 0 else { return }
+            
+            var bitrates: [Double] = []
+            bitrates.reserveCapacity(numBuckets)
+            
+            var frameIndex = 0
+            for bucketIndex in 0..<numBuckets {
+                let bucketStart = startTime + Double(bucketIndex) * 1.0
+                let bucketEnd = bucketStart + 1.0
+                
+                // Advance to first frame in this bucket
+                while frameIndex < sortedFrames.count && sortedFrames[frameIndex].pts < bucketStart {
+                    frameIndex += 1
+                }
+                
+                // Sum frames in bucket [bucketStart, bucketEnd)
+                var totalBytes: Int64 = 0
+                var tempIndex = frameIndex
+                while tempIndex < sortedFrames.count && sortedFrames[tempIndex].pts < bucketEnd {
+                    totalBytes += sortedFrames[tempIndex].size
+                    tempIndex += 1
+                }
+                
+                // Calculate bitrate for this 1-second bucket
+                if totalBytes > 0 {
+                    let bitrate = (Double(totalBytes) * 8.0) / 1.0
+                    bitrates.append(bitrate)
+                }
+            }
+            
+            guard !bitrates.isEmpty else { return }
+            
+            let maxBits = bitrates.max() ?? 0
+            let minBits = bitrates.min() ?? 0
+            maxBitrateKbps = Double(maxBits) / 1000.0
+            minBitrateKbps = Double(minBits) / 1000.0
+        } else if !samples.isEmpty {
+            // Fallback to samples if rawFrames not available
+            let maxBits = samples.map(\.bitrate).max() ?? 0
+            let minBits = samples.map(\.bitrate).min() ?? 0
+            maxBitrateKbps = Double(maxBits) / 1000.0
+            minBitrateKbps = Double(minBits) / 1000.0
+        } else {
+            return
+        }
+        
         let maxBitrateString = String(format: "%.0f kb/s", maxBitrateKbps)
-        
-        // Calculate minimum bitrate from samples (same as BitrateChartStatistics)
-        let minBits = samples.map(\.bitrate).min() ?? 0
-        let minBitrateKbps = Double(minBits) / 1000.0
         let minBitrateString = String(format: "%.0f kb/s", minBitrateKbps)
         
         // Create new ExtendedVideoInfo with updated maxBitrate and minBitrate
@@ -92,13 +150,32 @@ extension FramePeekViewModel {
     }
 
     func makeSamplingOptions(asset: AVAsset) async -> FrameSamplingOptions {
+        // Load format-specific settings from UserDefaults
+        let defaults = UserDefaults.standard
+        let accountTSOverhead = defaults.object(forKey: "accountTSOverhead") != nil 
+            ? defaults.bool(forKey: "accountTSOverhead") 
+            : false
+        let smoothSegmentBoundaries = defaults.object(forKey: "smoothSegmentBoundaries") != nil
+            ? defaults.bool(forKey: "smoothSegmentBoundaries")
+            : true
+        let formatAccuracyMode: FormatAccuracyMode = {
+            if let modeString = defaults.string(forKey: "formatAccuracyMode"),
+               let mode = FormatAccuracyMode(rawValue: modeString) {
+                return mode
+            }
+            return .balanced
+        }()
+        
         switch samplingMode {
         case .everyFrame:
             return .everyFrame(
                 maxSamples: maxPointsTarget,
                 emitEveryNSamples: emitEveryNSamples,
                 preferAccuracy: preferAccuracy,
-                visualizationMode: visualizationMode
+                visualizationMode: visualizationMode,
+                accountTSOverhead: accountTSOverhead,
+                smoothSegmentBoundaries: smoothSegmentBoundaries,
+                formatAccuracyMode: formatAccuracyMode
             )
 
         case .interval:
@@ -107,7 +184,10 @@ extension FramePeekViewModel {
                 maxSamples: maxPointsTarget,
                 emitEveryNSamples: emitEveryNSamples,
                 preferAccuracy: preferAccuracy,
-                visualizationMode: visualizationMode
+                visualizationMode: visualizationMode,
+                accountTSOverhead: accountTSOverhead,
+                smoothSegmentBoundaries: smoothSegmentBoundaries,
+                formatAccuracyMode: formatAccuracyMode
             )
 
         case .auto:
@@ -117,7 +197,10 @@ extension FramePeekViewModel {
                 maxSamples: maxPointsTarget,
                 emitEveryNSamples: emitEveryNSamples,
                 preferAccuracy: preferAccuracy,
-                visualizationMode: visualizationMode
+                visualizationMode: visualizationMode,
+                accountTSOverhead: accountTSOverhead,
+                smoothSegmentBoundaries: smoothSegmentBoundaries,
+                formatAccuracyMode: formatAccuracyMode
             )
 
             guard let dur = try? await asset.load(.duration) else { return fallback }
@@ -131,7 +214,10 @@ extension FramePeekViewModel {
                 maxSamples: maxPointsTarget,
                 emitEveryNSamples: emitEveryNSamples,
                 preferAccuracy: preferAccuracy,
-                visualizationMode: visualizationMode
+                visualizationMode: visualizationMode,
+                accountTSOverhead: accountTSOverhead,
+                smoothSegmentBoundaries: smoothSegmentBoundaries,
+                formatAccuracyMode: formatAccuracyMode
             )
         }
     }

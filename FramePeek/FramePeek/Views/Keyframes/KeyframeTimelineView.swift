@@ -19,96 +19,170 @@ struct KeyframeTimelineView: View {
     @State var dragStartLocation: CGFloat?
     @State var selectionDragStart: CGFloat? // Separate state for selection drag
     
+    // Cache for sorted keyframes and display keyframes to avoid recomputation
+    @State private var cachedSortedKeyframes: [KeyframeMarker]? = nil
+    @State private var cachedDisplayKeyframes: [KeyframeMarker]? = nil
+    @State private var cachedMaxKeyframes: Int? = nil
+    @State private var cachedKeyframesCount: Int = 0
+    @State private var cachedHoveredTime: Double? = nil
+    @State private var cachedNearestHoveredKeyframe: KeyframeMarker? = nil
+    
     /// Downsampled keyframes to match chart resolution
     /// Evenly distributes keyframes across the video duration
+    /// Optimized with caching and O(n) downsampling algorithm
     private var displayKeyframes: [KeyframeMarker] {
+        // Check if we can use cached result
+        let currentKeyframesCount = keyframes.count
+        let needsRecompute = cachedDisplayKeyframes == nil ||
+            cachedKeyframesCount != currentKeyframesCount ||
+            cachedMaxKeyframes != maxKeyframes ||
+            cachedHoveredTime != hoveredKeyframeTime
+        
+        if !needsRecompute, let cached = cachedDisplayKeyframes {
+            return cached
+        }
+        
         guard let maxKeyframes = maxKeyframes, keyframes.count > maxKeyframes else {
+            // Cache the result
+            cachedSortedKeyframes = keyframes
+            cachedDisplayKeyframes = keyframes
+            cachedMaxKeyframes = maxKeyframes
+            cachedKeyframesCount = currentKeyframesCount
+            cachedHoveredTime = hoveredKeyframeTime
             return keyframes
         }
         
-        let sortedKeyframes = keyframes.sorted { $0.time < $1.time }
-        guard !sortedKeyframes.isEmpty, duration > 0 else { return keyframes }
+        // Get or compute sorted keyframes
+        let sortedKeyframes: [KeyframeMarker]
+        if let cached = cachedSortedKeyframes, cached.count == keyframes.count {
+            sortedKeyframes = cached
+        } else {
+            sortedKeyframes = keyframes.sorted { $0.time < $1.time }
+            cachedSortedKeyframes = sortedKeyframes
+        }
         
+        guard !sortedKeyframes.isEmpty, duration > 0 else {
+            cachedDisplayKeyframes = keyframes
+            cachedMaxKeyframes = maxKeyframes
+            cachedKeyframesCount = currentKeyframesCount
+            cachedHoveredTime = hoveredKeyframeTime
+            return keyframes
+        }
+        
+        // Optimized O(n) downsampling: single pass through sorted keyframes
         var selected: [KeyframeMarker] = []
-        selected.reserveCapacity(maxKeyframes)
+        selected.reserveCapacity(maxKeyframes + 2) // +2 for first, last, and hovered
         
         let interval = duration / Double(maxKeyframes - 1)
         var keyframeIndex = 0
         
-        // For each target time, find the nearest keyframe
+        // Single pass: for each target time, find nearest keyframe
         for i in 0..<maxKeyframes {
             let targetTime = Double(i) * interval
             
-            // Find the keyframe closest to targetTime
-            // Since keyframes are sorted, we can advance through them efficiently
-            var bestKeyframe: KeyframeMarker?
-            var bestDistance = Double.greatestFiniteMagnitude
-            
-            // Start from where we left off and search forward
-            while keyframeIndex < sortedKeyframes.count {
-                let keyframe = sortedKeyframes[keyframeIndex]
-                let distance = abs(keyframe.time - targetTime)
+            // Advance keyframeIndex to find the closest keyframe to targetTime
+            // Since both are sorted, we can do this in a single pass
+            while keyframeIndex < sortedKeyframes.count - 1 {
+                let current = sortedKeyframes[keyframeIndex]
+                let next = sortedKeyframes[keyframeIndex + 1]
                 
-                if distance < bestDistance {
-                    bestDistance = distance
-                    bestKeyframe = keyframe
+                // If next keyframe is closer, advance
+                if abs(next.time - targetTime) < abs(current.time - targetTime) {
+                    keyframeIndex += 1
                 } else {
-                    // Distance is increasing, we've passed the best match
-                    // Check if previous keyframe was better
-                    if keyframeIndex > 0 {
-                        let prevKeyframe = sortedKeyframes[keyframeIndex - 1]
-                        let prevDistance = abs(prevKeyframe.time - targetTime)
-                        if prevDistance < bestDistance {
-                            bestKeyframe = prevKeyframe
-                            bestDistance = prevDistance
-                            keyframeIndex -= 1  // Back up one
-                        }
-                    }
                     break
                 }
-                keyframeIndex += 1
             }
             
-            // If we reached the end, use the last keyframe
-            if bestKeyframe == nil && !sortedKeyframes.isEmpty {
-                bestKeyframe = sortedKeyframes.last
-            }
+            let nearest = sortedKeyframes[keyframeIndex]
             
-            if let nearest = bestKeyframe {
-                // Avoid duplicates
-                if selected.isEmpty || abs(selected.last!.time - nearest.time) > 0.001 {
-                    selected.append(nearest)
-                }
+            // Avoid duplicates (check against last added)
+            if selected.isEmpty || abs(selected.last!.time - nearest.time) > 0.001 {
+                selected.append(nearest)
             }
         }
         
         // Ensure first and last keyframes are included
-        if let first = sortedKeyframes.first, !selected.contains(where: { abs($0.time - first.time) < 0.001 }) {
+        if let first = sortedKeyframes.first, 
+           selected.isEmpty || abs(selected.first!.time - first.time) > 0.001 {
             selected.insert(first, at: 0)
         }
-        if let last = sortedKeyframes.last, !selected.contains(where: { abs($0.time - last.time) < 0.001 }) {
+        if let last = sortedKeyframes.last,
+           selected.isEmpty || abs(selected.last!.time - last.time) > 0.001 {
             selected.append(last)
         }
         
-        // Always include the nearest keyframe to the hovered time if it exists
-        // This ensures hover highlighting works even when downsampling
-        // Note: thumbnails are generated from evenly distributed times, not keyframe times,
-        // so we need to find the nearest keyframe to the hovered thumbnail time
+        // Find and include nearest hovered keyframe if needed
         if let hoveredTime = hoveredKeyframeTime {
-            // Find the nearest keyframe to the hovered time
-            if let nearestHoveredKeyframe = sortedKeyframes.min(by: { 
-                abs($0.time - hoveredTime) < abs($1.time - hoveredTime) 
-            }) {
-                // Use a tolerance of 0.1 seconds to match the display logic
-                if abs(nearestHoveredKeyframe.time - hoveredTime) < 0.1 {
-                    if !selected.contains(where: { abs($0.time - nearestHoveredKeyframe.time) < 0.1 }) {
-                        selected.append(nearestHoveredKeyframe)
-                    }
-                }
+            // Use cached nearest hovered keyframe if available
+            let nearestHoveredKeyframe: KeyframeMarker?
+            if let cached = cachedNearestHoveredKeyframe, 
+               abs(cached.time - hoveredTime) < 0.1 {
+                nearestHoveredKeyframe = cached
+            } else {
+                // Binary search for nearest keyframe (O(log n))
+                nearestHoveredKeyframe = findNearestKeyframe(to: hoveredTime, in: sortedKeyframes)
+                cachedNearestHoveredKeyframe = nearestHoveredKeyframe
+            }
+            
+            if let nearest = nearestHoveredKeyframe,
+               abs(nearest.time - hoveredTime) < 0.1,
+               !selected.contains(where: { abs($0.time - nearest.time) < 0.1 }) {
+                selected.append(nearest)
             }
         }
         
-        return selected.sorted { $0.time < $1.time }
+        // Sort final result (should be mostly sorted already)
+        let result = selected.sorted { $0.time < $1.time }
+        
+        // Update cache
+        cachedDisplayKeyframes = result
+        cachedMaxKeyframes = maxKeyframes
+        cachedKeyframesCount = currentKeyframesCount
+        cachedHoveredTime = hoveredKeyframeTime
+        
+        return result
+    }
+    
+    /// Binary search to find nearest keyframe to a given time (O(log n))
+    private func findNearestKeyframe(to time: Double, in sortedKeyframes: [KeyframeMarker]) -> KeyframeMarker? {
+        guard !sortedKeyframes.isEmpty else { return nil }
+        
+        // Binary search for insertion point
+        var left = 0
+        var right = sortedKeyframes.count - 1
+        
+        while left < right {
+            let mid = (left + right) / 2
+            if sortedKeyframes[mid].time < time {
+                left = mid + 1
+            } else {
+                right = mid
+            }
+        }
+        
+        // Check left and left-1 to find nearest
+        var nearest = sortedKeyframes[left]
+        var minDistance = abs(nearest.time - time)
+        
+        if left > 0 {
+            let prev = sortedKeyframes[left - 1]
+            let prevDistance = abs(prev.time - time)
+            if prevDistance < minDistance {
+                nearest = prev
+                minDistance = prevDistance
+            }
+        }
+        
+        if left < sortedKeyframes.count - 1 {
+            let next = sortedKeyframes[left + 1]
+            let nextDistance = abs(next.time - time)
+            if nextDistance < minDistance {
+                nearest = next
+            }
+        }
+        
+        return nearest
     }
 
     var body: some View {
@@ -172,20 +246,15 @@ struct KeyframeTimelineView: View {
                         let tickTop: CGFloat = 4
                         let tickBottom: CGFloat = size.height - 4
 
-                        // Find the nearest keyframe to the hovered time (if any)
-                        let nearestHoveredKeyframe: KeyframeMarker? = {
-                            guard let hoveredTime = hoveredKeyframeTime else { return nil }
-                            // Find the nearest keyframe to the hovered time
-                            return keyframes.min(by: { abs($0.time - hoveredTime) < abs($1.time - hoveredTime) })
-                        }()
+                        // Use cached nearest hovered keyframe (computed in displayKeyframes)
+                        let nearestHoveredKeyframe = cachedNearestHoveredKeyframe
                         
                         for k in displayKeyframes {
                             let x = CGFloat(k.time / duration) * (size.width - 20) + 10
                             
                             // Check if this keyframe is the nearest to the hovered time
                             let isHighlighted: Bool = {
-                                guard let hoveredTime = hoveredKeyframeTime,
-                                      let nearest = nearestHoveredKeyframe else { return false }
+                                guard let nearest = nearestHoveredKeyframe else { return false }
                                 // Use a more lenient tolerance for matching (0.1 seconds)
                                 // since thumbnails might not be at exact keyframe times
                                 return abs(k.time - nearest.time) < 0.1
@@ -201,8 +270,7 @@ struct KeyframeTimelineView: View {
                         }
                         
                         // Also draw the nearest keyframe to hovered time if it's not in displayKeyframes
-                        if let hoveredTime = hoveredKeyframeTime,
-                           let nearest = nearestHoveredKeyframe {
+                        if let nearest = nearestHoveredKeyframe {
                             let isInDisplay = displayKeyframes.contains { abs($0.time - nearest.time) < 0.1 }
                             if !isInDisplay {
                                 let x = CGFloat(nearest.time / duration) * (size.width - 20) + 10
@@ -247,7 +315,7 @@ struct KeyframeTimelineView: View {
                         }
                         .frame(width: width, height: geo.size.height)
                         .position(x: startX + width / 2, y: geo.size.height / 2)
-                        .gesture(
+                        .highPriorityGesture(
                             DragGesture()
                                 .onChanged { value in
                                     handleDrag(value: value, geometry: geo)
@@ -270,6 +338,10 @@ struct KeyframeTimelineView: View {
                     // Click to set zoom window or drag to create new one
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
+                            // Don't handle if drag started within zoom window bounds
+                            if let range = visibleTimeRange, isPointInZoomWindow(value.startLocation, range: range, geometry: geo) {
+                                return
+                            }
                             if visibleTimeRange == nil || !isDraggingRange {
                                 handleNewSelectionDrag(value: value, geometry: geo)
                             }
@@ -289,6 +361,16 @@ struct KeyframeTimelineView: View {
                 .strokeBorder(.separator.opacity(0.25), lineWidth: 1)
         )
         .accessibilityLabel("Keyframe timeline with \(displayKeyframes.count) of \(keyframes.count) keyframes")
+        .onChange(of: keyframes.count) { _ in
+            // Invalidate cache when keyframes change
+            cachedSortedKeyframes = nil
+            cachedDisplayKeyframes = nil
+            cachedNearestHoveredKeyframe = nil
+        }
+        .onChange(of: maxKeyframes) { _ in
+            // Invalidate cache when maxKeyframes changes
+            cachedDisplayKeyframes = nil
+        }
     }
 }
 

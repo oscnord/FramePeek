@@ -26,7 +26,11 @@ struct BitrateChartView: View {
     // MARK: - Statistics
     
     private var statistics: BitrateChartStatistics {
-        BitrateChartStatistics(samples: viewModel.samples)
+        BitrateChartStatistics(
+            samples: viewModel.samples,
+            rawFrames: viewModel.rawFrames.isEmpty ? nil : viewModel.rawFrames,
+            effectiveFPS: viewModel.effectiveFPS
+        )
     }
     
     /// Downsampled samples for efficient chart rendering using LTTB algorithm
@@ -170,59 +174,38 @@ struct BitrateChartView: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
                 
-                // Keyframe section with animated reveal
-                if !viewModel.keyframes.isEmpty || viewModel.isExtractingKeyframes || viewModel.isGeneratingThumbnails {
-                    VStack(spacing: 8) {
-                        // Show loading state or actual timeline
-                        if viewModel.isExtractingKeyframes {
-                            KeyframeLoadingView(
-                                message: viewModel.keyframeExtractionProgress ?? "Extracting keyframes...",
-                                isExtracting: true,
-                                onCancel: {
-                                    viewModel.cancelKeyframeExtraction()
-                                }
-                            )
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        } else if !viewModel.keyframes.isEmpty {
-                            KeyframeTimelineView(
-                                keyframes: viewModel.keyframes,
-                                duration: statistics.maxTime == 0 ? viewModel.durationSeconds : statistics.maxTime,
-                                hoveredKeyframeTime: viewModel.hoveredKeyframeTime,
-                                visibleTimeRange: $viewModel.visibleTimeRange,
-                                maxKeyframes: viewModel.maxPointsTarget  // Match chart resolution
-                            )
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                // Timeline zoom control
+                TimelineView(
+                    duration: statistics.maxTime == 0 ? viewModel.durationSeconds : statistics.maxTime,
+                    visibleTimeRange: $viewModel.visibleTimeRange
+                )
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+                
+                // Thumbnail strip
+                if viewModel.isGeneratingThumbnails {
+                    KeyframeLoadingView(
+                        message: "Generating thumbnails...",
+                        isExtracting: false,
+                        onCancel: {
+                            viewModel.cancelThumbnailGeneration()
                         }
-                        
-                        // Show thumbnail loading or actual thumbnails
-                        if viewModel.isGeneratingThumbnails {
-                            KeyframeLoadingView(
-                                message: "Generating thumbnails...",
-                                isExtracting: false,
-                                onCancel: {
-                                    viewModel.cancelThumbnailGeneration()
-                                }
-                            )
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        } else if !viewModel.keyframeThumbs.isEmpty {
-                            KeyframeThumbnailStrip(
-                                thumbs: viewModel.keyframeThumbs,
-                                totalKeyframes: viewModel.keyframes.count,
-                                hoveredKeyframeTime: $viewModel.hoveredKeyframeTime,
-                                visibleTimeRange: viewModel.visibleTimeRange
-                            )
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        }
-                    }
+                    )
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
-                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.98, anchor: .top)))
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else if !viewModel.keyframeThumbs.isEmpty {
+                    KeyframeThumbnailStrip(
+                        thumbs: viewModel.keyframeThumbs,
+                        totalKeyframes: viewModel.keyframeThumbs.count,  // Use thumb count since we don't have keyframes
+                        hoveredKeyframeTime: $viewModel.hoveredKeyframeTime,
+                        visibleTimeRange: viewModel.visibleTimeRange
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.spring(response: 0.5, dampingFraction: 0.85), value: viewModel.keyframes.isEmpty)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.keyframeThumbs.isEmpty)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isExtractingKeyframes)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isGeneratingThumbnails)
 
             if viewModel.isAnalyzing {
                 loadingBadge
@@ -276,23 +259,16 @@ struct BitrateChartView: View {
                     }
             }
             
-            // Keyframe markers on chart - downsampled for performance
-            ForEach(downsampleKeyframes(viewModel.keyframes, maxCount: 200, visibleRange: viewModel.visibleTimeRange)) { keyframe in
-                RuleMark(x: .value("Keyframe", keyframe.time))
-                    .foregroundStyle(.green.opacity(0.25))
-                    .lineStyle(StrokeStyle(lineWidth: 1))
-            }
-
             if let hovered = viewModel.hoveredSample {
                 RuleMark(x: .value("Time (s)", hovered.time))
                     .foregroundStyle(.primary.opacity(0.7))
                     .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
             }
             
-            // Highlight from keyframe thumbnail hover
+            // Highlight from thumbnail hover
             if let keyframeTime = viewModel.hoveredKeyframeTime {
                 RuleMark(x: .value("Keyframe", keyframeTime))
-                    .foregroundStyle(.green.opacity(0.8))
+                    .foregroundStyle(.orange.opacity(0.8))
                     .lineStyle(StrokeStyle(lineWidth: 2))
             }
         }

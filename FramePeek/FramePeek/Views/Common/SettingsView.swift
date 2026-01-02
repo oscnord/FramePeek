@@ -76,6 +76,11 @@ struct SettingsView: View {
     @AppStorage("maxPointsTarget") private var maxPointsTarget: Int = 2000
     @AppStorage("preferAccuracy") private var preferAccuracy: Bool = false
     
+    // Format-specific settings
+    @AppStorage("accountTSOverhead") private var accountTSOverhead: Bool = false
+    @AppStorage("smoothSegmentBoundaries") private var smoothSegmentBoundaries: Bool = true
+    @AppStorage("formatAccuracyMode") private var formatAccuracyMode: FormatAccuracyMode = .balanced
+    
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -239,6 +244,51 @@ struct SettingsView: View {
                                         Text("High Accuracy")
                                             .font(.system(size: 14, weight: .medium))
                                         Text("More accurate bitrate measurements (may be slower)")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            
+                            Divider()
+                            
+                            // Format-specific settings
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Format-Specific Options")
+                                    .font(.system(size: 14, weight: .medium))
+                                
+                                VStack(alignment: .leading, spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Picker("Accuracy Mode", selection: $formatAccuracyMode) {
+                                            ForEach(FormatAccuracyMode.allCases) { mode in
+                                                Text(mode.displayName).tag(mode)
+                                            }
+                                        }
+                                        .pickerStyle(.menu)
+                                        
+                                        Text("Performance: Fastest, uses AVFoundation data as-is. Balanced: Format-specific optimizations. Accuracy: Full format parsing for maximum precision.")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    Divider()
+                                    
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Toggle("Account for TS Packet Overhead", isOn: $accountTSOverhead)
+                                            .font(.system(size: 14, weight: .medium))
+                                        
+                                        Text("For MPEG-TS files: Subtract transport stream packet header overhead from bitrate calculations for more accurate video bitrate.")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    Divider()
+                                    
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Toggle("Smooth Segment Boundaries", isOn: $smoothSegmentBoundaries)
+                                            .font(.system(size: 14, weight: .medium))
+                                        
+                                        Text("For fragmented MP4/CMAF files: Smooth bitrate spikes at segment boundaries for more consistent visualization.")
                                             .font(.system(size: 12))
                                             .foregroundStyle(.secondary)
                                     }

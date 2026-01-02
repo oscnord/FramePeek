@@ -64,5 +64,19 @@ extension KeyframeTimelineView {
             visibleTimeRange = minTime...maxTime
         }
     }
+    
+    func isPointInZoomWindow(_ point: CGPoint, range: ClosedRange<Double>, geometry: GeometryProxy) -> Bool {
+        guard duration > 0 else { return false }
+        
+        let startX = CGFloat(range.lowerBound / duration) * (geometry.size.width - 20) + 10
+        let endX = CGFloat(range.upperBound / duration) * (geometry.size.width - 20) + 10
+        let width = max(endX - startX, 10)
+        
+        // Check if point is within the zoom window bounds (with some padding for handles)
+        let windowLeft = startX - 2 // Account for drag handles
+        let windowRight = endX + 2 // Account for drag handles
+        
+        return point.x >= windowLeft && point.x <= windowRight
+    }
 }
 

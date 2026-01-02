@@ -137,10 +137,22 @@ func videoCodecInfo(_ fourCC: String) -> String? {
 // MARK: - Container Format Detection
 
 /// Detects container format from file URL
-func detectContainerFormat(url: URL) -> String? {
+/// For MP4 files, optionally checks for CMAF branding or fragmented structure
+func detectContainerFormat(url: URL, checkDetailed: Bool = false) -> String? {
     let ext = url.pathExtension.lowercased()
     switch ext {
     case "mp4", "m4v":
+        // If detailed check is requested, check for CMAF or fragmented MP4
+        if checkDetailed {
+            if let profile = parseContainerFormatProfile(url: url) {
+                let profileLower = profile.lowercased()
+                if profileLower.contains("cmf2") || profileLower.contains("cmaf") {
+                    return "CMAF"
+                }
+            }
+            // Note: Fragmented MP4 detection requires file structure analysis
+            // which is handled by FormatDetector.swift
+        }
         return "MPEG-4"
     case "mov":
         return "QuickTime"
@@ -255,6 +267,7 @@ func parseVP9Profile(_ data: Data) -> String? {
 
 /// Parses container format profile from file structure
 /// For MP4/MOV, this reads the ftyp atom to get brand and compatible brands
+/// Detects CMAF branding (cmf2, cmaf) in compatible brands
 func parseContainerFormatProfile(url: URL) -> String? {
     guard let fileHandle = FileHandle(forReadingAtPath: url.path) else { return nil }
     defer { fileHandle.closeFile() }

@@ -11,6 +11,7 @@ import CoreMedia
 
 /// Extracts bitrate samples efficiently using AVSampleCursor when possible,
 /// falling back to AVAssetReader.
+/// Routes to format-specific extractors based on detected container format.
 func extractBitratesFast(
     asset: AVAsset,
     options: FrameSamplingOptions
@@ -38,10 +39,17 @@ func extractBitratesFast(
                 return
             }
 
-            // Choose extraction method based on preferAccuracy option
-            if options.preferAccuracy {
-                // Skip cursor path and go directly to reader for accuracy
-                await extractWithReader(
+            // Get URL from asset if it's an AVURLAsset
+            let url: URL? = (asset as? AVURLAsset)?.url
+
+            // Detect container format and route to appropriate extractor
+            let format = await detectContainerFormat(asset: asset, url: url ?? URL(fileURLWithPath: "/"))
+            
+            // Route to format-specific extractor based on format and accuracy mode
+            switch format {
+            case .fragmentedMP4, .cmaf:
+                // Use fragment-aware extraction for fragmented MP4 and CMAF
+                await extractFragmentedMP4(
                     asset: asset,
                     videoTrack: videoTrack,
                     durationSeconds: durationSeconds,
@@ -49,30 +57,58 @@ func extractBitratesFast(
                     options: options,
                     continuation: continuation
                 )
-            } else {
-                // Try cursor first (fast, metadata-only). Fall back to reader if unavailable.
-                if let formatDescriptions = try? await videoTrack.load(.formatDescriptions),
-                   !formatDescriptions.isEmpty {
-
-                    let success = await extractWithCursor(
-                        track: videoTrack,
+                return
+                
+            case .mpegTS:
+                // Use TS-specific extraction
+                await extractTS(
+                    asset: asset,
+                    videoTrack: videoTrack,
+                    durationSeconds: durationSeconds,
+                    nominalFrameRate: Double(nominalFrameRate),
+                    options: options,
+                    continuation: continuation
+                )
+                return
+                
+            default:
+                // Use standard extraction for other formats
+                // Choose extraction method based on preferAccuracy option
+                if options.preferAccuracy {
+                    // Skip cursor path and go directly to reader for accuracy
+                    await extractWithReader(
+                        asset: asset,
+                        videoTrack: videoTrack,
                         durationSeconds: durationSeconds,
                         nominalFrameRate: Double(nominalFrameRate),
                         options: options,
                         continuation: continuation
                     )
+                } else {
+                    // Try cursor first (fast, metadata-only). Fall back to reader if unavailable.
+                    if let formatDescriptions = try? await videoTrack.load(.formatDescriptions),
+                       !formatDescriptions.isEmpty {
 
-                    if success { return }
+                        let success = await extractWithCursor(
+                            track: videoTrack,
+                            durationSeconds: durationSeconds,
+                            nominalFrameRate: Double(nominalFrameRate),
+                            options: options,
+                            continuation: continuation
+                        )
+
+                        if success { return }
+                    }
+
+                    await extractWithReader(
+                        asset: asset,
+                        videoTrack: videoTrack,
+                        durationSeconds: durationSeconds,
+                        nominalFrameRate: Double(nominalFrameRate),
+                        options: options,
+                        continuation: continuation
+                    )
                 }
-
-                await extractWithReader(
-                    asset: asset,
-                    videoTrack: videoTrack,
-                    durationSeconds: durationSeconds,
-                    nominalFrameRate: Double(nominalFrameRate),
-                    options: options,
-                    continuation: continuation
-                )
             }
         }
 

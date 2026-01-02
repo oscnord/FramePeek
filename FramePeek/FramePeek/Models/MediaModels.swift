@@ -107,39 +107,78 @@ enum BitrateVisualizationMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// Format-specific accuracy modes for bitrate extraction
+enum FormatAccuracyMode: String, CaseIterable, Identifiable, Codable {
+    case performance  // Use AVFoundation data as-is (fastest)
+    case balanced    // Format-specific optimizations without deep parsing
+    case accuracy    // Full format parsing (TS packets, fragment analysis)
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .performance: return String(localized: "Performance")
+        case .balanced: return String(localized: "Balanced")
+        case .accuracy: return String(localized: "Accuracy")
+        }
+    }
+}
+
 struct FrameSamplingOptions {
     let minEmitIntervalSeconds: Double?
     let maxSamples: Int
     let emitEveryNSamples: Int
     let preferAccuracy: Bool  // If true, uses reader path (accurate) instead of cursor path (fast)
     let visualizationMode: BitrateVisualizationMode  // How to aggregate bitrate samples
+    
+    // Format-specific options
+    /// For TS files: account for packet overhead in bitrate calculations
+    let accountTSOverhead: Bool
+    
+    /// For fragmented formats: smooth bitrate at segment boundaries
+    let smoothSegmentBoundaries: Bool
+    
+    /// Format-specific accuracy mode
+    let formatAccuracyMode: FormatAccuracyMode
 
     init(
         minEmitIntervalSeconds: Double?,
         maxSamples: Int,
         emitEveryNSamples: Int,
         preferAccuracy: Bool = false,
-        visualizationMode: BitrateVisualizationMode = .second
+        visualizationMode: BitrateVisualizationMode = .second,
+        accountTSOverhead: Bool = false,
+        smoothSegmentBoundaries: Bool = true,
+        formatAccuracyMode: FormatAccuracyMode = .balanced
     ) {
         self.minEmitIntervalSeconds = minEmitIntervalSeconds
         self.maxSamples = maxSamples
         self.emitEveryNSamples = emitEveryNSamples
         self.preferAccuracy = preferAccuracy
         self.visualizationMode = visualizationMode
+        self.accountTSOverhead = accountTSOverhead
+        self.smoothSegmentBoundaries = smoothSegmentBoundaries
+        self.formatAccuracyMode = formatAccuracyMode
     }
 
     static func everyFrame(
         maxSamples: Int = 2000,
         emitEveryNSamples: Int = 100,
         preferAccuracy: Bool = false,
-        visualizationMode: BitrateVisualizationMode = .second
+        visualizationMode: BitrateVisualizationMode = .second,
+        accountTSOverhead: Bool = false,
+        smoothSegmentBoundaries: Bool = true,
+        formatAccuracyMode: FormatAccuracyMode = .balanced
     ) -> Self {
         .init(
             minEmitIntervalSeconds: nil,
             maxSamples: maxSamples,
             emitEveryNSamples: emitEveryNSamples,
             preferAccuracy: preferAccuracy,
-            visualizationMode: visualizationMode
+            visualizationMode: visualizationMode,
+            accountTSOverhead: accountTSOverhead,
+            smoothSegmentBoundaries: smoothSegmentBoundaries,
+            formatAccuracyMode: formatAccuracyMode
         )
     }
 
@@ -148,14 +187,20 @@ struct FrameSamplingOptions {
         maxSamples: Int = 2000,
         emitEveryNSamples: Int = 100,
         preferAccuracy: Bool = false,
-        visualizationMode: BitrateVisualizationMode = .second
+        visualizationMode: BitrateVisualizationMode = .second,
+        accountTSOverhead: Bool = false,
+        smoothSegmentBoundaries: Bool = true,
+        formatAccuracyMode: FormatAccuracyMode = .balanced
     ) -> Self {
         .init(
             minEmitIntervalSeconds: max(0, seconds),
             maxSamples: maxSamples,
             emitEveryNSamples: emitEveryNSamples,
             preferAccuracy: preferAccuracy,
-            visualizationMode: visualizationMode
+            visualizationMode: visualizationMode,
+            accountTSOverhead: accountTSOverhead,
+            smoothSegmentBoundaries: smoothSegmentBoundaries,
+            formatAccuracyMode: formatAccuracyMode
         )
     }
 }

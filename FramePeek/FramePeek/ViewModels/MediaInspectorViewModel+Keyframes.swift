@@ -43,7 +43,7 @@ extension FramePeekViewModel {
             // Extract ALL keyframes for the timeline (no limit)
             // Don't accumulate in memory - just update UI progressively
             var pendingBatches: [KeyframeMarker] = []
-            pendingBatches.reserveCapacity(100) // Batch UI updates
+            pendingBatches.reserveCapacity(200) // Balanced batch size for UI updates
             
             for await keyframeBatch in extractKeyframesStream(
                 asset: asset,
@@ -60,8 +60,8 @@ extension FramePeekViewModel {
                 pendingBatches.append(contentsOf: keyframeBatch)
                 
                 // Batch UI updates to reduce MainActor blocking
-                // Update every 100 keyframes or when we have a large batch
-                if pendingBatches.count >= 100 {
+                // Update every 200 keyframes for good balance between performance and responsiveness
+                if pendingBatches.count >= 200 {
                     let toAppend = pendingBatches
                     pendingBatches.removeAll(keepingCapacity: true)
                     await MainActor.run {
