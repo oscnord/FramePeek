@@ -5,10 +5,10 @@ struct StatPill: View {
     let value: String
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 2) {
+        VStack(alignment: .trailing, spacing: DesignSystem.Spacing.xs) {
             Text(title)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
@@ -19,13 +19,13 @@ struct StatPill: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.vertical, DesignSystem.Padding.sm2)
+        .padding(.horizontal, DesignSystem.Padding.md3)
+        .background(DesignSystem.Materials.thin)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(.separator.opacity(0.30), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
+                .strokeBorder(.separator.opacity(0.30), lineWidth: DesignSystem.Borders.thin)
         )
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -38,33 +38,17 @@ struct ChartHeaderRow: View {
 
     var body: some View {
         HStack {
-            HStack(spacing: 8) {
+            HStack(spacing: DesignSystem.Spacing.md) {
                 Text("Chart")
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                
-                if visibleTimeRange != nil {
-                    Button {
-                        withAnimation {
-                            visibleTimeRange = nil
-                        }
-                    } label: {
-                        Label("Reset Zoom", systemImage: "arrow.down.right.and.arrow.up.left")
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.mini)
-                    .tint(.orange)
-                }
             }
 
             Spacer()
 
             if let s = hoveredSample {
                 let kbps = s.bitrate / 1000.0
-                HStack(spacing: 10) {
+                HStack(spacing: DesignSystem.Spacing.md2) {
                     Label {
                         Text("\(s.time, format: .number.precision(.fractionLength(2))) s")
                             .monospacedDigit()
@@ -86,17 +70,17 @@ struct ChartHeaderRow: View {
                     let frac = maxBitrateKbps > 0 ? kbps / maxBitrateKbps : 0
                     Text(frac, format: .percent.precision(.fractionLength(0)))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 }
-                .padding(.vertical, 5)
-                .padding(.horizontal, 9)
-                .background(.thinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .padding(.vertical, DesignSystem.Padding.sm2)
+                .padding(.horizontal, DesignSystem.Padding.md2)
+                .background(DesignSystem.Materials.thin)
+                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
             } else {
                 Text("Hover/drag to see a point")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 5)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                    .padding(.vertical, DesignSystem.Padding.sm2)
             }
         }
     }
@@ -110,38 +94,38 @@ struct Tooltip: View {
         let kbps = sample.bitrate / 1000.0
         let frac = maxBitrateKbps > 0 ? kbps / maxBitrateKbps : 0
 
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: DesignSystem.Padding.sm2) {
+            HStack(spacing: DesignSystem.Spacing.sm3) {
                 Image(systemName: "clock")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 Text("\(sample.time, format: .number.precision(.fractionLength(2))) s")
                     .fontWeight(.semibold)
                     .monospacedDigit()
             }
 
-            HStack(spacing: 6) {
+            HStack(spacing: DesignSystem.Spacing.sm3) {
                 Image(systemName: "speedometer")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 Text("\(kbps, format: .number.precision(.fractionLength(0))) kb/s")
                     .monospacedDigit()
             }
 
-            HStack(spacing: 6) {
+            HStack(spacing: DesignSystem.Spacing.sm3) {
                 Image(systemName: "chart.line.uptrend.xyaxis")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 Text(frac, format: .percent.precision(.fractionLength(0)))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
             }
         }
         .font(.caption)
-        .padding(10)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(DesignSystem.Padding.md3)
+        .background(DesignSystem.Materials.regular)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.panel, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.separator.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.panel, style: .continuous)
+                .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
         )
-        .shadow(radius: 6)
+        .shadow(radius: DesignSystem.Shadows.small)
     }
 }
 
@@ -151,53 +135,53 @@ struct KeyframeLoadingView: View {
     var onCancel: (() -> Void)? = nil
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm3) {
+            HStack(spacing: DesignSystem.Spacing.sm3) {
                 Image(systemName: isExtracting ? "film" : "photo.on.rectangle.angled")
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(DesignSystem.Colors.Chart.keyframe)
                 Text(isExtracting ? "Keyframe Distribution" : "Keyframe Thumbnails")
                     .font(.caption2)
                     .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 
                 Spacer()
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, DesignSystem.Padding.sm)
             
-            HStack(spacing: 10) {
+            HStack(spacing: DesignSystem.Spacing.md2) {
                 ProgressView()
                     .controlSize(.small)
                     .scaleEffect(0.9)
                 
                 Text(message)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 
                 Spacer()
                 
                 if let onCancel = onCancel {
                     Button(action: onCancel) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: DesignSystem.Spacing.sm) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.caption)
                             Text("Cancel")
                                 .font(.caption)
                         }
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                        .padding(.horizontal, DesignSystem.Padding.md)
+                        .padding(.vertical, DesignSystem.Padding.sm)
+                        .background(DesignSystem.Materials.regular, in: RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .help(String(localized: "Stop extraction and keep loaded keyframes"))
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .padding(.horizontal, 10)
+            .padding(.vertical, DesignSystem.Padding.xl)
+            .padding(.horizontal, DesignSystem.Padding.md3)
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
@@ -210,16 +194,16 @@ struct KeyframeLoadingView: View {
                     )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(.separator.opacity(0.15), lineWidth: 1)
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                    .strokeBorder(.separator.opacity(0.15), lineWidth: DesignSystem.Borders.thin)
             )
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.vertical, DesignSystem.Padding.md)
+        .padding(.horizontal, DesignSystem.Padding.md3)
+        .background(DesignSystem.Materials.thin, in: RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(.separator.opacity(0.25), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
+                .strokeBorder(.separator.opacity(0.25), lineWidth: DesignSystem.Borders.thin)
         )
     }
 }

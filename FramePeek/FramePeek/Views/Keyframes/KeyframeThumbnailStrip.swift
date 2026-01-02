@@ -24,62 +24,61 @@ struct KeyframeThumbnailStrip: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm3) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(DesignSystem.Colors.Chart.keyframe)
                 Text("Thumbnails")
                     .font(.caption2)
                     .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                    .padding(.vertical, DesignSystem.Padding.md)
                 
                 Spacer()
                 
                 Group {
                     if let thumb = hoveredThumb, let index = hoveredIndex {
-                        HStack(spacing: 8) {
+                        HStack(spacing: DesignSystem.Spacing.md) {
                             Text("\(index + 1)/\(filteredThumbs.count)")
                                 .fontWeight(.medium)
                             Text(formatTime(thumb.time))
                                 .monospacedDigit()
                             if let gopInterval = gopInterval(for: index) {
                                 Text("GOP: \(gopInterval, specifier: "%.2f")s")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             }
                         }
                         .font(.caption2)
-                        .padding(.horizontal, 8)
-                        .background(.orange.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .padding(.horizontal, DesignSystem.Padding.md)
+                        .background(DesignSystem.Colors.Chart.keyframe.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Padding.sm2, style: .continuous))
                     } else {
                         if visibleTimeRange != nil {
                             Text("\(filteredThumbs.count) of \(thumbs.count) keyframes (zoomed)")
                                 .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                         } else if totalKeyframes > thumbs.count {
                             Text("\(thumbs.count) of \(totalKeyframes) keyframes")
                                 .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                         } else {
                             Text("\(thumbs.count) keyframes")
                                 .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                         }
                     }
                 }
                 .frame(height: 20, alignment: .center)
             }
-            .padding(.horizontal, 4)
-            
+            .padding(.horizontal, DesignSystem.Padding.sm)
             strip
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, DesignSystem.Padding.md3)
+        .background(DesignSystem.Materials.thin, in: RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(.separator.opacity(0.25), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
+                .strokeBorder(.separator.opacity(0.25), lineWidth: DesignSystem.Borders.thin)
         )
     }
     
@@ -98,7 +97,7 @@ struct KeyframeThumbnailStrip: View {
     
     private var strip: some View {
         DraggableScrollView(showsIndicators: false) {
-            LazyHStack(spacing: 6) {
+            LazyHStack(spacing: DesignSystem.Spacing.sm3) {
                 ForEach(Array(filteredThumbs.enumerated()), id: \.element.id) { index, t in
                     ThumbCell(
                         image: t.image,
@@ -120,27 +119,10 @@ struct KeyframeThumbnailStrip: View {
                     }
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 10)
+            .padding(.horizontal, DesignSystem.Padding.md3)
+            .padding(.vertical, DesignSystem.Padding.sm)
         }
-        .frame(height: 68)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.black.opacity(0.06),
-                            Color.black.opacity(0.02)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(.separator.opacity(0.15), lineWidth: 1)
-        )
+        .frame(height: 50)
         .overlayPreferenceValue(ThumbAnchorKey.self) { anchors in
             GeometryReader { geo in
                 if let index = hoveredIndex,
@@ -170,7 +152,7 @@ private struct EnlargedThumbView: View {
     let image: NSImage
     
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
         
         Image(nsImage: image)
             .resizable()
@@ -178,9 +160,9 @@ private struct EnlargedThumbView: View {
             .frame(width: 112, height: 72)
             .clipShape(shape)
             .overlay(
-                shape.strokeBorder(Color.orange, lineWidth: 2.5)
+                shape.strokeBorder(DesignSystem.Colors.Chart.keyframe, lineWidth: 2.5)
             )
-            .shadow(color: .black.opacity(0.5), radius: 10, y: 4)
+            .shadow(color: .black.opacity(0.5), radius: DesignSystem.Spacing.md2, y: 4)
     }
 }
 
@@ -207,9 +189,14 @@ private struct DraggableScrollView<Content: View>: NSViewRepresentable {
         scrollView.verticalScrollElasticity = .none
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
+        scrollView.backgroundColor = .clear
+        scrollView.drawsBackground = false
+        scrollView.contentView.backgroundColor = .clear
+        scrollView.contentView.drawsBackground = false
         
         let hostingView = NSHostingView(rootView: content)
         hostingView.translatesAutoresizingMaskIntoConstraints = false
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
         
         scrollView.documentView = hostingView
         
@@ -278,7 +265,7 @@ private struct ThumbCell: View {
     let isHovered: Bool
     
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: DesignSystem.Padding.md, style: .continuous)
         
         Image(nsImage: image)
             .resizable()
@@ -287,11 +274,11 @@ private struct ThumbCell: View {
             .clipShape(shape)
             .overlay(
                 shape.strokeBorder(
-                    isHovered ? Color.orange : Color.primary.opacity(0.15),
-                    lineWidth: isHovered ? 2 : 1
+                    isHovered ? DesignSystem.Colors.Chart.keyframe : DesignSystem.Colors.Semantic.primary.opacity(0.15),
+                    lineWidth: isHovered ? DesignSystem.Borders.thick : DesignSystem.Borders.thin
                 )
             )
-            .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+            .shadow(color: .black.opacity(0.15), radius: DesignSystem.Spacing.xs, y: 1)
             .contentShape(shape)
     }
 }

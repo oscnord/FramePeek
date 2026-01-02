@@ -74,20 +74,20 @@ struct SettingsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 8) {
+            VStack(spacing: DesignSystem.Spacing.md) {
                 Text("Settings")
-                    .font(.system(size: 28, weight: .bold))
-                    .padding(.top, 20)
+                    .font(.system(size: DesignSystem.Typography.title1, weight: .bold))
+                    .padding(.top, DesignSystem.Padding.xl)
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, DesignSystem.Padding.xl2)
             
             Divider()
-                .padding(.horizontal, 40)
+                .padding(.horizontal, DesignSystem.Padding.xxl2)
             
             ScrollView {
-                VStack(alignment: .leading, spacing: 32) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
                     SettingsSection(title: "Appearance") {
-                        VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
                             Picker("", selection: Binding(
                                 get: { appearanceMode },
                                 set: { newValue in
@@ -104,36 +104,36 @@ struct SettingsView: View {
                             .labelsHidden()
                             
                             Text("Choose how FramePeek should appear. 'System' follows your Mac's appearance setting.")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: DesignSystem.Typography.footnote))
+                                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                         }
                     }
                     
                     SettingsSection(title: "Interface") {
-                        VStack(alignment: .leading, spacing: 16) {
-                            VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                 Toggle("Show Inspector by Default", isOn: $showInspector)
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.system(size: DesignSystem.Typography.body, weight: .medium))
                                 
                                 Text("When enabled, the inspector panel will be visible when you open a new file.")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
+                                    .font(.system(size: DesignSystem.Typography.footnote))
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             }
                             
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                 Toggle("Show Settings When Loading Files", isOn: $showSettingsOnFileLoad)
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.system(size: DesignSystem.Typography.body, weight: .medium))
                                 
                                 Text("When enabled, analysis settings will be shown when you load a new file. You can always adjust settings in Settings.")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
+                                    .font(.system(size: DesignSystem.Typography.footnote))
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             }
                             
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                 HStack {
                                     Picker("", selection: $fileOpeningBehavior) {
                                         ForEach(FileOpeningBehavior.allCases) { behavior in
@@ -145,17 +145,17 @@ struct SettingsView: View {
                                 }
                                 
                                 Text("Choose what happens when you open a file while another file is already open in the current tab.")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
+                                    .font(.system(size: DesignSystem.Typography.footnote))
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             }
                         }
                     }
                     
                     SettingsSection(title: "Analysis") {
-                        VStack(alignment: .leading, spacing: 16) {
-                            VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                 Text("Sampling Mode")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.system(size: DesignSystem.Typography.body, weight: .medium))
                                 
                                 Picker("", selection: $samplingMode) {
                                     ForEach(SamplingModeSetting.allCases) { mode in
@@ -165,13 +165,13 @@ struct SettingsView: View {
                                 .pickerStyle(.radioGroup)
                                 
                                 Text("Choose how frames are sampled for bitrate analysis.")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
+                                    .font(.system(size: DesignSystem.Typography.footnote))
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             }
                             
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                                 switch samplingMode {
                                 case .auto:
                                     HStack {
@@ -224,26 +224,26 @@ struct SettingsView: View {
                             
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                 Toggle(isOn: $preferAccuracy) {
-                                    VStack(alignment: .leading, spacing: 4) {
+                                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                                         Text("High Accuracy")
-                                            .font(.system(size: 14, weight: .medium))
+                                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
                                         Text("More accurate bitrate measurements (may be slower)")
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(.secondary)
+                                            .font(.system(size: DesignSystem.Typography.footnote))
+                                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                                     }
                                 }
                             }
                             
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: 16) {
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
                                 Text("Format-Specific Options")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.system(size: DesignSystem.Typography.body, weight: .medium))
                                 
-                                VStack(alignment: .leading, spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 8) {
+                                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                         Picker("Accuracy Mode", selection: $formatAccuracyMode) {
                                             ForEach(FormatAccuracyMode.allCases) { mode in
                                                 Text(mode.displayName).tag(mode)
@@ -252,59 +252,59 @@ struct SettingsView: View {
                                         .pickerStyle(.menu)
                                         
                                         Text("Performance: Fastest, uses AVFoundation data as-is. Balanced: Format-specific optimizations. Accuracy: Full format parsing for maximum precision.")
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(.secondary)
+                                            .font(.system(size: DesignSystem.Typography.footnote))
+                                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                                     }
                                     
                                     Divider()
                                     
-                                    VStack(alignment: .leading, spacing: 8) {
+                                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                         Toggle("Account for TS Packet Overhead", isOn: $accountTSOverhead)
-                                            .font(.system(size: 14, weight: .medium))
+                                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
                                         
                                         Text("For MPEG-TS files: Subtract transport stream packet header overhead from bitrate calculations for more accurate video bitrate.")
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(.secondary)
+                                            .font(.system(size: DesignSystem.Typography.footnote))
+                                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                                     }
                                     
                                     Divider()
                                     
-                                    VStack(alignment: .leading, spacing: 8) {
+                                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                         Toggle("Smooth Segment Boundaries", isOn: $smoothSegmentBoundaries)
-                                            .font(.system(size: 14, weight: .medium))
+                                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
                                         
                                         Text("For fragmented MP4/CMAF files: Smooth bitrate spikes at segment boundaries for more consistent visualization.")
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(.secondary)
+                                            .font(.system(size: DesignSystem.Typography.footnote))
+                                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                                     }
                                 }
                             }
                         }
                         .padding()
                         .background {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(.regularMaterial)
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                                .fill(DesignSystem.Materials.regular)
                         }
                     }
                 }
-                .padding(.horizontal, 40)
-                .padding(.top, 32)
-                .padding(.bottom, 24)
+                .padding(.horizontal, DesignSystem.Padding.xxl2)
+                .padding(.top, DesignSystem.Padding.xxl)
+                .padding(.bottom, DesignSystem.Padding.xl2)
             }
             
             Spacer()
             
-            VStack(spacing: 8) {
+            VStack(spacing: DesignSystem.Spacing.md) {
                 Divider()
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, DesignSystem.Padding.xxl2)
                 
                 Button("Done") {
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
-                .padding(.top, 12)
+                .padding(.top, DesignSystem.Padding.lg)
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, DesignSystem.Padding.xl2)
         }
         .frame(minHeight: 500, maxHeight: 700)
         .background(.background)
@@ -316,13 +316,13 @@ private struct SettingsSection<Content: View>: View {
     @ViewBuilder let content: Content
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.primary)
+                .font(.system(size: DesignSystem.Typography.headline, weight: .semibold))
+                .foregroundStyle(DesignSystem.Colors.Semantic.primary)
             
             content
-                .padding(.leading, 4)
+                .padding(.leading, DesignSystem.Padding.sm)
         }
     }
 }

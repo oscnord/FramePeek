@@ -7,50 +7,50 @@ struct AboutView: View {
         VStack(spacing: 0) {
             Spacer()
             
-            VStack(spacing: 16) {
+            VStack(spacing: DesignSystem.Spacing.lg3) {
                 Image(nsImage: NSApplication.shared.applicationIconImage)
                     .resizable()
                     .frame(width: 64, height: 64)
-                    .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 3)
+                    .shadow(color: .black.opacity(0.2), radius: DesignSystem.Shadows.small, x: 0, y: 3)
                 
-                VStack(spacing: 4) {
+                VStack(spacing: DesignSystem.Spacing.sm) {
                     Text("FramePeek")
-                        .font(.system(size: 24, weight: .bold, design: .default))
+                        .font(.system(size: DesignSystem.Typography.title2, weight: .bold, design: .default))
                     
                     if let version = appVersion {
                         Text(String(format: String(localized: "Version %@"), version))
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: DesignSystem.Typography.footnote, weight: .regular))
+                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     }
                     
                     if let buildNumber = buildNumber {
                         Text(String(format: String(localized: "Build %@"), buildNumber))
-                            .font(.system(size: 10, weight: .regular))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: DesignSystem.Typography.caption2, weight: .regular))
+                            .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                     }
                 }
             }
             
             Spacer()
             
-            VStack(spacing: 4) {
+            VStack(spacing: DesignSystem.Spacing.sm) {
                 Text("Built by Oscar Nord in Stockholm, Sweden")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: DesignSystem.Typography.caption2))
+                    .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                 
                 if let copyright = copyrightText {
                     Text(copyright)
-                        .font(.system(size: 9))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: DesignSystem.Typography.caption))
+                        .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                 }
                 
                 Button("Close") {
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
-                .padding(.top, 12)
+                .padding(.top, DesignSystem.Padding.lg)
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, DesignSystem.Padding.xl2)
         }
         .frame(width: 320, height: 320)
         .background(.background)

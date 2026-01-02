@@ -45,6 +45,22 @@ struct BitrateChartView: View {
         return statistics.niceStep(forMax: duration, targetTicks: 6)
     }
     
+    /// Formats time for chart axis display (shows minutes:seconds when >= 60 seconds)
+    private func formatTimeForChart(_ seconds: Double) -> String {
+        if seconds < 60 {
+            return String(format: "%.0fs", seconds)
+        } else if seconds < 3600 {
+            let minutes = Int(seconds / 60)
+            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
+            return String(format: "%d:%02d", minutes, secs)
+        } else {
+            let hours = Int(seconds / 3600)
+            let minutes = Int((seconds.truncatingRemainder(dividingBy: 3600)) / 60)
+            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
+            return String(format: "%d:%02d:%02d", hours, minutes, secs)
+        }
+    }
+    
     /// X-axis domain with padding for better visibility of start/end points
     private var xAxisDomain: ClosedRange<Double> {
         if let range = viewModel.visibleTimeRange {
@@ -60,7 +76,7 @@ struct BitrateChartView: View {
     }
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: DesignSystem.Spacing.md2) {
             header
 
             Group {
@@ -72,28 +88,28 @@ struct BitrateChartView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(12)
+        .padding(DesignSystem.Padding.lg)
         .background(.windowBackground)
     }
 
     // MARK: - Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md2) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.md2) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs2) {
                     Text("Bitrate over time")
                         .font(.headline)
 
                     Text(viewModel.isAnalyzing ? "Streaming samples…" : "Drag to inspect a point")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 }
 
                 Spacer()
 
                 if !viewModel.samples.isEmpty {
-                    HStack(spacing: 14) {
+                    HStack(spacing: DesignSystem.Spacing.lg2) {
                         StatPill(title: "Points", value: "\(viewModel.samples.count)")
                         StatPill(title: "Avg", value: statistics.headerAvgText)
                         StatPill(title: "Peak", value: statistics.headerPeakText)
@@ -104,29 +120,29 @@ struct BitrateChartView: View {
                 }
             }
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, DesignSystem.Padding.sm)
     }
 
     // MARK: - Empty
 
     private var emptyState: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.thinMaterial)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
+                .fill(DesignSystem.Materials.thin)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(.separator.opacity(0.35), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
+                        .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
                 )
 
             if viewModel.isAnalyzing {
-                VStack(spacing: 10) {
+                VStack(spacing: DesignSystem.Spacing.md2) {
                     ProgressView()
                         .controlSize(.regular)
                     Text("Analyzing frames…")
                         .font(.headline)
                     Text("For long files, choose a larger interval to limit memory usage.")
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 }
                 .padding()
             } else {
@@ -144,32 +160,32 @@ struct BitrateChartView: View {
 
     private var chartCard: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.thinMaterial)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
+                .fill(DesignSystem.Materials.thin)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(.separator.opacity(0.35), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
+                        .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
                 )
 
-            VStack(spacing: 10) {
+            VStack(spacing: DesignSystem.Spacing.md2) {
                 ChartHeaderRow(
                     hoveredSample: viewModel.hoveredSample,
                     maxBitrateKbps: statistics.maxBitrateKbps,
                     visibleTimeRange: $viewModel.visibleTimeRange
                 )
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
+                .padding(.horizontal, DesignSystem.Padding.lg)
+                .padding(.top, DesignSystem.Padding.lg)
 
                 chart
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, DesignSystem.Padding.lg)
+                    .padding(.bottom, DesignSystem.Padding.md)
                 
                 TimelineView(
                     duration: statistics.maxTime == 0 ? viewModel.durationSeconds : statistics.maxTime,
                     visibleTimeRange: $viewModel.visibleTimeRange
                 )
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+                .padding(.horizontal, DesignSystem.Padding.lg)
+                .padding(.bottom, DesignSystem.Padding.md)
                 
                 if viewModel.isGeneratingThumbnails {
                     KeyframeLoadingView(
@@ -179,8 +195,8 @@ struct BitrateChartView: View {
                             viewModel.cancelThumbnailGeneration()
                         }
                     )
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, DesignSystem.Padding.lg)
+                    .padding(.bottom, DesignSystem.Padding.lg)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 } else if !viewModel.keyframeThumbs.isEmpty {
                     KeyframeThumbnailStrip(
@@ -189,15 +205,15 @@ struct BitrateChartView: View {
                         hoveredKeyframeTime: $viewModel.hoveredKeyframeTime,
                         visibleTimeRange: viewModel.visibleTimeRange
                     )
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, DesignSystem.Padding.lg)
+                    .padding(.bottom, DesignSystem.Padding.lg)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
 
             if viewModel.isAnalyzing {
                 loadingBadge
-                    .padding(12)
+                    .padding(DesignSystem.Padding.lg)
                     .allowsHitTesting(false)
             }
         }
@@ -212,9 +228,12 @@ struct BitrateChartView: View {
                 )
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [
-                            Color.accentColor.opacity(viewModel.isAnalyzing ? 0.5 : 0.7),
-                            Color.accentColor.opacity(viewModel.isAnalyzing ? 0.1 : 0.15)
+                        colors: viewModel.isAnalyzing ? [
+                            DesignSystem.Colors.Chart.primaryAreaTopAnalyzing,
+                            DesignSystem.Colors.Chart.primaryAreaBottomAnalyzing
+                        ] : [
+                            DesignSystem.Colors.Chart.primaryAreaTop,
+                            DesignSystem.Colors.Chart.primaryAreaBottom
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -226,67 +245,67 @@ struct BitrateChartView: View {
                     x: .value("Time (s)", sample.time),
                     y: .value("Bitrate (kbps)", sample.bitrate / 1000.0)
                 )
-                .foregroundStyle(Color.accentColor.opacity(viewModel.isAnalyzing ? 0.7 : 1.0))
+                .foregroundStyle(viewModel.isAnalyzing ? DesignSystem.Colors.Chart.primaryAnalyzing : DesignSystem.Colors.Chart.primary)
                 .interpolationMethod(.linear)
-                .lineStyle(StrokeStyle(lineWidth: 1.5))
+                .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.medium))
             }
             
             if !viewModel.samples.isEmpty {
                 RuleMark(y: .value("Avg", statistics.avgBitrateKbps))
-                    .foregroundStyle(.orange.opacity(0.7))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 4]))
+                    .foregroundStyle(DesignSystem.Colors.Chart.averageOpacity)
+                    .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.thin, dash: [6, 4]))
                     .annotation(position: .trailing, alignment: .leading) {
                         Text("avg")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
-                            .padding(.horizontal, 4)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                            .foregroundStyle(DesignSystem.Colors.Chart.average)
+                            .padding(.horizontal, DesignSystem.Padding.sm)
+                            .background(DesignSystem.Materials.ultraThin)
+                            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous))
                     }
             }
             
             if let hovered = viewModel.hoveredSample {
                 RuleMark(x: .value("Time (s)", hovered.time))
-                    .foregroundStyle(.primary.opacity(0.7))
-                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                    .foregroundStyle(DesignSystem.Colors.Chart.hoveredLine)
+                    .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.medium, dash: [4, 4]))
             }
             
             if let keyframeTime = viewModel.hoveredKeyframeTime {
                 RuleMark(x: .value("Keyframe", keyframeTime))
-                    .foregroundStyle(.orange.opacity(0.8))
-                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    .foregroundStyle(DesignSystem.Colors.Chart.keyframeOpacity)
+                    .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.thick))
             }
         }
         .chartYScale(domain: 0...(statistics.maxBitrateKbps * 1.1))
         .chartXScale(domain: xAxisDomain)
         .chartXAxis {
             AxisMarks(position: .bottom, values: .stride(by: xTickStep)) { value in
-                AxisGridLine().foregroundStyle(.secondary.opacity(0.18))
-                AxisTick().foregroundStyle(.secondary.opacity(0.35))
+                AxisGridLine().foregroundStyle(DesignSystem.Colors.Chart.grid)
+                AxisTick().foregroundStyle(DesignSystem.Colors.Chart.axisTick)
                 AxisValueLabel {
                     if let t = value.as(Double.self) {
-                        Text("\(t, specifier: "%.0f") s")
-                            .foregroundStyle(.secondary)
+                        Text(formatTimeForChart(t))
+                            .foregroundStyle(DesignSystem.Colors.Chart.axisLabel)
                     }
                 }
             }
         }
         .chartYAxis {
             AxisMarks(position: .leading, values: .stride(by: yTickStep)) { value in
-                AxisGridLine().foregroundStyle(.secondary.opacity(0.20))
-                AxisTick().foregroundStyle(.secondary.opacity(0.35))
+                AxisGridLine().foregroundStyle(DesignSystem.Colors.Chart.gridY)
+                AxisTick().foregroundStyle(DesignSystem.Colors.Chart.axisTick)
                 AxisValueLabel {
                     if let b = value.as(Double.self) {
                         Text("\(b, specifier: "%.0f")")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DesignSystem.Colors.Chart.axisLabel)
                     }
                 }
             }
         }
         .chartPlotStyle { plot in
             plot
-                .background(.black.opacity(0.06))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .background(DesignSystem.Colors.Chart.background)
+                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
         }
         .chartOverlay { proxy in
             GeometryReader { geometry in
@@ -353,7 +372,7 @@ struct BitrateChartView: View {
     // MARK: - Overlay
 
     private var loadingBadge: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: DesignSystem.Spacing.md) {
             ProgressView()
                 .controlSize(.small)
 
@@ -363,15 +382,15 @@ struct BitrateChartView: View {
 
             Text("\(viewModel.samples.count) pts")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.vertical, DesignSystem.Padding.sm2)
+        .padding(.horizontal, DesignSystem.Padding.md3)
+        .background(DesignSystem.Materials.regular)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.panel, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.separator.opacity(0.35), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.panel, style: .continuous)
+                .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
         )
         .shadow(radius: 4)
     }

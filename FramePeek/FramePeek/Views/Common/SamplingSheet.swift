@@ -5,15 +5,15 @@ struct SamplingSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm3) {
                 Text("Analysis Settings")
                     .font(.title2)
                     .fontWeight(.semibold)
             }
 
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                     Text("Sampling Mode")
                         .font(.headline)
                     
@@ -26,7 +26,7 @@ struct SamplingSheet: View {
 
                 Divider()
 
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                     switch viewModel.samplingMode {
                     case .auto:
                         HStack {
@@ -79,36 +79,36 @@ struct SamplingSheet: View {
             }
             .padding()
             .background {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.regularMaterial)
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                    .fill(DesignSystem.Materials.regular)
             }
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 Toggle(isOn: $viewModel.preferAccuracy) {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                         Text("High Accuracy")
                             .font(.headline)
                         Text("More accurate bitrate measurements (may be slower)")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     }
                 }
             }
             .padding()
             .background {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.regularMaterial)
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                    .fill(DesignSystem.Materials.regular)
             }
 
             Spacer()
 
             Text("You can disable this dialog in Settings (⌘,)")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.bottom, 4)
+                .padding(.bottom, DesignSystem.Padding.sm)
 
             HStack {
                 Button("Cancel") {
@@ -127,7 +127,7 @@ struct SamplingSheet: View {
                 .buttonStyle(.borderedProminent)
             }
         }
-        .padding(20)
+        .padding(DesignSystem.Padding.xl)
         .frame(minWidth: 420, minHeight: 300)
         .onDisappear {
             if viewModel.showSamplingDialog || viewModel.pendingURL != nil {

@@ -161,20 +161,20 @@ struct KeyframeTimelineView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm3) {
+            HStack(spacing: DesignSystem.Spacing.sm3) {
                 Image(systemName: "film")
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(DesignSystem.Colors.Chart.keyframe)
                 Text("Keyframe Distribution")
                     .font(.caption2)
                     .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 
                 if visibleTimeRange == nil {
                     Text("(Drag to zoom)")
                         .font(.caption2)
-                        .foregroundStyle(.secondary.opacity(0.7))
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.7))
                 }
                 
                 Spacer()
@@ -182,18 +182,18 @@ struct KeyframeTimelineView: View {
                 if let maxKeyframes = maxKeyframes, keyframes.count > maxKeyframes {
                     Text("\(displayKeyframes.count) of \(keyframes.count) keyframes")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                 } else {
                     Text("\(keyframes.count) keyframes")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                 }
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, DesignSystem.Padding.sm)
             
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
@@ -205,8 +205,8 @@ struct KeyframeTimelineView: View {
                             )
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .strokeBorder(.separator.opacity(0.2), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                                .strokeBorder(.separator.opacity(0.2), lineWidth: DesignSystem.Borders.thin)
                         )
 
                     Canvas { ctx, size in
@@ -245,10 +245,10 @@ struct KeyframeTimelineView: View {
                             }
                         }
 
-                        ctx.stroke(normalPath, with: .color(.orange.opacity(0.5)), lineWidth: 1.5)
+                        ctx.stroke(normalPath, with: .color(DesignSystem.Colors.Chart.keyframe.opacity(0.5)), lineWidth: DesignSystem.Borders.medium)
                         
                         if hoveredKeyframeTime != nil {
-                            ctx.stroke(highlightedPath, with: .color(.orange), lineWidth: 3)
+                            ctx.stroke(highlightedPath, with: .color(DesignSystem.Colors.Chart.keyframe), lineWidth: DesignSystem.Borders.thick)
                         }
                     }
                     
@@ -258,20 +258,20 @@ struct KeyframeTimelineView: View {
                         let width = max(endX - startX, 10) // Minimum width handle
                         
                         ZStack {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.2))
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+                                .fill(DesignSystem.Colors.Chart.primary.opacity(0.2))
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                        .stroke(Color.accentColor, lineWidth: 1)
+                                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+                                        .stroke(DesignSystem.Colors.Chart.primary, lineWidth: DesignSystem.Borders.thin)
                                 )
                             
                             HStack {
                                 Rectangle()
-                                    .fill(Color.accentColor.opacity(0.5))
+                                    .fill(DesignSystem.Colors.Chart.primary.opacity(0.5))
                                     .frame(width: 4)
                                 Spacer()
                                 Rectangle()
-                                    .fill(Color.accentColor.opacity(0.5))
+                                    .fill(DesignSystem.Colors.Chart.primary.opacity(0.5))
                                     .frame(width: 4)
                             }
                         }
@@ -312,12 +312,12 @@ struct KeyframeTimelineView: View {
             }
             .frame(height: 20)
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.vertical, DesignSystem.Padding.md)
+        .padding(.horizontal, DesignSystem.Padding.md3)
+        .background(DesignSystem.Materials.thin, in: RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(.separator.opacity(0.25), lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
+                .strokeBorder(.separator.opacity(0.25), lineWidth: DesignSystem.Borders.thin)
         )
         .accessibilityLabel("Keyframe timeline with \(displayKeyframes.count) of \(keyframes.count) keyframes")
         .onChange(of: keyframes.count) { _ in

@@ -7,50 +7,50 @@ struct TabChoiceDialog: View {
     let onCancel: () -> Void
     
     var body: some View {
-        VStack(spacing: 24) {
-            VStack(spacing: 8) {
+        VStack(spacing: DesignSystem.Spacing.xl2) {
+            VStack(spacing: DesignSystem.Spacing.md) {
                 Text("A file is already open")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: DesignSystem.Typography.callout, weight: .medium))
+                    .foregroundStyle(DesignSystem.Colors.Semantic.primary)
                 
                 Text("Open \"\(fileName)\" in:")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: DesignSystem.Typography.subheadline))
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             
-            HStack(spacing: 10) {
+            HStack(spacing: DesignSystem.Spacing.md2) {
                 Button {
                     onChooseCurrentTab()
                 } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: DesignSystem.Spacing.sm3) {
                         Image(systemName: "doc.fill")
-                            .font(.system(size: 20))
+                            .font(.system(size: DesignSystem.Typography.title3))
                         Text("Current Tab")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: DesignSystem.Typography.footnote, weight: .medium))
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, DesignSystem.Padding.lg3)
                 }
                 .buttonStyle(.borderedProminent)
                 
                 Button {
                     onChooseNewTab()
                 } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: DesignSystem.Spacing.sm3) {
                         Image(systemName: "plus.square.on.square")
-                            .font(.system(size: 20))
+                            .font(.system(size: DesignSystem.Typography.title3))
                         Text("New Tab")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: DesignSystem.Typography.footnote, weight: .medium))
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, DesignSystem.Padding.lg3)
                 }
                 .buttonStyle(.bordered)
             }
         }
-        .padding(28)
+        .padding(DesignSystem.Padding.xl3)
         .frame(width: 360)
     }
 }
