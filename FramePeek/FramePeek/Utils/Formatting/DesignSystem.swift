@@ -124,22 +124,22 @@ struct DesignSystem {
         
         struct Chart {
             /// Main chart line/area color (accentColor)
-            static var primary: Color { .accentColor }
+            static var primary: Color { .blue }
             
             /// Primary color when analyzing (with reduced opacity)
-            static var primaryAnalyzing: Color { .accentColor.opacity(0.7) }
+            static var primaryAnalyzing: Color { .blue.opacity(0.7) }
             
             /// Primary color area gradient top (when analyzing)
-            static var primaryAreaTopAnalyzing: Color { .accentColor.opacity(0.5) }
+            static var primaryAreaTopAnalyzing: Color { .blue.opacity(0.5) }
             
             /// Primary color area gradient bottom (when analyzing)
-            static var primaryAreaBottomAnalyzing: Color { .accentColor.opacity(0.1) }
+            static var primaryAreaBottomAnalyzing: Color { .blue.opacity(0.1) }
             
             /// Primary color area gradient top (normal)
-            static var primaryAreaTop: Color { .accentColor.opacity(0.7) }
+            static var primaryAreaTop: Color { .blue.opacity(0.7) }
             
             /// Primary color area gradient bottom (normal)
-            static var primaryAreaBottom: Color { .accentColor.opacity(0.15) }
+            static var primaryAreaBottom: Color { .blue.opacity(0.15) }
             
             /// Keyframe marker color
             static var keyframe: Color { .orange }
@@ -154,13 +154,13 @@ struct DesignSystem {
             static var averageOpacity: Color { .orange.opacity(0.7) }
             
             /// Grid line color
-            static var grid: Color { Color.secondary.opacity(0.18) }
+            static var grid: Color { .blue.opacity(0.18) }
             
             /// Grid line color (Y-axis)
-            static var gridY: Color { Color.secondary.opacity(0.20) }
+            static var gridY: Color { .blue.opacity(0.20) }
             
             /// Axis tick color
-            static var axisTick: Color { Color.secondary.opacity(0.35) }
+            static var axisTick: Color { .blue.opacity(0.35) }
             
             /// Axis label color
             static var axisLabel: Color { .secondary }
