@@ -1,7 +1,3 @@
-//
-//  AudioTrackInfo+Display.swift
-//  FramePeek
-//
 
 import Foundation
 

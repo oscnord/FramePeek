@@ -1,7 +1,3 @@
-//
-//  ViewHelpers.swift
-//  FramePeek
-//
 
 import SwiftUI
 

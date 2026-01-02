@@ -1,10 +1,3 @@
-//
-//  FastBitrateExtractor+Cursor.swift
-//  FramePeek
-//
-//  Cursor-based extraction (fast, metadata-only)
-//
-
 import AVFoundation
 import CoreMedia
 

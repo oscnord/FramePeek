@@ -1,10 +1,3 @@
-//
-//  BitrateChartView.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-12-06.
-//
-
 import SwiftUI
 import Charts
 
@@ -16,7 +9,6 @@ struct BitrateChartView: View {
     /// Maximum points to render in chart for performance (LTTB downsampling)
     /// Increased when zoomed for better accuracy
     private var maxDisplayPoints: Int {
-        // When zoomed, show more points for better accuracy
         if viewModel.visibleTimeRange != nil {
             return 2000  // More points when zoomed
         }
@@ -56,15 +48,13 @@ struct BitrateChartView: View {
     /// X-axis domain with padding for better visibility of start/end points
     private var xAxisDomain: ClosedRange<Double> {
         if let range = viewModel.visibleTimeRange {
-            // When zoomed, use the visible range with small padding
-            let padding = (range.upperBound - range.lowerBound) * 0.02 // 2% padding
-            let start = max(0, range.lowerBound - padding) // Don't go below 0
+            let padding = (range.upperBound - range.lowerBound) * 0.02
+            let start = max(0, range.lowerBound - padding)
             return start...(range.upperBound + padding)
         } else {
-            // Full view: add padding to start and end
             let duration = statistics.maxTime
-            let padding = min(duration * 0.02, 5.0) // 2% of duration, but max 5 seconds
-            let start = max(0, -padding) // Don't go below 0
+            let padding = min(duration * 0.02, 5.0)
+            let start = max(0, -padding)
             return start...(statistics.maxTime + padding)
         }
     }
@@ -174,7 +164,6 @@ struct BitrateChartView: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
                 
-                // Timeline zoom control
                 TimelineView(
                     duration: statistics.maxTime == 0 ? viewModel.durationSeconds : statistics.maxTime,
                     visibleTimeRange: $viewModel.visibleTimeRange
@@ -182,7 +171,6 @@ struct BitrateChartView: View {
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)
                 
-                // Thumbnail strip
                 if viewModel.isGeneratingThumbnails {
                     KeyframeLoadingView(
                         message: "Generating thumbnails...",
@@ -197,7 +185,7 @@ struct BitrateChartView: View {
                 } else if !viewModel.keyframeThumbs.isEmpty {
                     KeyframeThumbnailStrip(
                         thumbs: viewModel.keyframeThumbs,
-                        totalKeyframes: viewModel.keyframeThumbs.count,  // Use thumb count since we don't have keyframes
+                        totalKeyframes: viewModel.keyframeThumbs.count,
                         hoveredKeyframeTime: $viewModel.hoveredKeyframeTime,
                         visibleTimeRange: viewModel.visibleTimeRange
                     )
@@ -217,7 +205,6 @@ struct BitrateChartView: View {
 
     private var chart: some View {
         Chart {
-            // Area chart with gradient fill
             ForEach(displaySamples) { sample in
                 AreaMark(
                     x: .value("Time (s)", sample.time),
@@ -244,7 +231,6 @@ struct BitrateChartView: View {
                 .lineStyle(StrokeStyle(lineWidth: 1.5))
             }
             
-            // Average bitrate reference line
             if !viewModel.samples.isEmpty {
                 RuleMark(y: .value("Avg", statistics.avgBitrateKbps))
                     .foregroundStyle(.orange.opacity(0.7))
@@ -265,7 +251,6 @@ struct BitrateChartView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
             }
             
-            // Highlight from thumbnail hover
             if let keyframeTime = viewModel.hoveredKeyframeTime {
                 RuleMark(x: .value("Keyframe", keyframeTime))
                     .foregroundStyle(.orange.opacity(0.8))
@@ -326,10 +311,9 @@ struct BitrateChartView: View {
                     )
             }
         }
-        .drawingGroup() // Metal-accelerated rendering for better performance
+        .drawingGroup()
         .frame(minHeight: 260)
         .overlay(alignment: .topLeading) {
-            // Tooltip overlay - outside chart clipping area
             tooltipOverlay
         }
     }
@@ -339,7 +323,6 @@ struct BitrateChartView: View {
     @ViewBuilder
     private var tooltipOverlay: some View {
         GeometryReader { geometry in
-            // Determine which sample to show tooltip for
             let tooltipSample: BitrateSample? = {
                 if let sample = viewModel.hoveredSample {
                     return sample
@@ -350,7 +333,6 @@ struct BitrateChartView: View {
             }()
             
             if let sample = tooltipSample {
-                // Calculate x position based on time ratio
                 let startTime = viewModel.visibleTimeRange?.lowerBound ?? 0
                 let endTime = viewModel.visibleTimeRange?.upperBound ?? statistics.maxTime
                 let duration = endTime - startTime

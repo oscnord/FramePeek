@@ -1,10 +1,3 @@
-//
-//  FastBitrateExtractor+Reader.swift
-//  FramePeek
-//
-//  Reader-based extraction (accurate sample sizes)
-//
-
 import AVFoundation
 import CoreMedia
 

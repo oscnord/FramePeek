@@ -1,10 +1,3 @@
-//
-//  AudioInfoLoader.swift
-//  FramePeek
-//
-//  Loads audio track information from AVAsset.
-//
-
 import Foundation
 import AVFoundation
 import CoreMedia

@@ -1,10 +1,3 @@
-//
-//  FormatDetector.swift
-//  FramePeek
-//
-//  Detects container format types for format-specific bitrate extraction
-//
-
 import Foundation
 import AVFoundation
 

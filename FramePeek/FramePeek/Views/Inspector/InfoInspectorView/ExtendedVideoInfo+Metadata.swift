@@ -1,7 +1,3 @@
-//
-//  ExtendedVideoInfo+Metadata.swift
-//  FramePeek
-//
 
 import Foundation
 

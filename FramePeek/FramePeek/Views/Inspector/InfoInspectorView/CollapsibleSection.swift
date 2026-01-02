@@ -1,7 +1,3 @@
-//
-//  CollapsibleSection.swift
-//  FramePeek
-//
 
 import SwiftUI
 #if canImport(AppKit)

@@ -1,7 +1,3 @@
-//
-//  QuickSummaryCard.swift
-//  FramePeek
-//
 
 import SwiftUI
 

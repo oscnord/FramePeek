@@ -1,7 +1,3 @@
-//
-//  CopiedBanner.swift
-//  FramePeek
-//
 
 import SwiftUI
 

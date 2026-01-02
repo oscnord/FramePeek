@@ -1,10 +1,3 @@
-//
-//  FormatUtils.swift
-//  FramePeek
-//
-//  Formatting utilities for duration, codec names, and channel layouts.
-//
-
 import Foundation
 
 // MARK: - FourCC Conversion

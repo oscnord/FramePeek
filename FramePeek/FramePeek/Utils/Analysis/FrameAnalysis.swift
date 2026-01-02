@@ -1,10 +1,3 @@
-//
-//  FrameAnalysis.swift
-//  FramePeek
-//
-//  Frame extraction and bitrate/FPS analysis utilities.
-//
-
 import Foundation
 import AVFoundation
 

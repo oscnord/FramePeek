@@ -1,10 +1,3 @@
-//
-//  AboutView.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-02-15.
-//
-
 import SwiftUI
 
 struct AboutView: View {
@@ -14,7 +7,6 @@ struct AboutView: View {
         VStack(spacing: 0) {
             Spacer()
             
-            // Header with app icon and name
             VStack(spacing: 16) {
                 Image(nsImage: NSApplication.shared.applicationIconImage)
                     .resizable()
@@ -41,7 +33,6 @@ struct AboutView: View {
             
             Spacer()
             
-            // Footer
             VStack(spacing: 4) {
                 Text("Built by Oscar Nord in Stockholm, Sweden")
                     .font(.system(size: 10))

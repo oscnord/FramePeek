@@ -1,10 +1,3 @@
-//
-//  FrameAggregation.swift
-//  FramePeek
-//
-//  Created for smart visualization mode switching
-//
-
 import Foundation
 
 /// Raw frame data: presentation timestamp and size in bytes

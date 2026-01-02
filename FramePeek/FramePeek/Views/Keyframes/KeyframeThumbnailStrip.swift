@@ -1,10 +1,3 @@
-//
-//  KeyframeThumbnailStrip.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-12-09.
-//
-
 import SwiftUI
 import AppKit
 
@@ -19,13 +12,12 @@ private struct ThumbAnchorKey: PreferenceKey {
 
 struct KeyframeThumbnailStrip: View {
     let thumbs: [KeyframeThumbnail]
-    let totalKeyframes: Int  // Total keyframes in the video (may be more than thumbs.count)
+    let totalKeyframes: Int
     @Binding var hoveredKeyframeTime: Double?
     var visibleTimeRange: ClosedRange<Double>? = nil
     @State private var hoveredThumb: KeyframeThumbnail? = nil
     @State private var hoveredIndex: Int? = nil
     
-    // Filtered thumbs based on visible time range
     private var filteredThumbs: [KeyframeThumbnail] {
         guard let range = visibleTimeRange else { return thumbs }
         return thumbs.filter { range.contains($0.time) }
@@ -33,7 +25,6 @@ struct KeyframeThumbnailStrip: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Header with hover info
             HStack(spacing: 6) {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.caption2)
@@ -45,7 +36,6 @@ struct KeyframeThumbnailStrip: View {
                 
                 Spacer()
                 
-                // Show hover info in header area - fixed height to prevent jumping
                 Group {
                     if let thumb = hoveredThumb, let index = hoveredIndex {
                         HStack(spacing: 8) {
@@ -78,7 +68,7 @@ struct KeyframeThumbnailStrip: View {
                         }
                     }
                 }
-                .frame(height: 20, alignment: .center)  // Fixed height prevents jumping
+                .frame(height: 20, alignment: .center)
             }
             .padding(.horizontal, 4)
             
@@ -151,7 +141,6 @@ struct KeyframeThumbnailStrip: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(.separator.opacity(0.15), lineWidth: 1)
         )
-        // Enlarged thumbnail overlay using anchor preferences
         .overlayPreferenceValue(ThumbAnchorKey.self) { anchors in
             GeometryReader { geo in
                 if let index = hoveredIndex,
@@ -161,7 +150,6 @@ struct KeyframeThumbnailStrip: View {
                     let centerX = rect.midX
                     let centerY = rect.midY
                     
-                    // Clamp position to keep enlarged view within bounds
                     let enlargedWidth: CGFloat = 112
                     let minX = enlargedWidth / 2 + 4
                     let maxX = geo.size.width - enlargedWidth / 2 - 4
@@ -225,19 +213,15 @@ private struct DraggableScrollView<Content: View>: NSViewRepresentable {
         
         scrollView.documentView = hostingView
         
-        // Enable drag-to-scroll
         scrollView.allowsMagnification = false
         
-        // Store references in coordinator
         context.coordinator.hostingView = hostingView
         context.coordinator.scrollView = scrollView
         
-        // Add pan gesture for drag-to-scroll
         let panGesture = NSPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
         panGesture.allowedTouchTypes = .direct
         scrollView.addGestureRecognizer(panGesture)
         
-        // Set up constraints
         if let documentView = scrollView.documentView {
             NSLayoutConstraint.activate([
                 hostingView.topAnchor.constraint(equalTo: documentView.topAnchor),
@@ -253,7 +237,6 @@ private struct DraggableScrollView<Content: View>: NSViewRepresentable {
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         nsView.hasHorizontalScroller = showsIndicators
         
-        // Update the hosting view's content
         if let hostingView = context.coordinator.hostingView {
             hostingView.rootView = content
         }
@@ -275,7 +258,6 @@ private struct DraggableScrollView<Content: View>: NSViewRepresentable {
                 var newOrigin = lastScrollOrigin
                 newOrigin.x -= translation.x
                 
-                // Clamp to valid scroll range
                 let documentWidth = scrollView.documentView?.frame.width ?? 0
                 let visibleWidth = scrollView.contentView.bounds.width
                 let maxX = max(0, documentWidth - visibleWidth)

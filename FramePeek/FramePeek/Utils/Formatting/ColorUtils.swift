@@ -1,10 +1,3 @@
-//
-//  ColorUtils.swift
-//  FramePeek
-//
-//  Utilities for HDR detection and color metadata.
-//
-
 import Foundation
 
 // MARK: - HDR Detection

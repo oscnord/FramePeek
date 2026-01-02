@@ -1,10 +1,3 @@
-//
-//  AspectRatioUtils.swift
-//  FramePeek
-//
-//  Utilities for aspect ratio calculations.
-//
-
 import Foundation
 
 // MARK: - Math Helpers

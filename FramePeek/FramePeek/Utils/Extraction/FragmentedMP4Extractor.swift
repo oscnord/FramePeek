@@ -1,10 +1,3 @@
-//
-//  FragmentedMP4Extractor.swift
-//  FramePeek
-//
-//  Fragment-aware bitrate extraction for fragmented MP4 and CMAF files
-//
-
 import AVFoundation
 import CoreMedia
 
@@ -52,7 +45,6 @@ func extractFragmentedMP4(
 
     var totalEmitted = 0
 
-    // FPS stats
     var sumInterval = 0.0
     var intervalCount = 0
     var minInterval = Double.greatestFiniteMagnitude
@@ -90,7 +82,6 @@ func extractFragmentedMP4(
         return update
     }
 
-    // Collect all samples first (fragmented files may have out-of-order samples)
     let estimatedFrameCount = Int(durationSeconds * estimatedFPS)
     var allSamples: [(pts: Double, size: Int64)] = []
     allSamples.reserveCapacity(min(estimatedFrameCount, 1_000_000))
@@ -116,24 +107,20 @@ func extractFragmentedMP4(
         }
     }
     
-    // Sort by PTS to ensure chronological order (critical for fragmented files)
     allSamples.sort { $0.pts < $1.pts }
 
-    // Detect PTS discontinuities (fragment boundaries)
     var discontinuities: [Double] = []
     var previousPTS: Double? = nil
     for (pts, _) in allSamples {
         if let prev = previousPTS {
             let gap = pts - prev
             if gap > maxPTSGap {
-                // Potential fragment boundary
                 discontinuities.append(prev)
             }
         }
         previousPTS = pts
     }
 
-    // Rolling window state
     var window: [(pts: Double, size: Int64)] = []
     window.reserveCapacity(Int(estimatedFPS * windowSize) + 10)
 
@@ -143,7 +130,6 @@ func extractFragmentedMP4(
     for (pts, size) in allSamples {
         if Task.isCancelled || totalEmitted >= options.maxSamples { break }
         
-        // FPS stats (skip gaps at boundaries)
         if let prev = previousPTS, pts > prev {
             let dt = pts - prev
             if dt <= maxPTSGap {  // Only count normal intervals
@@ -155,14 +141,11 @@ func extractFragmentedMP4(
         }
         previousPTS = pts
 
-        // Add current sample to window
         window.append((pts: pts, size: size))
 
-        // Remove samples outside the 1-second window
         let cutoffTime = pts - windowSize
         window.removeAll { $0.pts < cutoffTime }
 
-        // Initialize emit schedule
         if nextEmitPTS == nil {
             nextEmitPTS = pts
         }
@@ -177,7 +160,6 @@ func extractFragmentedMP4(
         if shouldEmit && totalEmitted < options.maxSamples && !window.isEmpty {
             let totalBytes = window.reduce(0) { $0 + $1.size }
             
-            // Calculate proper duration for bitrate
             let oldestPTS = window.first!.pts
             let newestPTS = window.last!.pts
             let actualSpan = newestPTS - oldestPTS
@@ -193,9 +175,6 @@ func extractFragmentedMP4(
                 continue
             }
 
-            // Calculate bitrate (always use accurate, unsmoothed values)
-            // Smoothing should be applied during visualization/aggregation, not during extraction
-            // This preserves accurate peak bitrate measurements
             let bitrate = (Double(totalBytes) * 8.0) / duration
             
             pending.append(BitrateSample(time: pts, bitrate: bitrate, duration: duration))
@@ -216,7 +195,6 @@ func extractFragmentedMP4(
         continuation.yield(makeUpdate())
     }
 
-    // Convert allSamples to RawFrame format and include in final update
     let rawFrames = allSamples.map { (pts: $0.pts, size: $0.size) }
     continuation.yield(makeFinalUpdate(rawFrames: rawFrames))
     continuation.finish()

@@ -1,10 +1,3 @@
-//
-//  FramePeekUITestsLaunchTests.swift
-//  FramePeekUITests
-//
-//  Created by Oscar Nord on 2025-02-15.
-//
-
 import XCTest
 
 final class framepeekUITestsLaunchTests: XCTestCase {

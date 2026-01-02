@@ -1,7 +1,3 @@
-//
-//  SectionDivider.swift
-//  FramePeek
-//
 
 import SwiftUI
 #if canImport(AppKit)

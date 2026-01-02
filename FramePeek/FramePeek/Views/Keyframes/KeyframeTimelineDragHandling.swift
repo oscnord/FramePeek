@@ -1,10 +1,3 @@
-//
-//  KeyframeTimelineDragHandling.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-12-09.
-//
-
 import SwiftUI
 
 extension KeyframeTimelineView {
@@ -26,7 +19,6 @@ extension KeyframeTimelineView {
         let newStart = max(0, min(duration, startRange.lowerBound + timeDelta))
         let newEnd = max(0, min(duration, startRange.upperBound + timeDelta))
         
-        // Clamp to duration while maintaining window size if possible
         let windowSize = startRange.upperBound - startRange.lowerBound
         
         if newStart == 0 {
@@ -51,7 +43,6 @@ extension KeyframeTimelineView {
         let x = value.location.x - 10
         let time = max(0, min(duration, (Double(x) / Double(totalWidth)) * duration))
         
-        // Dragging to create new selection
         let startX = startLoc - 10
         let startTime = max(0, min(duration, (Double(startX) / Double(totalWidth)) * duration))
         
@@ -72,9 +63,8 @@ extension KeyframeTimelineView {
         let endX = CGFloat(range.upperBound / duration) * (geometry.size.width - 20) + 10
         let width = max(endX - startX, 10)
         
-        // Check if point is within the zoom window bounds (with some padding for handles)
-        let windowLeft = startX - 2 // Account for drag handles
-        let windowRight = endX + 2 // Account for drag handles
+        let windowLeft = startX - 2
+        let windowRight = endX + 2
         
         return point.x >= windowLeft && point.x <= windowRight
     }

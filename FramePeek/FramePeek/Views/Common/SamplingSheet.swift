@@ -1,10 +1,3 @@
-//
-//  SamplingSheet.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-12-06.
-//
-
 import SwiftUI
 
 struct SamplingSheet: View {
@@ -137,7 +130,6 @@ struct SamplingSheet: View {
         .padding(20)
         .frame(minWidth: 420, minHeight: 300)
         .onDisappear {
-            // Handle case where user dismisses by clicking outside or pressing ESC
             if viewModel.showSamplingDialog || viewModel.pendingURL != nil {
                 viewModel.cancelSamplingDialog()
             }

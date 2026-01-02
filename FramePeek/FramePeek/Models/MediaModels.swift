@@ -1,10 +1,3 @@
-//
-//  MediaModels.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-02-15.
-//
-
 import Foundation
 
 // MARK: - Audio Track Info

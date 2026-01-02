@@ -1,10 +1,3 @@
-//
-//  TabBarView.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-12-06.
-//
-
 import SwiftUI
 import Combine
 #if canImport(AppKit)
@@ -69,7 +62,6 @@ struct NativeTabBarView: NSViewRepresentable {
     private func updateTabs(tabView: NSTabView, coordinator: Coordinator, tabManager: TabManager? = nil) {
         guard let manager = tabManager ?? coordinator.tabManager else { return }
         
-        // Remove tabs that no longer exist
         let currentTabIds = Set(manager.tabs.map { $0.id })
         let tabsToRemove = tabView.tabViewItems.filter { item in
             guard let tabId = item.identifier as? UUID else { return true }
@@ -88,20 +80,16 @@ struct NativeTabBarView: NSViewRepresentable {
             tabView.removeTabViewItem(item)
         }
         
-        // Add or update tabs
         for (index, tab) in manager.tabs.enumerated() {
             let existingItem = tabView.tabViewItems.first { $0.identifier as? UUID == tab.id }
             
             if let item = existingItem {
-                // Update existing tab
                 item.label = tab.displayName
             } else {
-                // Create new tab
                 let item = NSTabViewItem(identifier: tab.id)
                 item.label = tab.displayName
-                item.view = NSView() // Empty view - content is handled by SwiftUI
+                item.view = NSView()
                 
-                // Add close button
                 let closeButton = NSButton()
                 closeButton.title = ""
                 if let closeImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil) {
@@ -116,7 +104,6 @@ struct NativeTabBarView: NSViewRepresentable {
                 let buttonIdentifier = NSUserInterfaceItemIdentifier("close-\(tab.id.uuidString)")
                 closeButton.identifier = buttonIdentifier
                 
-                // Store tab ID in coordinator's dictionary
                 coordinator.tabIdForButton[buttonIdentifier] = tab.id
                 
                 // Position close button in tab
@@ -142,7 +129,6 @@ struct NativeTabBarView: NSViewRepresentable {
             coordinator.isUpdatingProgrammatically = false
         }
         
-        // Update close button visibility
         updateCloseButtons(tabView: tabView, selectedId: manager.selectedTabId)
     }
     

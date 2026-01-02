@@ -1,10 +1,3 @@
-//
-//  TimelineView.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-12-09.
-//
-
 import SwiftUI
 import AppKit
 
@@ -22,7 +15,6 @@ struct TimelineView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Header
             HStack(spacing: 6) {
                 Image(systemName: "timeline.selection")
                     .font(.caption2)
@@ -54,10 +46,8 @@ struct TimelineView: View {
             }
             .padding(.horizontal, 4)
             
-            // Timeline
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    // Background track
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(
                             LinearGradient(
@@ -74,7 +64,6 @@ struct TimelineView: View {
                                 .strokeBorder(.separator.opacity(0.2), lineWidth: 1)
                         )
 
-                    // Time markers
                     Canvas { ctx, size in
                         guard duration > 0 else { return }
                         
@@ -83,13 +72,11 @@ struct TimelineView: View {
                         let tickTop: CGFloat = 4
                         let tickBottom: CGFloat = size.height - 4
                         
-                        // Draw time markers at regular intervals
                         let numMarkers = 10
                         for i in 0...numMarkers {
                             let time = Double(i) * duration / Double(numMarkers)
                             let x = CGFloat(time / duration) * (size.width - 20) + 10
                             
-                            // Highlight markers within zoom range
                             if let range = visibleTimeRange, range.contains(time) {
                                 zoomedPath.move(to: CGPoint(x: x, y: tickTop - 1))
                                 zoomedPath.addLine(to: CGPoint(x: x, y: tickBottom + 1))
@@ -99,21 +86,16 @@ struct TimelineView: View {
                             }
                         }
                         
-                        // Draw normal markers
                         ctx.stroke(path, with: .color(.secondary.opacity(0.25)), lineWidth: 1)
-                        // Draw highlighted markers in zoom range
                         ctx.stroke(zoomedPath, with: .color(.accentColor.opacity(0.6)), lineWidth: 1.5)
                     }
                     
-                    // Zoom Window Overlay
                     if let range = visibleTimeRange {
                         let startX = CGFloat(range.lowerBound / duration) * (geo.size.width - 20) + 10
                         let endX = CGFloat(range.upperBound / duration) * (geo.size.width - 20) + 10
-                        let width = max(endX - startX, 20) // Minimum width for handles
+                        let width = max(endX - startX, 20)
                         
-                        // Main zoom window
                         ZStack {
-                            // Background with gradient for better visibility
                             RoundedRectangle(cornerRadius: 4, style: .continuous)
                                 .fill(
                                     LinearGradient(
@@ -130,10 +112,8 @@ struct TimelineView: View {
                                         .strokeBorder(Color.accentColor.opacity(0.8), lineWidth: 2)
                                 )
                             
-                            // Time labels on edges (only show if zoom window is wide enough)
                             if width > 80 {
                                 HStack {
-                                    // Start time label
                                     Text(formatTimeShort(range.lowerBound))
                                         .font(.system(size: 9, weight: .semibold))
                                         .foregroundStyle(.white)
@@ -146,7 +126,6 @@ struct TimelineView: View {
                                     
                                     Spacer()
                                     
-                                    // End time label
                                     Text(formatTimeShort(range.upperBound))
                                         .font(.system(size: 9, weight: .semibold))
                                         .foregroundStyle(.white)
@@ -163,9 +142,8 @@ struct TimelineView: View {
                         .frame(width: width, height: geo.size.height)
                         .position(x: startX + width / 2, y: geo.size.height / 2)
                         .contentShape(Rectangle())
-                        .allowsHitTesting(false) // Let the unified gesture handle it
+                        .allowsHitTesting(false)
                         
-                        // Left resize handle
                         Rectangle()
                             .fill(Color.accentColor)
                             .frame(width: 8, height: geo.size.height + 4)
@@ -176,7 +154,7 @@ struct TimelineView: View {
                             )
                             .position(x: startX, y: geo.size.height / 2)
                             .contentShape(Rectangle())
-                            .allowsHitTesting(false) // Let the unified gesture handle it
+                            .allowsHitTesting(false)
                             .onHover { hovering in
                                 if hovering && !isResizingRight && !isDraggingRange {
                                     NSCursor.resizeLeftRight.push()
@@ -185,7 +163,6 @@ struct TimelineView: View {
                                 }
                             }
                         
-                        // Right resize handle
                         Rectangle()
                             .fill(Color.accentColor)
                             .frame(width: 8, height: geo.size.height + 4)
@@ -196,7 +173,7 @@ struct TimelineView: View {
                             )
                             .position(x: endX, y: geo.size.height / 2)
                             .contentShape(Rectangle())
-                            .allowsHitTesting(false) // Let the unified gesture handle it
+                            .allowsHitTesting(false)
                             .onHover { hovering in
                                 if hovering && !isResizingLeft && !isDraggingRange {
                                     NSCursor.resizeLeftRight.push()
@@ -212,7 +189,6 @@ struct TimelineView: View {
                             handleUnifiedDrag(value: value, geometry: geo)
                         }
                         .onEnded { _ in
-                            // Reset all drag states
                             isDraggingRange = false
                             isResizingLeft = false
                             isResizingRight = false
@@ -282,7 +258,6 @@ extension TimelineView {
         let startX = value.startLocation.x
         let totalWidth = geometry.size.width - 20
         
-        // If already resizing or dragging, continue that action
         if isResizingLeft {
             guard let range = dragStartRange, let originalX = dragStartX else { return }
             handleLeftResize(value: value, geometry: geometry, currentRange: range, startX: originalX)
@@ -300,14 +275,12 @@ extension TimelineView {
             return
         }
         
-        // Determine what we're interacting with based on start location (only on first drag)
         if let range = visibleTimeRange {
             let windowStartX = CGFloat(range.lowerBound / duration) * totalWidth + 10
             let windowEndX = CGFloat(range.upperBound / duration) * totalWidth + 10
             let handleWidth: CGFloat = 8
-            let handleTolerance: CGFloat = 6 // Slightly larger tolerance for easier grabbing
+            let handleTolerance: CGFloat = 6
             
-            // Check if drag started on left resize handle
             if startX >= windowStartX - handleTolerance && startX <= windowStartX + handleTolerance {
                 isResizingLeft = true
                 dragStartRange = range
@@ -316,7 +289,6 @@ extension TimelineView {
                 return
             }
             
-            // Check if drag started on right resize handle
             if startX >= windowEndX - handleTolerance && startX <= windowEndX + handleTolerance {
                 isResizingRight = true
                 dragStartRange = range
@@ -325,7 +297,6 @@ extension TimelineView {
                 return
             }
             
-            // Check if drag started within zoom window (but not on handles)
             if startX >= windowStartX + handleTolerance && startX <= windowEndX - handleTolerance {
                 isDraggingRange = true
                 dragStartRange = range
@@ -335,7 +306,6 @@ extension TimelineView {
             }
         }
         
-        // Otherwise, create new selection
         if selectionDragStart == nil {
             selectionDragStart = startX
         }
@@ -352,7 +322,6 @@ extension TimelineView {
         let newStart = max(0, min(duration, startRange.lowerBound + timeDelta))
         let newEnd = max(0, min(duration, startRange.upperBound + timeDelta))
         
-        // Clamp to duration while maintaining window size if possible
         let windowSize = startRange.upperBound - startRange.lowerBound
         
         if newStart == 0 {
@@ -371,7 +340,6 @@ extension TimelineView {
         let x = value.location.x - 10
         let time = max(0, min(duration, (Double(x) / Double(totalWidth)) * duration))
         
-        // Dragging to create new selection
         let startX = startLoc - 10
         let startTime = max(0, min(duration, (Double(startX) / Double(totalWidth)) * duration))
         
@@ -389,12 +357,9 @@ extension TimelineView {
         guard duration > 0 else { return }
         
         let totalWidth = geometry.size.width - 20
-        // Calculate new position: original position + translation
         let newX = startX + value.translation.width
-        // Convert to time (accounting for the 10px padding)
         let newStartTime = max(0.0, min(duration, (Double(newX - 10) / Double(totalWidth)) * duration))
         
-        // Ensure minimum zoom size and bounds
         let minZoomSize = duration * 0.01
         let maxEnd = currentRange.upperBound
         let clampedStart = max(0.0, min(maxEnd - minZoomSize, newStartTime))
@@ -406,12 +371,9 @@ extension TimelineView {
         guard duration > 0 else { return }
         
         let totalWidth = geometry.size.width - 20
-        // Calculate new position: original position + translation
         let newX = endX + value.translation.width
-        // Convert to time (accounting for the 10px padding)
         let newEndTime = max(0.0, min(duration, (Double(newX - 10) / Double(totalWidth)) * duration))
         
-        // Ensure minimum zoom size and bounds
         let minZoomSize = duration * 0.01
         let minStart = currentRange.lowerBound
         let clampedEnd = min(duration, max(minStart + minZoomSize, newEndTime))

@@ -1,22 +1,3 @@
-//
-//  VideoUtils.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-02-15.
-//
-//  This file has been refactored into smaller modules:
-//  - MediaModels.swift: Data structures (AudioTrackInfo, ExtendedVideoInfo, etc.)
-//  - FormatUtils.swift: FourCC, duration, codec name utilities
-//  - ColorUtils.swift: HDR detection, color metadata helpers
-//  - AspectRatioUtils.swift: Aspect ratio calculations
-//  - AV1Parser.swift: AV1 codec configuration parsing
-//  - AudioInfoLoader.swift: Audio track loading
-//  - VideoInfoLoader.swift: Main video info loader
-//  - FrameAnalysis.swift: Frame extraction and FPS analysis
-//
-//  This file now contains only file-related utilities.
-//
-
 import Foundation
 import AVFoundation
 

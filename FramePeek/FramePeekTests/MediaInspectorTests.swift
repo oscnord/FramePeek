@@ -1,10 +1,3 @@
-//
-//  FramePeekTests.swift
-//  FramePeekTests
-//
-//  Created by Oscar Nord on 2025-02-15.
-//
-
 import Testing
 @testable import framepeek
 

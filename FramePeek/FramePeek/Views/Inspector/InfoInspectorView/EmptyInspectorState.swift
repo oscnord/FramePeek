@@ -1,7 +1,3 @@
-//
-//  EmptyInspectorState.swift
-//  FramePeek
-//
 
 import SwiftUI
 

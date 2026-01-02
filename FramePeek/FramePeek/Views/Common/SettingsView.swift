@@ -1,10 +1,3 @@
-//
-//  SettingsView.swift
-//  FramePeek
-//
-//  Created by Oscar Nord on 2025-12-06.
-//
-
 import SwiftUI
 
 enum AppearanceMode: String, CaseIterable, Identifiable, Codable {
@@ -70,20 +63,17 @@ struct SettingsView: View {
     @AppStorage("showSettingsOnFileLoad") private var showSettingsOnFileLoad: Bool = true
     @AppStorage("fileOpeningBehavior") private var fileOpeningBehavior: FileOpeningBehavior = .prompt
     
-    // Analysis settings
     @AppStorage("samplingMode") private var samplingMode: SamplingModeSetting = .auto
     @AppStorage("samplingIntervalSeconds") private var samplingIntervalSeconds: Double = 0.5
     @AppStorage("maxPointsTarget") private var maxPointsTarget: Int = 2000
     @AppStorage("preferAccuracy") private var preferAccuracy: Bool = false
     
-    // Format-specific settings
     @AppStorage("accountTSOverhead") private var accountTSOverhead: Bool = false
     @AppStorage("smoothSegmentBoundaries") private var smoothSegmentBoundaries: Bool = true
     @AppStorage("formatAccuracyMode") private var formatAccuracyMode: FormatAccuracyMode = .balanced
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             VStack(spacing: 8) {
                 Text("Settings")
                     .font(.system(size: 28, weight: .bold))
@@ -94,10 +84,8 @@ struct SettingsView: View {
             Divider()
                 .padding(.horizontal, 40)
             
-            // Settings content
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
-                    // Appearance section
                     SettingsSection(title: "Appearance") {
                         VStack(alignment: .leading, spacing: 16) {
                             Picker("", selection: Binding(
@@ -121,7 +109,6 @@ struct SettingsView: View {
                         }
                     }
                     
-                    // Interface section
                     SettingsSection(title: "Interface") {
                         VStack(alignment: .leading, spacing: 16) {
                             VStack(alignment: .leading, spacing: 8) {
@@ -164,7 +151,6 @@ struct SettingsView: View {
                         }
                     }
                     
-                    // Analysis section
                     SettingsSection(title: "Analysis") {
                         VStack(alignment: .leading, spacing: 16) {
                             VStack(alignment: .leading, spacing: 8) {
@@ -252,7 +238,6 @@ struct SettingsView: View {
                             
                             Divider()
                             
-                            // Format-specific settings
                             VStack(alignment: .leading, spacing: 16) {
                                 Text("Format-Specific Options")
                                     .font(.system(size: 14, weight: .medium))
@@ -309,7 +294,6 @@ struct SettingsView: View {
             
             Spacer()
             
-            // Footer
             VStack(spacing: 8) {
                 Divider()
                     .padding(.horizontal, 40)
@@ -346,4 +330,3 @@ private struct SettingsSection<Content: View>: View {
 #Preview {
     SettingsView()
 }
-

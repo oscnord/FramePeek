@@ -1,10 +1,3 @@
-//
-//  AV1Parser.swift
-//  FramePeek
-//
-//  Parser for AV1 codec configuration (av1C atom).
-//
-
 import Foundation
 
 // MARK: - AV1 Config Parsing

@@ -1,10 +1,3 @@
-//
-//  VideoInfoLoader.swift
-//  FramePeek
-//
-//  Main loader for extended video information from AVAsset.
-//
-
 import Foundation
 import AVFoundation
 import CoreMedia

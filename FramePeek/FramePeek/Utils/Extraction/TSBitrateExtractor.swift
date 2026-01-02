@@ -1,10 +1,3 @@
-//
-//  TSBitrateExtractor.swift
-//  FramePeek
-//
-//  MPEG-TS specific bitrate extraction with optional packet overhead calculation
-//
-
 import AVFoundation
 import CoreMedia
 
