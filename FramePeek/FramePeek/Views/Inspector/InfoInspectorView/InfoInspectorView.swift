@@ -164,7 +164,8 @@ struct InfoInspectorView: View {
                 EmptyInspectorState()
             }
         }
-        .background(.background)
+        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.xlarge))
+        .padding(DesignSystem.Padding.md3)
     }
     
     // MARK: - Auto Expand

@@ -405,9 +405,10 @@ struct NativeStyleTabButton: View {
             .background(
                 Group {
                     if isSelected {
-                        // Selected tab - pill shape with native button appearance
+                        // Selected tab - pill shape with liquid glass and tinted accent color
                         Capsule()
                             .fill(Color(NSColor.controlAccentColor).opacity(0.15))
+                            .liquidGlassBackground(in: Capsule())
                             .overlay(
                                 Capsule()
                                     .strokeBorder(
@@ -416,9 +417,10 @@ struct NativeStyleTabButton: View {
                                     )
                             )
                     } else if isHovered {
-                        // Hovered tab - subtle pill shape
+                        // Hovered tab - liquid glass with subtle tint
                         Capsule()
                             .fill(Color(NSColor.controlBackgroundColor).opacity(0.6))
+                            .liquidGlassBackground(in: Capsule())
                             .overlay(
                                 Capsule()
                                     .strokeBorder(
@@ -427,9 +429,10 @@ struct NativeStyleTabButton: View {
                                     )
                             )
                     } else {
-                        // Unselected tab - very subtle background
+                        // Unselected tab - liquid glass with very subtle tint
                         Capsule()
                             .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
+                            .liquidGlassBackground(in: Capsule())
                             .overlay(
                                 Capsule()
                                     .strokeBorder(

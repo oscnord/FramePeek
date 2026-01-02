@@ -191,17 +191,16 @@ struct DesignSystem {
     // MARK: - Materials
     
     struct Materials {
-        /// Ultra thin material background
         static var ultraThin: Material { .ultraThinMaterial }
         
-        /// Thin material background (most commonly used)
         static var thin: Material { .thinMaterial }
         
-        /// Regular material background
         static var regular: Material { .regularMaterial }
         
-        // Future materials can be easily added here, e.g.:
-        // static var liquidGlass: Material { .liquidGlass } // when available
+        /// Fallback material for liquid glass effect (use `.liquidGlassBackground()` modifier instead)
+        static var liquidGlass: Material {
+            return .regularMaterial
+        }
     }
 }
 
@@ -211,6 +210,42 @@ extension RoundedRectangle {
     /// Creates a rounded rectangle with design system corner radius
     static func designSystem(_ size: CGFloat, style: RoundedCornerStyle = .continuous) -> RoundedRectangle {
         RoundedRectangle(cornerRadius: size, style: style)
+    }
+}
+
+extension View {
+    /// Applies liquid glass effect on macOS 26+, falls back to regular material on earlier versions
+    @ViewBuilder
+    func liquidGlassBackground() -> some View {
+        if #available(macOS 26.0, *) {
+            self.glassEffect()
+        } else {
+            self.background(DesignSystem.Materials.regular)
+        }
+    }
+    
+    /// Applies liquid glass effect with a shape on macOS 26+, falls back to regular material on earlier versions
+    @ViewBuilder
+    func liquidGlassBackground<S: Shape>(in shape: S) -> some View {
+        if #available(macOS 26.0, *) {
+            self.glassEffect(in: shape)
+        } else {
+            self.background(DesignSystem.Materials.regular, in: shape)
+        }
+    }
+    
+    /// Applies liquid glass effect with a style on macOS 26+, falls back to regular material on earlier versions
+    @available(macOS 26.0, *)
+    @ViewBuilder
+    func liquidGlassBackground(_ style: Glass) -> some View {
+        self.glassEffect(style)
+    }
+    
+    /// Applies liquid glass effect with a style and shape on macOS 26+, falls back to regular material on earlier versions
+    @available(macOS 26.0, *)
+    @ViewBuilder
+    func liquidGlassBackground<S: Shape>(_ style: Glass, in shape: S) -> some View {
+        self.glassEffect(style, in: shape)
     }
 }
 

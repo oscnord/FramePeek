@@ -89,7 +89,6 @@ struct BitrateChartView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(DesignSystem.Padding.lg)
-        .background(.windowBackground)
     }
 
     // MARK: - Header

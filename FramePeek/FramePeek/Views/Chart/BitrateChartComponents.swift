@@ -21,8 +21,7 @@ struct StatPill: View {
         }
         .padding(.vertical, DesignSystem.Padding.sm2)
         .padding(.horizontal, DesignSystem.Padding.md3)
-        .background(DesignSystem.Materials.thin)
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
+        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.large))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
                 .strokeBorder(.separator.opacity(0.30), lineWidth: DesignSystem.Borders.thin)
@@ -119,13 +118,7 @@ struct Tooltip: View {
         }
         .font(.caption)
         .padding(DesignSystem.Padding.md3)
-        .background(DesignSystem.Materials.regular)
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.panel, style: .continuous)
-                .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
-        )
-        .shadow(radius: DesignSystem.Shadows.small)
+        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.large))
     }
 }
 

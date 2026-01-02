@@ -98,13 +98,7 @@ struct FramePeek: View {
                         .contentShape(Rectangle())
                         .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
 
-                    // Right inspector that *takes space* (does not overlay)
                     if showInspector {
-                        Rectangle()
-                            .fill(.separator.opacity(0.6))
-                            .frame(width: 1)
-                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-
                         InspectorColumn(
                             width: CGFloat(inspectorWidth),
                             onClose: {
