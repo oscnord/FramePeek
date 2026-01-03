@@ -44,14 +44,14 @@
 		552715822EFF42820087AD5A /* Exceptions for "FramePeek" folder in "FramePeekTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				FramePeek.icon,
+				AppIcon.icon,
 			);
 			target = 552AB1202D60BA0000A4C7B5 /* FramePeekTests */;
 		};
 		552715832EFF42820087AD5A /* Exceptions for "FramePeek" folder in "FramePeekUITests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				FramePeek.icon,
+				AppIcon.icon,
 			);
 			target = 552AB12A2D60BA0000A4C7B5 /* FramePeekUITests */;
 		};
