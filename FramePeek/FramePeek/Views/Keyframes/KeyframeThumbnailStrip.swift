@@ -28,12 +28,13 @@ struct KeyframeThumbnailStrip: View {
             HStack(spacing: DesignSystem.Spacing.sm) {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.caption2)
-                    .foregroundStyle(DesignSystem.Colors.Chart.keyframe)
+                    .padding(.top, DesignSystem.Padding.md)
+                    .foregroundStyle(DesignSystem.Colors.Chart.primary)
                 Text("Thumbnails")
                     .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                    .padding(.vertical, DesignSystem.Padding.md)
+                    .padding(.top, DesignSystem.Padding.md)
                 
                 Spacer()
                 
@@ -69,17 +70,13 @@ struct KeyframeThumbnailStrip: View {
                         }
                     }
                 }
-                .frame(height: 20, alignment: .center)
+                .frame(height: 26, alignment: .center)
             }
             .padding(.horizontal, DesignSystem.Padding.sm)
             strip
         }
         .padding(.horizontal, DesignSystem.Padding.md3)
-        .background(DesignSystem.Materials.thin, in: RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
-                .strokeBorder(.separator.opacity(0.25), lineWidth: DesignSystem.Borders.thin)
-        )
+        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.large))
     }
     
     private func formatTime(_ time: Double) -> String {

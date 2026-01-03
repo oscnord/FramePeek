@@ -200,43 +200,23 @@ struct TimelineView: View {
                         .contentShape(Rectangle())
                         .allowsHitTesting(false)
                         
-                        Rectangle()
-                            .fill(DesignSystem.Colors.Chart.primary)
-                            .frame(width: 8, height: geo.size.height + 4)
-                            .overlay(
-                                Rectangle()
-                                    .fill(Color.white.opacity(0.8))
-                                    .frame(width: 2, height: geo.size.height - 4)
-                            )
-                            .position(x: startX, y: geo.size.height / 2)
-                            .contentShape(Rectangle())
-                            .allowsHitTesting(false)
-                            .onHover { hovering in
-                                if hovering && !isResizingRight && !isDraggingRange {
-                                    NSCursor.resizeLeftRight.push()
-                                } else if !hovering && !isResizingLeft && !isResizingRight && !isDraggingRange {
-                                    NSCursor.pop()
-                                }
-                            }
+                        TimelineRangeHandle(
+                            x: startX,
+                            geometry: geo,
+                            isResizingLeft: isResizingLeft,
+                            isResizingRight: isResizingRight,
+                            isDraggingRange: isDraggingRange,
+                            isLeftHandle: true
+                        )
                         
-                        Rectangle()
-                            .fill(DesignSystem.Colors.Chart.primary)
-                            .frame(width: 8, height: geo.size.height + 4)
-                            .overlay(
-                                Rectangle()
-                                    .fill(Color.white.opacity(0.8))
-                                    .frame(width: 2, height: geo.size.height - 4)
-                            )
-                            .position(x: endX, y: geo.size.height / 2)
-                            .contentShape(Rectangle())
-                            .allowsHitTesting(false)
-                            .onHover { hovering in
-                                if hovering && !isResizingLeft && !isDraggingRange {
-                                    NSCursor.resizeLeftRight.push()
-                                } else if !hovering && !isResizingLeft && !isResizingRight && !isDraggingRange {
-                                    NSCursor.pop()
-                                }
-                            }
+                        TimelineRangeHandle(
+                            x: endX,
+                            geometry: geo,
+                            isResizingLeft: isResizingLeft,
+                            isResizingRight: isResizingRight,
+                            isDraggingRange: isDraggingRange,
+                            isLeftHandle: false
+                        )
                     }
                     
                     // Transparent overlay to capture mouse events immediately - must be last in ZStack
@@ -260,11 +240,7 @@ struct TimelineView: View {
         }
         .padding(.vertical, DesignSystem.Padding.md)
         .padding(.horizontal, DesignSystem.Padding.md3)
-        .background(DesignSystem.Materials.thin, in: RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
-                .strokeBorder(.separator.opacity(0.25), lineWidth: DesignSystem.Borders.thin)
-        )
+        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.large))
         .accessibilityLabel("Timeline zoom control")
     }
     
@@ -774,6 +750,45 @@ private class TimelineTrackingView: NSView {
     }
 }
 
+// MARK: - Timeline Range Handle
+
+private struct TimelineRangeHandle: View {
+    let x: CGFloat
+    let geometry: GeometryProxy
+    let isResizingLeft: Bool
+    let isResizingRight: Bool
+    let isDraggingRange: Bool
+    let isLeftHandle: Bool
+    
+    var body: some View {
+        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+            .fill(DesignSystem.Colors.Chart.secondary)
+            .frame(width: 4, height: geometry.size.height + 4)
+            .position(x: x, y: geometry.size.height / 2)
+            .contentShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous))
+            .allowsHitTesting(false)
+            .onHover { hovering in
+                if hovering && shouldShowCursor {
+                    NSCursor.resizeLeftRight.push()
+                } else if !hovering && shouldPopCursor {
+                    NSCursor.pop()
+                }
+            }
+    }
+    
+    private var shouldShowCursor: Bool {
+        if isLeftHandle {
+            return !isResizingRight && !isDraggingRange
+        } else {
+            return !isResizingLeft && !isDraggingRange
+        }
+    }
+    
+    private var shouldPopCursor: Bool {
+        return !isResizingLeft && !isResizingRight && !isDraggingRange
+    }
+}
+
 // MARK: - Timeline Labels View
 
 private struct TimelineLabelsView: View {
@@ -847,6 +862,8 @@ private struct TimelineLabelsView: View {
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.7))
                     .fixedSize()
                     .position(x: label.x, y: geometry.size.height + 12)
+                    .padding(.top, DesignSystem.Padding.sm)
+                    .padding(.bottom, DesignSystem.Padding.md)
             }
         }
     }

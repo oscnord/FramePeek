@@ -125,6 +125,8 @@ struct DesignSystem {
         struct Chart {
             /// Main chart line/area color (accentColor)
             static var primary: Color { .blue }
+
+            static var secondary: Color { Color(red: 0.0, green: 0.4, blue: 0.9) }
             
             /// Primary color when analyzing (with reduced opacity)
             static var primaryAnalyzing: Color { .blue.opacity(0.7) }
