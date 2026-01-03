@@ -128,76 +128,53 @@ struct KeyframeLoadingView: View {
     var onCancel: (() -> Void)? = nil
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm3) {
-            HStack(spacing: DesignSystem.Spacing.sm3) {
-                Image(systemName: isExtracting ? "film" : "photo.on.rectangle.angled")
-                    .font(.caption2)
-                    .foregroundStyle(DesignSystem.Colors.Chart.keyframe)
-                Text(isExtracting ? "Keyframe Distribution" : "Keyframe Thumbnails")
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                
-                Spacer()
-            }
-            .padding(.horizontal, DesignSystem.Padding.sm)
-            
-            HStack(spacing: DesignSystem.Spacing.md2) {
-                ProgressView()
-                    .controlSize(.small)
-                    .scaleEffect(0.9)
-                
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                HStack(spacing: DesignSystem.Spacing.md2) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.9)
+                    
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                }
+                .frame(height: 24, alignment: .leading)
                 
                 Spacer()
                 
                 if let onCancel = onCancel {
                     Button(action: onCancel) {
-                        HStack(spacing: DesignSystem.Spacing.sm) {
+                        HStack(spacing: 3) {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.caption)
+                                .font(.system(size: 9, weight: .medium))
                             Text("Cancel")
-                                .font(.caption)
+                                .font(.system(size: 9, weight: .medium))
                         }
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                        .padding(.horizontal, DesignSystem.Padding.md)
-                        .padding(.vertical, DesignSystem.Padding.sm)
-                        .background(DesignSystem.Materials.regular, in: RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous))
+                        .padding(.horizontal, DesignSystem.Padding.sm)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+                                .fill(Color.secondary.opacity(0.1))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+                                .strokeBorder(Color.secondary.opacity(0.2), lineWidth: DesignSystem.Borders.thin)
+                        )
                     }
                     .buttonStyle(.plain)
                     .help(String(localized: "Stop extraction and keep loaded keyframes"))
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, DesignSystem.Padding.xl)
-            .padding(.horizontal, DesignSystem.Padding.md3)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.black.opacity(0.06),
-                                Color.black.opacity(0.02)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                    .strokeBorder(.separator.opacity(0.15), lineWidth: DesignSystem.Borders.thin)
-            )
+            .padding(.horizontal, DesignSystem.Padding.lg)
+            .padding(.top, DesignSystem.Padding.sm)
+            
+            // Placeholder area to match thumbnail strip height
+            Rectangle()
+                .fill(Color.clear)
+                .frame(height: 80)
         }
-        .padding(.vertical, DesignSystem.Padding.md)
-        .padding(.horizontal, DesignSystem.Padding.md3)
-        .background(DesignSystem.Materials.thin, in: RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
-                .strokeBorder(.separator.opacity(0.25), lineWidth: DesignSystem.Borders.thin)
-        )
     }
 }
 

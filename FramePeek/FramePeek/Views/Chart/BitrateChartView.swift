@@ -45,21 +45,6 @@ struct BitrateChartView: View {
         return statistics.niceStep(forMax: duration, targetTicks: 6)
     }
     
-    /// Formats time for chart axis display (shows minutes:seconds when >= 60 seconds)
-    private func formatTimeForChart(_ seconds: Double) -> String {
-        if seconds < 60 {
-            return String(format: "%.0fs", seconds)
-        } else if seconds < 3600 {
-            let minutes = Int(seconds / 60)
-            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-            return String(format: "%d:%02d", minutes, secs)
-        } else {
-            let hours = Int(seconds / 3600)
-            let minutes = Int((seconds.truncatingRemainder(dividingBy: 3600)) / 60)
-            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-            return String(format: "%d:%02d:%02d", hours, minutes, secs)
-        }
-    }
     
     /// X-axis domain with padding for better visibility of start/end points
     private var xAxisDomain: ClosedRange<Double> {
@@ -175,15 +160,18 @@ struct BitrateChartView: View {
                 .padding(.horizontal, DesignSystem.Padding.lg)
                 .padding(.top, DesignSystem.Padding.lg)
 
-                chart
-                    .padding(.horizontal, DesignSystem.Padding.lg)
-                    .padding(.bottom, DesignSystem.Padding.md)
-                
+                VStack(spacing: 0) {
+                    chart
+                        .padding(.horizontal, DesignSystem.Padding.lg)
+                        .padding(.bottom, DesignSystem.Padding.sm)
+                    
                 TimelineView(
                     duration: statistics.maxTime == 0 ? viewModel.durationSeconds : statistics.maxTime,
-                    visibleTimeRange: $viewModel.visibleTimeRange
+                    visibleTimeRange: $viewModel.visibleTimeRange,
+                    frameRate: viewModel.effectiveFPS
                 )
-                .padding(.horizontal, DesignSystem.Padding.lg)
+                    .padding(.horizontal, DesignSystem.Padding.lg)
+                }
                 .padding(.bottom, DesignSystem.Padding.md)
                 
                 if viewModel.isGeneratingThumbnails {
@@ -202,7 +190,8 @@ struct BitrateChartView: View {
                         thumbs: viewModel.keyframeThumbs,
                         totalKeyframes: viewModel.keyframeThumbs.count,
                         hoveredKeyframeTime: $viewModel.hoveredKeyframeTime,
-                        visibleTimeRange: viewModel.visibleTimeRange
+                        visibleTimeRange: viewModel.visibleTimeRange,
+                        frameRate: viewModel.effectiveFPS
                     )
                     .padding(.horizontal, DesignSystem.Padding.lg)
                     .padding(.bottom, DesignSystem.Padding.lg)
@@ -283,7 +272,7 @@ struct BitrateChartView: View {
                 AxisTick().foregroundStyle(DesignSystem.Colors.Chart.axisTick)
                 AxisValueLabel {
                     if let t = value.as(Double.self) {
-                        Text(formatTimeForChart(t))
+                        Text(formatTimeForChart(t, frameRate: viewModel.effectiveFPS))
                             .foregroundStyle(DesignSystem.Colors.Chart.axisLabel)
                     }
                 }

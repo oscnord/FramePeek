@@ -1,20 +1,13 @@
 import SwiftUI
 import AppKit
 
-// MARK: - Anchor Preference for tracking thumb positions
-
-private struct ThumbAnchorKey: PreferenceKey {
-    static var defaultValue: [Int: Anchor<CGRect>] = [:]
-    static func reduce(value: inout [Int: Anchor<CGRect>], nextValue: () -> [Int: Anchor<CGRect>]) {
-        value.merge(nextValue(), uniquingKeysWith: { $1 })
-    }
-}
 
 struct KeyframeThumbnailStrip: View {
     let thumbs: [KeyframeThumbnail]
     let totalKeyframes: Int
     @Binding var hoveredKeyframeTime: Double?
     var visibleTimeRange: ClosedRange<Double>? = nil
+    var frameRate: Double? = nil
     @State private var hoveredThumb: KeyframeThumbnail? = nil
     @State private var hoveredIndex: Int? = nil
     
@@ -24,20 +17,8 @@ struct KeyframeThumbnailStrip: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm3) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             HStack(spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: "photo.on.rectangle.angled")
-                    .font(.caption2)
-                    .padding(.top, DesignSystem.Padding.md)
-                    .foregroundStyle(DesignSystem.Colors.Chart.primary)
-                Text("Thumbnails")
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                    .padding(.top, DesignSystem.Padding.md)
-                
-                Spacer()
-                
                 Group {
                     if let thumb = hoveredThumb, let index = hoveredIndex {
                         HStack(spacing: DesignSystem.Spacing.md) {
@@ -51,12 +32,14 @@ struct KeyframeThumbnailStrip: View {
                             }
                         }
                         .font(.caption2)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                         .padding(.horizontal, DesignSystem.Padding.md)
-                        .background(DesignSystem.Colors.Chart.keyframe.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.Padding.sm2, style: .continuous))
+                        .padding(.vertical, DesignSystem.Padding.xs)
+                        .background(DesignSystem.Colors.Chart.keyframe.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous))
                     } else {
                         if visibleTimeRange != nil {
-                            Text("\(filteredThumbs.count) of \(thumbs.count) keyframes (zoomed)")
+                            Text("\(filteredThumbs.count) of \(thumbs.count) keyframes")
                                 .font(.caption2)
                                 .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                         } else if totalKeyframes > thumbs.count {
@@ -70,21 +53,18 @@ struct KeyframeThumbnailStrip: View {
                         }
                     }
                 }
-                .frame(height: 26, alignment: .center)
+                .frame(height: 24, alignment: .leading)
+                
+                Spacer()
             }
-            .padding(.horizontal, DesignSystem.Padding.sm)
+            .padding(.horizontal, DesignSystem.Padding.lg)
+            .padding(.top, DesignSystem.Padding.sm)
             strip
         }
-        .padding(.horizontal, DesignSystem.Padding.md3)
-        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.large))
     }
     
     private func formatTime(_ time: Double) -> String {
-        let totalSeconds = Int(time)
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        let millis = Int((time - Double(totalSeconds)) * 1000)
-        return String(format: "%d:%02d.%03d", minutes, seconds, millis)
+        formatTimeForChart(time, frameRate: frameRate)
     }
     
     private func gopInterval(for index: Int) -> Double? {
@@ -92,23 +72,94 @@ struct KeyframeThumbnailStrip: View {
         return filteredThumbs[index].time - filteredThumbs[index - 1].time
     }
     
+    @State private var canScrollLeft = false
+    @State private var canScrollRight = false
+    
     private var strip: some View {
-        DraggableScrollView(showsIndicators: false) {
+        ScrollableThumbnailView(
+            thumbs: filteredThumbs,
+            hoveredIndex: $hoveredIndex,
+            hoveredThumb: $hoveredThumb,
+            hoveredKeyframeTime: $hoveredKeyframeTime,
+            canScrollLeft: $canScrollLeft,
+            canScrollRight: $canScrollRight
+        )
+        .frame(height: 80)
+        .clipShape(Rectangle())
+        .overlay(alignment: .leading) {
+            // Left scroll indicator
+            if canScrollLeft {
+                HStack(spacing: 0) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.6))
+                        .padding(.leading, 6)
+                    Spacer()
+                }
+                .frame(width: 24)
+                .allowsHitTesting(false)
+            }
+        }
+        .overlay(alignment: .trailing) {
+            // Right scroll indicator
+            if canScrollRight {
+                HStack(spacing: 0) {
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.6))
+                        .padding(.trailing, 6)
+                }
+                .frame(width: 24)
+                .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+// MARK: - Scrollable Thumbnail View
+
+private struct ScrollableThumbnailView: View {
+    let thumbs: [KeyframeThumbnail]
+    @Binding var hoveredIndex: Int?
+    @Binding var hoveredThumb: KeyframeThumbnail?
+    @Binding var hoveredKeyframeTime: Double?
+    @Binding var canScrollLeft: Bool
+    @Binding var canScrollRight: Bool
+    @State private var hoverUpdateTask: Task<Void, Never>? = nil
+    @State private var isScrolling = false
+    
+    var body: some View {
+        ScrollableThumbnailContainer(
+            canScrollLeft: $canScrollLeft,
+            canScrollRight: $canScrollRight,
+            isScrolling: $isScrolling
+        ) {
             LazyHStack(spacing: DesignSystem.Spacing.sm3) {
-                ForEach(Array(filteredThumbs.enumerated()), id: \.element.id) { index, t in
+                ForEach(Array(thumbs.enumerated()), id: \.element.id) { index, thumb in
                     ThumbCell(
-                        image: t.image,
-                        isHovered: hoveredIndex == index
+                        image: thumb.image,
+                        isHovered: !isScrolling && hoveredIndex == index
                     )
-                    .anchorPreference(key: ThumbAnchorKey.self, value: .bounds) { anchor in
-                        [index: anchor]
-                    }
                     .onHover { isHovering in
+                        // Skip hover updates while scrolling
+                        guard !isScrolling else { return }
+                        
+                        // Cancel any pending update
+                        hoverUpdateTask?.cancel()
+                        
                         if isHovering {
-                            hoveredThumb = t
-                            hoveredIndex = index
-                            hoveredKeyframeTime = t.time
+                            // Throttle hover updates to reduce lag
+                            hoverUpdateTask = Task { @MainActor in
+                                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms delay
+                                if !Task.isCancelled && !isScrolling {
+                                    hoveredThumb = thumb
+                                    hoveredIndex = index
+                                    hoveredKeyframeTime = thumb.time
+                                }
+                            }
                         } else if hoveredIndex == index {
+                            // Immediate clear on unhover
                             hoveredThumb = nil
                             hoveredIndex = nil
                             hoveredKeyframeTime = nil
@@ -116,54 +167,180 @@ struct KeyframeThumbnailStrip: View {
                     }
                 }
             }
-            .padding(.horizontal, DesignSystem.Padding.md3)
+            .padding(.horizontal, DesignSystem.Padding.lg)
             .padding(.vertical, DesignSystem.Padding.sm)
         }
-        .frame(height: 50)
-        .overlayPreferenceValue(ThumbAnchorKey.self) { anchors in
-            GeometryReader { geo in
-                if let index = hoveredIndex,
-                   index < filteredThumbs.count,
-                   let anchor = anchors[index] {
-                    let rect = geo[anchor]
-                    let centerX = rect.midX
-                    let centerY = rect.midY
-                    
-                    let enlargedWidth: CGFloat = 112
-                    let minX = enlargedWidth / 2 + 4
-                    let maxX = geo.size.width - enlargedWidth / 2 - 4
-                    let clampedX = min(max(centerX, minX), maxX)
-                    
-                    EnlargedThumbView(image: filteredThumbs[index].image)
-                        .position(x: clampedX, y: centerY)
-                }
-            }
-            .allowsHitTesting(false)
-        }
-    }
-}
-
-// MARK: - Enlarged thumbnail overlay
-
-private struct EnlargedThumbView: View {
-    let image: NSImage
-    
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-        
-        Image(nsImage: image)
-            .resizable()
-            .scaledToFill()
-            .frame(width: 112, height: 72)
-            .clipShape(shape)
-            .overlay(
-                shape.strokeBorder(DesignSystem.Colors.Chart.keyframe, lineWidth: 2.5)
-            )
-            .shadow(color: .black.opacity(0.5), radius: DesignSystem.Spacing.md2, y: 4)
     }
 }
 
 // MARK: - Draggable Scroll View
+
+private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable {
+    @Binding var canScrollLeft: Bool
+    @Binding var canScrollRight: Bool
+    @Binding var isScrolling: Bool
+    let content: Content
+    
+    init(canScrollLeft: Binding<Bool>, canScrollRight: Binding<Bool>, isScrolling: Binding<Bool>, @ViewBuilder content: () -> Content) {
+        self._canScrollLeft = canScrollLeft
+        self._canScrollRight = canScrollRight
+        self._isScrolling = isScrolling
+        self.content = content()
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(canScrollLeft: $canScrollLeft, canScrollRight: $canScrollRight)
+    }
+    
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.hasHorizontalScroller = false
+        scrollView.hasVerticalScroller = false
+        scrollView.horizontalScrollElasticity = .automatic
+        scrollView.verticalScrollElasticity = .none
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
+        scrollView.backgroundColor = .clear
+        scrollView.drawsBackground = false
+        scrollView.contentView.backgroundColor = .clear
+        scrollView.contentView.drawsBackground = false
+        
+        let hostingView = NSHostingView(rootView: content)
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
+        
+        scrollView.documentView = hostingView
+        scrollView.allowsMagnification = false
+        
+        context.coordinator.hostingView = hostingView
+        context.coordinator.scrollView = scrollView
+        context.coordinator.isScrolling = $isScrolling
+        
+        // Set up scroll tracking
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.updateScrollState),
+            name: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView
+        )
+        
+        let panGesture = NSPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
+        panGesture.allowedTouchTypes = .direct
+        scrollView.addGestureRecognizer(panGesture)
+        
+        if let documentView = scrollView.documentView {
+            NSLayoutConstraint.activate([
+                hostingView.topAnchor.constraint(equalTo: documentView.topAnchor),
+                hostingView.leadingAnchor.constraint(equalTo: documentView.leadingAnchor),
+                hostingView.trailingAnchor.constraint(equalTo: documentView.trailingAnchor),
+                hostingView.bottomAnchor.constraint(equalTo: documentView.bottomAnchor)
+            ])
+        }
+        
+        // Initial update
+        DispatchQueue.main.async {
+            context.coordinator.updateScrollState()
+        }
+        
+        return scrollView
+    }
+    
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        if let hostingView = context.coordinator.hostingView {
+            hostingView.rootView = content
+        }
+        context.coordinator.updateScrollState()
+    }
+    
+    class Coordinator: NSObject {
+        var hostingView: NSHostingView<Content>?
+        var scrollView: NSScrollView?
+        var lastScrollOrigin: NSPoint = .zero
+        var scrollTimer: Timer?
+        var isScrolling: Binding<Bool>?
+        @Binding var canScrollLeft: Bool
+        @Binding var canScrollRight: Bool
+        
+        init(canScrollLeft: Binding<Bool>, canScrollRight: Binding<Bool>) {
+            self._canScrollLeft = canScrollLeft
+            self._canScrollRight = canScrollRight
+        }
+        
+        private var lastUpdateTime: Date = Date()
+        private let updateInterval: TimeInterval = 0.05 // Throttle to 20fps for scroll updates
+        
+        @objc func updateScrollState() {
+            let now = Date()
+            guard now.timeIntervalSince(lastUpdateTime) >= updateInterval else { return }
+            lastUpdateTime = now
+            
+            guard let scrollView = scrollView else { return }
+            
+            let documentWidth = scrollView.documentView?.frame.width ?? 0
+            let visibleWidth = scrollView.contentView.bounds.width
+            let scrollX = scrollView.contentView.bounds.origin.x
+            let maxScrollX = max(0, documentWidth - visibleWidth)
+            
+            let newCanScrollLeft = scrollX > 0.1
+            let newCanScrollRight = scrollX < maxScrollX - 0.1
+            
+            // Only update if changed to avoid unnecessary redraws
+            if canScrollLeft != newCanScrollLeft || canScrollRight != newCanScrollRight {
+                DispatchQueue.main.async {
+                    self.canScrollLeft = newCanScrollLeft
+                    self.canScrollRight = newCanScrollRight
+                }
+            }
+        }
+        
+        @objc func handlePan(_ gesture: NSPanGestureRecognizer) {
+            guard let scrollView = scrollView else { return }
+            
+            switch gesture.state {
+            case .began:
+                lastScrollOrigin = scrollView.contentView.bounds.origin
+                DispatchQueue.main.async {
+                    self.isScrolling?.wrappedValue = true
+                }
+                // Cancel any scroll timer
+                scrollTimer?.invalidate()
+            case .changed:
+                let translation = gesture.translation(in: scrollView)
+                var newOrigin = lastScrollOrigin
+                newOrigin.x -= translation.x
+                
+                let documentWidth = scrollView.documentView?.frame.width ?? 0
+                let visibleWidth = scrollView.contentView.bounds.width
+                let maxX = max(0, documentWidth - visibleWidth)
+                newOrigin.x = max(0, min(newOrigin.x, maxX))
+                
+                scrollView.contentView.scroll(to: newOrigin)
+                updateScrollState()
+                
+                // Reset scroll timer
+                scrollTimer?.invalidate()
+                scrollTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
+                    DispatchQueue.main.async {
+                        self?.isScrolling?.wrappedValue = false
+                    }
+                }
+            case .ended, .cancelled:
+                scrollTimer?.invalidate()
+                scrollTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
+                    DispatchQueue.main.async {
+                        self?.isScrolling?.wrappedValue = false
+                    }
+                }
+            default:
+                break
+            }
+        }
+        
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+    }
+}
 
 private struct DraggableScrollView<Content: View>: NSViewRepresentable {
     let showsIndicators: Bool
@@ -262,20 +439,20 @@ private struct ThumbCell: View {
     let isHovered: Bool
     
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: DesignSystem.Padding.md, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
         
         Image(nsImage: image)
             .resizable()
             .scaledToFill()
-            .frame(width: 56, height: 36)
+            .frame(width: 96, height: 60)
             .clipShape(shape)
             .overlay(
                 shape.strokeBorder(
-                    isHovered ? DesignSystem.Colors.Chart.keyframe : DesignSystem.Colors.Semantic.primary.opacity(0.15),
-                    lineWidth: isHovered ? DesignSystem.Borders.thick : DesignSystem.Borders.thin
+                    isHovered ? DesignSystem.Colors.Chart.keyframe.opacity(0.8) : Color.clear,
+                    lineWidth: isHovered ? 2.5 : 0
                 )
             )
-            .shadow(color: .black.opacity(0.15), radius: DesignSystem.Spacing.xs, y: 1)
+            .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
             .contentShape(shape)
     }
 }

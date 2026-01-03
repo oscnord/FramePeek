@@ -37,6 +37,27 @@ func formatDuration(seconds: Double) -> String {
     }
 }
 
+/// Formats time for chart/thumbnail display in timecode format HH:MM:SS:FF
+/// - Parameters:
+///   - seconds: Time in seconds
+///   - frameRate: Optional frame rate (FPS). If nil, defaults to 30 fps
+func formatTimeForChart(_ seconds: Double, frameRate: Double? = nil) -> String {
+    let fps = frameRate ?? 30.0
+    let totalFrames = Int((seconds * fps).rounded())
+    
+    let framesPerHour = Int(fps * 3600)
+    let framesPerMinute = Int(fps * 60)
+    
+    let hours = totalFrames / framesPerHour
+    let remainingFrames = totalFrames % framesPerHour
+    let minutes = remainingFrames / framesPerMinute
+    let remainingFrames2 = remainingFrames % framesPerMinute
+    let secs = remainingFrames2 / Int(fps)
+    let frames = remainingFrames2 % Int(fps)
+    
+    return String(format: "%02d:%02d:%02d:%02d", hours, minutes, secs, frames)
+}
+
 // MARK: - Audio Channel Layout
 
 /// Converts channel count to a descriptive layout string

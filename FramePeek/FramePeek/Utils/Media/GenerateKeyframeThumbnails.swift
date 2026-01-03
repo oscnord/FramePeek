@@ -99,9 +99,8 @@ func GenerateKeyframeThumbnailsStream(
 
             let gen = AVAssetImageGenerator(asset: asset)
             gen.appliesPreferredTrackTransform = true
-            // Optimize size: thumbnails are displayed at 56x36, so we don't need huge images
-            // Using 112x72 (2x for retina) is sufficient and much faster
-            gen.maximumSize = CGSize(width: 112, height: 72)
+            // Thumbnails are displayed at 96x60, using 192x120 (2x for retina) for higher quality
+            gen.maximumSize = CGSize(width: 192, height: 120)
 
             // Increase tolerance for faster generation (less precise but much faster)
             gen.requestedTimeToleranceBefore = CMTime(seconds: 0.2, preferredTimescale: 600)

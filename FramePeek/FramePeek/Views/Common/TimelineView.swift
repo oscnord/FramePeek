@@ -4,6 +4,7 @@ import AppKit
 struct TimelineView: View {
     let duration: Double
     @Binding var visibleTimeRange: ClosedRange<Double>?
+    var frameRate: Double? = nil
 
     @State var isDraggingRange = false
     @State var dragStartRange: ClosedRange<Double>?
@@ -13,40 +14,29 @@ struct TimelineView: View {
     @State var isResizingRight = false
     @State var dragStartX: CGFloat?
     @State var isHoveringResetButton = false
+    
+    /// Normalized visible time range - converts full duration ranges to nil
+    private var normalizedVisibleTimeRange: ClosedRange<Double>? {
+        guard let range = visibleTimeRange else { return nil }
+        return isActuallyZoomed(range) ? range : nil
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm3) {
-            HStack(spacing: DesignSystem.Spacing.sm3) {
-                Image(systemName: "timeline.selection")
-                    .font(.caption2)
-                    .foregroundStyle(.blue)
-                Text("Timeline")
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                
-                if visibleTimeRange == nil {
-                    Text("(Drag to zoom)")
-                        .font(.caption2)
-                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.7))
-                }
-                
-                Spacer()
-                
-                if let range = visibleTimeRange {
+        VStack(alignment: .leading, spacing: 0) {
+            // Compact header with controls
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                if let range = normalizedVisibleTimeRange {
                     let startTime = formatTimeForDisplay(range.lowerBound)
                     let endTime = formatTimeForDisplay(range.upperBound)
-                    HStack(spacing: DesignSystem.Spacing.xs) {
+                    HStack(spacing: 3) {
                         Text(startTime)
-                            .font(.caption2)
-                            .fontWeight(.medium)
+                            .font(.system(size: 9, weight: .medium))
                             .monospacedDigit()
                         Text("–")
-                            .font(.caption2)
+                            .font(.system(size: 8))
                             .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                         Text(endTime)
-                            .font(.caption2)
-                            .fontWeight(.medium)
+                            .font(.system(size: 9, weight: .medium))
                             .monospacedDigit()
                     }
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
@@ -56,26 +46,24 @@ struct TimelineView: View {
                             visibleTimeRange = nil
                         }
                     } label: {
-                        HStack(spacing: DesignSystem.Spacing.xs) {
+                        HStack(spacing: 3) {
                             Image(systemName: "arrow.counterclockwise")
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                            Text("Reset Timeline")
-                                .font(.caption2)
-                                .fontWeight(.medium)
+                                .font(.system(size: 9, weight: .semibold))
+                            Text("Reset")
+                                .font(.system(size: 8, weight: .medium))
                         }
                     }
                     .buttonStyle(.plain)
-                    .foregroundStyle(isHoveringResetButton ? DesignSystem.Colors.Chart.primary : DesignSystem.Colors.Semantic.secondary.opacity(0.8))
-                    .padding(.horizontal, DesignSystem.Padding.sm2)
-                    .padding(.vertical, DesignSystem.Padding.xs)
+                    .foregroundStyle(isHoveringResetButton ? .white : DesignSystem.Colors.Chart.primary)
+                    .padding(.horizontal, DesignSystem.Padding.sm)
+                    .padding(.vertical, 3)
                     .background(
                         RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
-                            .fill(isHoveringResetButton ? Color.secondary.opacity(0.15) : Color.secondary.opacity(0.08))
+                            .fill(isHoveringResetButton ? DesignSystem.Colors.Chart.primary : DesignSystem.Colors.Chart.primary.opacity(0.12))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
-                            .strokeBorder(isHoveringResetButton ? DesignSystem.Colors.Chart.primary.opacity(0.4) : Color.secondary.opacity(0.15), lineWidth: DesignSystem.Borders.thin)
+                            .strokeBorder(isHoveringResetButton ? DesignSystem.Colors.Chart.primary.opacity(0.3) : DesignSystem.Colors.Chart.primary.opacity(0.25), lineWidth: DesignSystem.Borders.thin)
                     )
                     .help(String(localized: "Reset Timeline"))
                     .onHover { hovering in
@@ -86,113 +74,84 @@ struct TimelineView: View {
                             NSCursor.pop()
                         }
                     }
-                } else {
-                    Text(formatTime(duration))
-                        .font(.caption2)
-                        .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                 }
             }
-            .padding(.horizontal, DesignSystem.Padding.sm)
+            .padding(.horizontal, DesignSystem.Padding.lg)
+            .padding(.top, DesignSystem.Padding.sm)
+            .frame(minHeight: 20)
             
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.black.opacity(0.08),
-                                    Color.black.opacity(0.04)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                                .strokeBorder(.separator.opacity(0.2), lineWidth: DesignSystem.Borders.thin)
-                        )
+                    // Minimal line background
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.08))
+                        .frame(height: 2)
 
-                    // Time markers - always show full timeline
-                    Canvas { ctx, size in
-                        guard duration > 0 else { return }
-                        
-                        var path = Path()
-                        let tickTop: CGFloat = 4
-                        let tickBottom: CGFloat = size.height - 4
-                        
-                        // Always use full duration for tick marks
-                        let numMarkers = 10
-                        let timeStep = duration / Double(numMarkers)
-                        let totalWidth = size.width - 20
-                        
-                        // Draw tick marks for full timeline
-                        for i in 0...numMarkers {
-                            let time = Double(i) * timeStep
-                            let x = CGFloat(time / duration) * totalWidth + 10
-                            
-                            path.move(to: CGPoint(x: x, y: tickTop))
-                            path.addLine(to: CGPoint(x: x, y: tickBottom))
-                        }
-                        
-                        ctx.stroke(path, with: .color(DesignSystem.Colors.Semantic.secondary.opacity(0.3)), lineWidth: DesignSystem.Borders.thin)
-                    }
-                    
-                    // Time labels overlay - always show full timeline labels
                     TimelineLabelsView(
                         duration: duration,
-                        visibleTimeRange: nil, // Always show full timeline labels
+                        visibleTimeRange: normalizedVisibleTimeRange,
                         geometry: geo,
                         formatTime: formatTimeShort,
                         calculateLabelStep: calculateLabelStep
                     )
                     
-                    if let range = visibleTimeRange {
+                    TimelineTicksView(
+                        duration: duration,
+                        visibleTimeRange: visibleTimeRange,
+                        geometry: geo,
+                        calculateLabelStep: calculateLabelStep
+                    )
+                    
+                    Rectangle()
+                        .fill(DesignSystem.Colors.Semantic.secondary.opacity(0.3))
+                        .frame(width: DesignSystem.Borders.thin)
+                        .frame(height: geo.size.height)
+                        .position(x: geo.size.width - 10 - DesignSystem.Padding.sm, y: geo.size.height / 2)
+                    
+                    Text(formatTime(duration))
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.7))
+                        .fixedSize()
+                        .position(x: geo.size.width - 10 - DesignSystem.Padding.sm, y: geo.size.height + 6)
+                    
+                    if let range = normalizedVisibleTimeRange {
                         let startX = CGFloat(range.lowerBound / duration) * (geo.size.width - 20) + 10
                         let endX = CGFloat(range.upperBound / duration) * (geo.size.width - 20) + 10
                         let width = max(endX - startX, 20)
                         
                         ZStack {
-                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            DesignSystem.Colors.Chart.primary.opacity(0.25),
-                                            DesignSystem.Colors.Chart.primary.opacity(0.15)
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
+                            Rectangle()
+                                .fill(DesignSystem.Colors.Chart.primary.opacity(0.2))
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
-                                        .strokeBorder(DesignSystem.Colors.Chart.primary.opacity(0.8), lineWidth: DesignSystem.Borders.thick)
+                                    Rectangle()
+                                        .strokeBorder(DesignSystem.Colors.Chart.primary.opacity(0.6), lineWidth: DesignSystem.Borders.medium)
                                 )
                             
                             if width > 80 {
                                 HStack {
                                     Text(formatTimeShort(range.lowerBound))
-                                        .font(.system(size: DesignSystem.Typography.caption, weight: .semibold))
+                                        .font(.system(size: 7, weight: .semibold))
                                         .foregroundStyle(.white)
-                                        .padding(.horizontal, DesignSystem.Padding.sm2)
-                                        .padding(.vertical, DesignSystem.Padding.xs)
+                                        .padding(.horizontal, 3)
+                                        .padding(.vertical, 1)
                                         .background(
-                                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+                                            RoundedRectangle(cornerRadius: 2, style: .continuous)
                                                 .fill(DesignSystem.Colors.Chart.primary.opacity(0.95))
                                         )
                                     
                                     Spacer()
                                     
                                     Text(formatTimeShort(range.upperBound))
-                                        .font(.system(size: DesignSystem.Typography.caption, weight: .semibold))
+                                        .font(.system(size: 7, weight: .semibold))
                                         .foregroundStyle(.white)
-                                        .padding(.horizontal, DesignSystem.Padding.sm2)
-                                        .padding(.vertical, DesignSystem.Padding.xs)
+                                        .padding(.horizontal, 3)
+                                        .padding(.vertical, 1)
                                         .background(
-                                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+                                            RoundedRectangle(cornerRadius: 2, style: .continuous)
                                                 .fill(DesignSystem.Colors.Chart.primary.opacity(0.95))
                                         )
                                 }
-                                .padding(.horizontal, DesignSystem.Padding.sm)
+                                .padding(.horizontal, 3)
                             }
                         }
                         .frame(width: width, height: geo.size.height)
@@ -236,58 +195,42 @@ struct TimelineView: View {
                     .allowsHitTesting(true)
                 }
             }
-            .frame(height: 36)
+            .frame(height: 16)
         }
-        .padding(.vertical, DesignSystem.Padding.md)
-        .padding(.horizontal, DesignSystem.Padding.md3)
-        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.large))
         .accessibilityLabel("Timeline zoom control")
     }
     
-    private func formatTime(_ seconds: Double) -> String {
-        if seconds < 60 {
-            return String(format: "%.1f s", seconds)
-        } else if seconds < 3600 {
-            let minutes = Int(seconds / 60)
-            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-            return String(format: "%d:%02d", minutes, secs)
-        } else {
-            let hours = Int(seconds / 3600)
-            let minutes = Int((seconds.truncatingRemainder(dividingBy: 3600)) / 60)
-            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-            return String(format: "%d:%02d:%02d", hours, minutes, secs)
-        }
+    private func isActuallyZoomed(_ range: ClosedRange<Double>) -> Bool {
+        // Check if the range is actually zoomed (not the full duration)
+        // Use a percentage-based tolerance to handle videos of different lengths
+        let rangeDuration = range.upperBound - range.lowerBound
+        let tolerance = max(0.1, duration * 0.001) // At least 0.1s, or 0.1% of duration, whichever is larger
+        
+        // Consider it NOT zoomed (i.e., full duration) if:
+        // 1. Range starts at or very close to 0
+        // 2. Range ends at or very close to full duration
+        // 3. Range duration is at least 99.9% of full duration
+        let startsAtZero = range.lowerBound <= tolerance
+        let endsAtDuration = range.upperBound >= duration - tolerance
+        let coversFullDuration = rangeDuration >= duration - tolerance
+        
+        // Only consider it zoomed if it doesn't cover the full duration
+        let isFullDuration = startsAtZero && endsAtDuration && coversFullDuration
+        
+        return !isFullDuration
     }
     
-    /// Formats time for display in timeline header (always shows minutes:seconds format for consistency)
+    private func formatTime(_ seconds: Double) -> String {
+        formatTimeForChart(seconds, frameRate: frameRate)
+    }
+    
+    /// Formats time for display in timeline header
     private func formatTimeForDisplay(_ seconds: Double) -> String {
-        if seconds < 60 {
-            return String(format: "0:%02.0f", seconds)
-        } else if seconds < 3600 {
-            let minutes = Int(seconds / 60)
-            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-            return String(format: "%d:%02d", minutes, secs)
-        } else {
-            let hours = Int(seconds / 3600)
-            let minutes = Int((seconds.truncatingRemainder(dividingBy: 3600)) / 60)
-            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-            return String(format: "%d:%02d:%02d", hours, minutes, secs)
-        }
+        formatTimeForChart(seconds, frameRate: frameRate)
     }
     
     private func formatTimeShort(_ seconds: Double) -> String {
-        if seconds < 60 {
-            return String(format: "%.1fs", seconds)
-        } else if seconds < 3600 {
-            let minutes = Int(seconds / 60)
-            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-            return String(format: "%d:%02d", minutes, secs)
-        } else {
-            let hours = Int(seconds / 3600)
-            let minutes = Int((seconds.truncatingRemainder(dividingBy: 3600)) / 60)
-            let secs = Int(seconds.truncatingRemainder(dividingBy: 60))
-            return String(format: "%d:%02d:%02d", hours, minutes, secs)
-        }
+        formatTimeForChart(seconds, frameRate: frameRate)
     }
     
     /// Calculates an appropriate time step for labels based on the visible duration
@@ -761,9 +704,9 @@ private struct TimelineRangeHandle: View {
     let isLeftHandle: Bool
     
     var body: some View {
-        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+        Rectangle()
             .fill(DesignSystem.Colors.Chart.secondary)
-            .frame(width: 4, height: geometry.size.height + 4)
+            .frame(width: 2, height: geometry.size.height + 4)
             .position(x: x, y: geometry.size.height / 2)
             .contentShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous))
             .allowsHitTesting(false)
@@ -802,7 +745,7 @@ private struct TimelineLabelsView: View {
         guard duration > 0 else { return [] }
         
         let totalWidth = geometry.size.width - 20
-        let minLabelSpacing: CGFloat = 45 // Minimum spacing between labels to avoid overlap
+        let minLabelSpacing: CGFloat = 70 // Minimum spacing between labels to avoid overlap (increased for HH:MM:SS:FF format)
         
         // Always use a fixed step based on total duration - labels never change
         let labelStep = calculateLabelStep(duration)
@@ -823,13 +766,14 @@ private struct TimelineLabelsView: View {
             
             // Generate all labels at fixed intervals that fall within visible range
             var currentTime = firstLabelTime
+            let maxX = geometry.size.width - 35 // Right boundary accounting for label width
             while currentTime <= endTime {
                 // Calculate position within visible range
                 let ratio = (currentTime - startTime) / visibleDuration
-                let x = CGFloat(ratio) * totalWidth + 10
+                let x = CGFloat(ratio) * totalWidth + 35 // Start with more padding to prevent cutoff
                 
-                // Only add if there's enough space from previous label
-                if abs(x - lastLabelX) >= minLabelSpacing {
+                // Only add if it fits within bounds and has enough space from previous label
+                if x >= 35 && x <= maxX && abs(x - lastLabelX) >= minLabelSpacing {
                     labels.append((time: currentTime, x: x))
                     lastLabelX = x
                 }
@@ -837,14 +781,16 @@ private struct TimelineLabelsView: View {
                 currentTime += labelStep
             }
         } else {
-            // Not zoomed - show labels across full duration
             let startLabel = floor(0 / labelStep) * labelStep
             var lastLabelX: CGFloat = -minLabelSpacing
             
-            for time in stride(from: startLabel, through: duration, by: labelStep) {
-                let x = CGFloat(time / duration) * totalWidth + 10
+            let labelWidthEstimate: CGFloat = 60
+            let maxX = geometry.size.width - 35 - labelWidthEstimate - 10
+            
+            for time in stride(from: startLabel, to: duration, by: labelStep) {
+                let x = CGFloat(time / duration) * totalWidth + 35
                 
-                if abs(x - lastLabelX) >= minLabelSpacing {
+                if x >= 35 && x <= maxX && abs(x - lastLabelX) >= minLabelSpacing {
                     labels.append((time: time, x: x))
                     lastLabelX = x
                 }
@@ -857,14 +803,126 @@ private struct TimelineLabelsView: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             ForEach(Array(visibleLabels.enumerated()), id: \.offset) { _, label in
-                Text(formatTime(label.time))
-                    .font(.system(size: DesignSystem.Typography.caption, weight: .medium))
-                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.7))
-                    .fixedSize()
-                    .position(x: label.x, y: geometry.size.height + 12)
-                    .padding(.top, DesignSystem.Padding.sm)
-                    .padding(.bottom, DesignSystem.Padding.md)
+                let labelWidthEstimate: CGFloat = 60
+                let minX = 35 + labelWidthEstimate / 2
+                let maxX = geometry.size.width - 35 - labelWidthEstimate
+                let clampedX = min(max(label.x, minX), maxX)
+                
+                if clampedX >= minX && clampedX <= maxX {
+                    Text(formatTime(label.time))
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.7))
+                        .fixedSize()
+                        .position(x: clampedX, y: geometry.size.height + 6)
+                }
             }
+        }
+    }
+}
+
+// MARK: - Timeline Ticks View
+
+private struct TimelineTicksView: View {
+    let duration: Double
+    let visibleTimeRange: ClosedRange<Double>?
+    let geometry: GeometryProxy
+    let calculateLabelStep: (Double) -> Double
+    
+    private var tickPositions: [(x: CGFloat, isFirst: Bool, isLast: Bool)] {
+        guard duration > 0 else { return [] }
+        
+        let totalWidth = geometry.size.width - 20
+        let minLabelSpacing: CGFloat = 70
+        let labelStep = calculateLabelStep(duration)
+        let labelWidthEstimate: CGFloat = 60
+        let minX = 35 + labelWidthEstimate / 2
+        let maxX = geometry.size.width - 35 - labelWidthEstimate / 2
+        
+        var positions: [(x: CGFloat, isFirst: Bool, isLast: Bool)] = []
+        
+        if let range = visibleTimeRange {
+            let visibleDuration = range.upperBound - range.lowerBound
+            let startTime = range.lowerBound
+            let endTime = range.upperBound
+            let firstLabelTime = ceil(startTime / labelStep) * labelStep
+            
+            var lastLabelX: CGFloat = -minLabelSpacing
+            var currentTime = firstLabelTime
+            var labelTimes: [Double] = []
+            
+            while currentTime <= endTime {
+                let ratio = (currentTime - startTime) / visibleDuration
+                let x = CGFloat(ratio) * totalWidth + 35
+                let clampedX = min(max(x, minX), maxX)
+                
+                if clampedX >= minX && clampedX <= maxX && abs(clampedX - lastLabelX) >= minLabelSpacing {
+                    labelTimes.append(currentTime)
+                    lastLabelX = clampedX
+                }
+                currentTime += labelStep
+            }
+            
+            for (index, time) in labelTimes.enumerated() {
+                let ratio = (time - startTime) / visibleDuration
+                let x = CGFloat(ratio) * totalWidth + 35
+                let clampedX = min(max(x, minX), maxX)
+                let isFirst = index == 0
+                let isLast = index == labelTimes.count - 1
+                
+                if isFirst {
+                    positions.append((x: clampedX - labelWidthEstimate / 2, isFirst: true, isLast: false))
+                } else if isLast {
+                    positions.append((x: clampedX + labelWidthEstimate / 2, isFirst: false, isLast: true))
+                } else {
+                    positions.append((x: clampedX, isFirst: false, isLast: false))
+                }
+            }
+        } else {
+            let startLabel = floor(0 / labelStep) * labelStep
+            var lastLabelX: CGFloat = -minLabelSpacing
+            var labelTimes: [Double] = []
+            
+            for time in stride(from: startLabel, to: duration, by: labelStep) {
+                let x = CGFloat(time / duration) * totalWidth + 35
+                let clampedX = min(max(x, minX), maxX)
+                
+                if clampedX >= minX && clampedX <= maxX && abs(clampedX - lastLabelX) >= minLabelSpacing {
+                    labelTimes.append(time)
+                    lastLabelX = clampedX
+                }
+            }
+            
+            for (index, time) in labelTimes.enumerated() {
+                let x = CGFloat(time / duration) * totalWidth + 35
+                let clampedX = min(max(x, minX), maxX)
+                let isFirst = index == 0
+                let isLast = index == labelTimes.count - 1
+                
+                if isFirst {
+                    positions.append((x: clampedX - labelWidthEstimate / 2, isFirst: true, isLast: false))
+                } else if isLast {
+                    positions.append((x: clampedX + labelWidthEstimate / 2, isFirst: false, isLast: true))
+                } else {
+                    positions.append((x: clampedX, isFirst: false, isLast: false))
+                }
+            }
+        }
+        
+        return positions
+    }
+    
+    var body: some View {
+        Canvas { ctx, size in
+            var path = Path()
+            let tickTop: CGFloat = 0
+            let tickBottom: CGFloat = size.height
+            
+            for position in tickPositions {
+                path.move(to: CGPoint(x: position.x, y: tickTop))
+                path.addLine(to: CGPoint(x: position.x, y: tickBottom))
+            }
+            
+            ctx.stroke(path, with: .color(DesignSystem.Colors.Semantic.secondary.opacity(0.3)), lineWidth: DesignSystem.Borders.thin)
         }
     }
 }
