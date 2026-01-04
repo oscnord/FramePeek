@@ -438,13 +438,30 @@ private struct ThumbCell: View {
     let image: NSImage
     let isHovered: Bool
     
+    private var aspectRatio: CGFloat {
+        let size = image.size
+        guard size.height > 0 else { return 16.0 / 10.0 } // Default aspect ratio
+        return size.width / size.height
+    }
+    
+    private var thumbnailSize: CGSize {
+        let width: CGFloat = 96
+        let height = width / aspectRatio
+        // Constrain to max height to fit in the strip (80px height with padding)
+        let maxHeight: CGFloat = 70
+        if height > maxHeight {
+            return CGSize(width: maxHeight * aspectRatio, height: maxHeight)
+        }
+        return CGSize(width: width, height: height)
+    }
+    
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
         
         Image(nsImage: image)
             .resizable()
-            .scaledToFill()
-            .frame(width: 96, height: 60)
+            .scaledToFit()
+            .frame(width: thumbnailSize.width, height: thumbnailSize.height)
             .clipShape(shape)
             .overlay(
                 shape.strokeBorder(
