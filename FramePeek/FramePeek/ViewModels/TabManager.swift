@@ -1,10 +1,16 @@
 import Foundation
 import SwiftUI
 
-struct TabItem: Identifiable {
+struct TabItem: Identifiable, Equatable {
     let id: UUID
     let viewModel: FramePeekViewModel
     var displayName: String // filename or "Untitled"
+    
+    // Equatable conformance - compare by id and displayName
+    // viewModel is a reference type, so we don't compare it
+    static func == (lhs: TabItem, rhs: TabItem) -> Bool {
+        lhs.id == rhs.id && lhs.displayName == rhs.displayName
+    }
 }
 
 @MainActor
@@ -66,7 +72,10 @@ final class TabManager: ObservableObject {
     
     func updateTabDisplayName(id: UUID, name: String) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-        tabs[index].displayName = name
+        // Create a new struct instance to ensure @Published triggers
+        var updatedTab = tabs[index]
+        updatedTab.displayName = name
+        tabs[index] = updatedTab
     }
     
     func getTabIndex(id: UUID) -> Int? {

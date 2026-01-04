@@ -5,7 +5,6 @@ struct FramePeek: View {
     @EnvironmentObject var appViewModel: FramePeekViewModel
     @StateObject private var tabManager = TabManager()
 
-    @AppStorage("showInspector") private var showInspector: Bool = false
     @AppStorage("inspectorWidth") private var inspectorWidth: Double = 380
 
     private let inspectorMin: Double = 280
@@ -41,111 +40,143 @@ struct FramePeek: View {
     }
     
     private var contentWithObservers: some View {
+        contentWithDialogObservers
+            .background {
+                // Hidden view that observes all tabs' viewModels for extendedInfo changes
+                ForEach(tabManager.tabs) { tab in
+                    TabNameObserver(tab: tab, tabManager: tabManager)
+                        .hidden()
+                }
+            }
+    }
+    
+    private var contentWithFileObservers: some View {
         contentWithProcessingObservers
+            .onChange(of: tabManager.tabs) {
+                // Update tab names for all tabs when tabs array changes
+                DispatchQueue.main.async {
+                    updateAllTabNames()
+                }
+            }
             .onChange(of: currentViewModel?.extendedInfo?.fileName) {
-                handleExtendedInfoChange()
+                DispatchQueue.main.async {
+                    handleExtendedInfoChange()
+                }
             }
             .onChange(of: currentViewModel?.pendingURL) {
-                handlePendingURLChange()
+                DispatchQueue.main.async {
+                    handlePendingURLChange()
+                }
             }
+    }
+    
+    private var contentWithDialogObservers: some View {
+        contentWithFileObservers
             .onChange(of: currentViewModel?.showTabChoiceDialog) {
-                handleTabChoiceDialogChange()
+                DispatchQueue.main.async {
+                    handleTabChoiceDialogChange()
+                }
             }
             .onChange(of: currentViewModel?.pendingURLForTabChoice) {
-                handlePendingURLForTabChoiceChange()
+                DispatchQueue.main.async {
+                    handlePendingURLForTabChoiceChange()
+                }
             }
             .onChange(of: currentViewModel?.shouldOpenInNewTab) {
-                handleShouldOpenInNewTabChange()
+                DispatchQueue.main.async {
+                    handleShouldOpenInNewTabChange()
+                }
             }
-            .onChange(of: currentViewModel?.showSamplingDialog) { newValue in
-                // Sync local state with view model state
-                showSamplingDialog = newValue ?? false
+            .onChange(of: currentViewModel?.showSamplingDialog) {
+                DispatchQueue.main.async {
+                    // Sync local state with view model state
+                    showSamplingDialog = currentViewModel?.showSamplingDialog ?? false
+                }
             }
     }
     
     private var contentWithProcessingObservers: some View {
         mainContent
             .toolbar { toolbarContent }
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showInspector)
             .animation(.spring(response: 0.7, dampingFraction: 0.8), value: isProcessing)
             .onChange(of: currentViewModel?.isAnalyzing) {
-                updateProcessingState()
+                DispatchQueue.main.async {
+                    updateProcessingState()
+                }
             }
             .onChange(of: currentViewModel?.isExtractingKeyframes) {
-                updateProcessingState()
+                DispatchQueue.main.async {
+                    updateProcessingState()
+                }
             }
             .onChange(of: currentViewModel?.isGeneratingThumbnails) {
-                updateProcessingState()
+                DispatchQueue.main.async {
+                    updateProcessingState()
+                }
             }
             .onChange(of: tabManager.selectedTabId) {
-                updateProcessingState()
+                DispatchQueue.main.async {
+                    updateProcessingState()
+                }
             }
             .onAppear {
-                updateProcessingState()
+                DispatchQueue.main.async {
+                    updateProcessingState()
+                }
             }
     }
     
     private var mainContent: some View {
-        VStack(spacing: 0) {
-            // Tab bar
-            TabBarView(tabManager: tabManager)
-            
-            // Main content
-            if let viewModel = currentViewModel {
-                HStack(spacing: 0) {
+        NavigationSplitView {
+            SidebarTabBarView(tabManager: tabManager)
+        } detail: {
+            // Detail view with main content and inspector
+            ZStack(alignment: .trailing) {
+                // Main content area - rendered first so it's behind the inspector
+                if let viewModel = currentViewModel {
                     BitrateChartView(viewModel: viewModel)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.trailing, CGFloat(inspectorWidth))
                         .contentShape(Rectangle())
                         .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
-
-                    if showInspector {
-                        InspectorColumn(
-                            width: CGFloat(inspectorWidth),
-                            onClose: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                                    showInspector = false
-                                }
-                            }
-                        ) {
-                            InfoInspectorView(viewModel: viewModel)
-                        }
-                        .frame(width: CGFloat(inspectorWidth))
-                        .transition(
-                            .asymmetric(
-                                insertion: .move(edge: .trailing)
-                                    .combined(with: .opacity)
-                                    .combined(with: .scale(scale: 0.96, anchor: .trailing)),
-                                removal: .move(edge: .trailing)
-                                    .combined(with: .opacity)
-                                    .combined(with: .scale(scale: 0.98, anchor: .trailing))
-                            )
-                        )
-                        .overlay(alignment: .leading) {
-                            // Optional: resize handle (feels like pro apps)
-                            ResizeHandle(
-                                minWidth: inspectorMin,
-                                maxWidth: inspectorMax,
-                                width: $inspectorWidth
-                            )
-                            .offset(x: -4) // sits just on top of divider
-                        }
-                    }
+                        .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
+                } else {
+                    // Empty state when no tabs
+                    Text("No tabs available")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            } else {
-                // Empty state when no tabs
-                Text("No tabs available")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                
+                // Inspector - rendered last so it appears on top (always visible)
+                if let viewModel = currentViewModel {
+                    InspectorColumn(
+                        width: CGFloat(inspectorWidth)
+                    ) {
+                        InfoInspectorView(viewModel: viewModel)
+                    }
+                    .frame(maxHeight: .infinity, alignment: .trailing)
+                    .overlay(alignment: .leading) {
+                        // Optional: resize handle (feels like pro apps)
+                        ResizeHandle(
+                            minWidth: inspectorMin,
+                            maxWidth: inspectorMax,
+                            width: $inspectorWidth
+                        )
+                        .offset(x: -4) // sits just on top of divider
+                    }
+                    .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .navigationSplitViewStyle(.balanced)
+        .navigationSplitViewColumnWidth(min: 200, ideal: 200)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.container, edges: .top)
     }
     
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
-            Spacer()
-        }
-        
         ToolbarItem(placement: .confirmationAction) {
             Button {
                 currentViewModel?.pickFile()
@@ -163,19 +194,6 @@ struct FramePeek: View {
                 Label("New Tab", systemImage: "plus.square.on.square")
             }
             .keyboardShortcut("t", modifiers: [.command])
-            .transition(.move(edge: .trailing).combined(with: .opacity))
-        }
-        
-        ToolbarItem(placement: .confirmationAction) {
-            Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                    showInspector.toggle()
-                }
-            } label: {
-                Label(showInspector ? "Hide Inspector" : "Show Inspector",
-                      systemImage: "sidebar.right")
-            }
-            .keyboardShortcut("i", modifiers: [.command, .option])
             .transition(.move(edge: .trailing).combined(with: .opacity))
         }
     }
@@ -208,14 +226,18 @@ struct FramePeek: View {
         }
     }
     
-    private func handleExtendedInfoChange() {
-        // Auto-show inspector when a video is loaded
-        if currentViewModel?.extendedInfo != nil && !showInspector {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                showInspector = true
+    private func updateAllTabNames() {
+        // Update display names for all tabs based on their viewModels
+        for tab in tabManager.tabs {
+            if let fileName = tab.viewModel.extendedInfo?.fileName {
+                tabManager.updateTabDisplayName(id: tab.id, name: fileName)
+            } else if let pendingURL = tab.viewModel.pendingURL {
+                tabManager.updateTabDisplayName(id: tab.id, name: pendingURL.lastPathComponent)
             }
         }
-        
+    }
+    
+    private func handleExtendedInfoChange() {
         // Update tab display name when file loads (this ensures it's correct even if it changed)
         if let fileName = currentViewModel?.extendedInfo?.fileName,
            let currentTabId = tabManager.selectedTabId {
@@ -351,6 +373,33 @@ struct FramePeek: View {
             return
         }
         isProcessing = viewModel.isAnalyzing || viewModel.isExtractingKeyframes || viewModel.isGeneratingThumbnails
+    }
+}
+
+// Helper view to observe extendedInfo changes for each tab
+private struct TabNameObserver: View {
+    let tab: TabItem
+    @ObservedObject var tabManager: TabManager
+    @ObservedObject private var viewModel: FramePeekViewModel
+    
+    init(tab: TabItem, tabManager: TabManager) {
+        self.tab = tab
+        self.tabManager = tabManager
+        self._viewModel = ObservedObject(wrappedValue: tab.viewModel)
+    }
+    
+    var body: some View {
+        Color.clear
+            .onChange(of: viewModel.extendedInfo?.fileName) {
+                if let fileName = viewModel.extendedInfo?.fileName {
+                    tabManager.updateTabDisplayName(id: tab.id, name: fileName)
+                }
+            }
+            .onChange(of: viewModel.pendingURL) {
+                if let url = viewModel.pendingURL {
+                    tabManager.updateTabDisplayName(id: tab.id, name: url.lastPathComponent)
+                }
+            }
     }
 }
 

@@ -321,12 +321,16 @@ struct KeyframeTimelineView: View {
         )
         .accessibilityLabel("Keyframe timeline with \(displayKeyframes.count) of \(keyframes.count) keyframes")
         .onChange(of: keyframes.count) { _ in
-            cachedSortedKeyframes = nil
-            cachedDisplayKeyframes = nil
-            cachedNearestHoveredKeyframe = nil
+            DispatchQueue.main.async {
+                cachedSortedKeyframes = nil
+                cachedDisplayKeyframes = nil
+                cachedNearestHoveredKeyframe = nil
+            }
         }
         .onChange(of: maxKeyframes) { _ in
-            cachedDisplayKeyframes = nil
+            DispatchQueue.main.async {
+                cachedDisplayKeyframes = nil
+            }
         }
     }
 }

@@ -59,7 +59,6 @@ enum FileOpeningBehavior: String, CaseIterable, Identifiable, Codable {
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
-    @AppStorage("showInspector") private var showInspector: Bool = false
     @AppStorage("showSettingsOnFileLoad") private var showSettingsOnFileLoad: Bool = true
     @AppStorage("fileOpeningBehavior") private var fileOpeningBehavior: FileOpeningBehavior = .prompt
     
@@ -111,17 +110,6 @@ struct SettingsView: View {
                     
                     SettingsSection(title: "Interface") {
                         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
-                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                                Toggle("Show Inspector by Default", isOn: $showInspector)
-                                    .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                                
-                                Text("When enabled, the inspector panel will be visible when you open a new file.")
-                                    .font(.system(size: DesignSystem.Typography.footnote))
-                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                            }
-                            
-                            Divider()
-                            
                             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                 Toggle("Show Settings When Loading Files", isOn: $showSettingsOnFileLoad)
                                     .font(.system(size: DesignSystem.Typography.body, weight: .medium))

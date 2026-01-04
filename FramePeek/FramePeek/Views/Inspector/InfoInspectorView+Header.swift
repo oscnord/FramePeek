@@ -8,6 +8,7 @@ extension InfoInspectorView {
             Text(info.fileName)
                 .font(.headline)
                 .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 6) {
                 Text("\(info.resolution) • \(info.codec)")

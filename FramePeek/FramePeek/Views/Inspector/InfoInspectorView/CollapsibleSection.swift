@@ -39,6 +39,7 @@ struct CollapsibleSection<Content: View>: View {
                     if isLoading {
                         ProgressView()
                             .controlSize(.mini)
+                            .frame(minWidth: 0, maxWidth: 20, minHeight: 0, maxHeight: 20)
                             .padding(.leading, 4)
                     }
                     

@@ -22,8 +22,12 @@ struct InfoInspectorView: View {
     var body: some View {
         Group {
             if let info = viewModel.extendedInfo {
-                ScrollView {
+                NoTopInsetScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        // Top padding spacer
+                        Color.clear
+                            .frame(height: DesignSystem.Padding.lg2)
+                        
                         header(info: info)
                         actionBar(info: info)
                         
@@ -133,7 +137,9 @@ struct InfoInspectorView: View {
                                     }
                                     if viewModel.isAnalyzing && viewModel.effectiveFPS == nil {
                                         HStack(spacing: 8) {
-                                            ProgressView().controlSize(.small)
+                                            ProgressView()
+                                                .controlSize(.small)
+                                                .layoutPriority(-1)
                                             Text("Analyzing frames…")
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
@@ -144,7 +150,9 @@ struct InfoInspectorView: View {
                             }
                         }
                     }
-                    .padding(14)
+                    .padding(.leading, DesignSystem.Padding.md3)
+                    .padding(.trailing, DesignSystem.Padding.lg)
+                    .padding(.bottom, DesignSystem.Padding.md3)
                 }
                 .overlay(alignment: .top) {
                     if let banner = copiedBannerText {
@@ -155,17 +163,20 @@ struct InfoInspectorView: View {
                 }
                 .animation(.snappy(duration: 0.2), value: copiedBannerText)
                 .onAppear {
-                    autoExpandIfNewFile(info.fileName)
+                    DispatchQueue.main.async {
+                        autoExpandIfNewFile(info.fileName)
+                    }
                 }
                 .onChange(of: info.fileName) {
-                    autoExpandIfNewFile(info.fileName)
+                    DispatchQueue.main.async {
+                        autoExpandIfNewFile(info.fileName)
+                    }
                 }
             } else {
                 EmptyInspectorState()
             }
         }
-        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.xlarge))
-        .padding(DesignSystem.Padding.md3)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Auto Expand

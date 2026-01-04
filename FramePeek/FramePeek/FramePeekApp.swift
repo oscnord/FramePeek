@@ -13,7 +13,7 @@ struct FramePeekApp: App {
                 .animation(.easeInOut(duration: 0.3), value: appearanceMode)
         }
         .windowStyle(.hiddenTitleBar)
-        .windowToolbarStyle(.unifiedCompact)
+        .windowToolbarStyle(.unified)
         .defaultSize(width: 850, height: 650)
         .commands {
             CommandGroup(replacing: .appInfo) {
@@ -24,7 +24,7 @@ struct FramePeekApp: App {
             
             CommandGroup(after: .appInfo) {
                 Divider()
-                Button("Settings…") {
+                Button("Settings") {
                     appViewModel.showSettingsView = true
                 }
                 .keyboardShortcut(",", modifiers: [.command])

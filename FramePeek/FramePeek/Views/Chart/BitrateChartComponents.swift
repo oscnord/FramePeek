@@ -133,7 +133,7 @@ struct KeyframeLoadingView: View {
                 HStack(spacing: DesignSystem.Spacing.md2) {
                     ProgressView()
                         .controlSize(.small)
-                        .scaleEffect(0.9)
+                        .frame(minWidth: 0, maxWidth: 20, minHeight: 0, maxHeight: 20)
                     
                     Text(message)
                         .font(.caption2)
