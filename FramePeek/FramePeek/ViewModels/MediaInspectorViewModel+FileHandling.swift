@@ -158,11 +158,15 @@ extension FramePeekViewModel {
             }
         }
         
-        // Keyframe extraction disabled - was too slow
-        // startKeyframeExtraction(asset: assetForKeyframes)
+        // Keyframe extraction - check if enabled
+        if autoExtractKeyframes {
+            startKeyframeExtraction(asset: assetForKeyframes)
+        }
         
         // Start thumbnail generation (works without keyframes - uses evenly distributed times)
-        startThumbnailGeneration(asset: assetForKeyframes)
+        if autoGenerateThumbnails {
+            startThumbnailGeneration(asset: assetForKeyframes)
+        }
         
         // Start frame analysis
         startFrameAnalysis(asset: assetForFrames)

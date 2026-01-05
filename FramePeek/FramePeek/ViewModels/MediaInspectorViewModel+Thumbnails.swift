@@ -32,7 +32,7 @@ extension FramePeekViewModel {
             await self.startThumbnailGenerationFromDuration(
                 asset: asset,
                 duration: duration,
-                maxThumbnails: 200
+                maxThumbnails: self.maxThumbnails
             )
         }
     }
@@ -63,11 +63,14 @@ extension FramePeekViewModel {
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             
+            let thumbnailSize = await MainActor.run { self.thumbnailSize.cgSize }
+            
             for await thumbnailBatch in GenerateKeyframeThumbnailsStream(
                 asset: asset,
                 keyframeTimes: targetTimes,  // Use target times directly - generator will find nearest frame
                 maxThumbnails: targetTimes.count,
-                batchSize: 10
+                batchSize: 10,
+                thumbnailSize: thumbnailSize
             ) {
                 if Task.isCancelled { break }
                 
@@ -165,11 +168,14 @@ extension FramePeekViewModel {
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             
+            let thumbnailSize = await MainActor.run { self.thumbnailSize.cgSize }
+            
             for await thumbnailBatch in GenerateKeyframeThumbnailsStream(
                 asset: asset,
                 keyframeTimes: selectedTimes,
                 maxThumbnails: selectedTimes.count,
-                batchSize: 10
+                batchSize: 10,
+                thumbnailSize: thumbnailSize
             ) {
                 if Task.isCancelled { break }
                 

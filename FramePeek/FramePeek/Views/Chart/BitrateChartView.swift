@@ -10,9 +10,9 @@ struct BitrateChartView: View {
     /// Increased when zoomed for better accuracy
     private var maxDisplayPoints: Int {
         if viewModel.visibleTimeRange != nil {
-            return 2000  // More points when zoomed
+            return viewModel.chartMaxDisplayPointsZoomed
         }
-        return 1000
+        return viewModel.chartMaxDisplayPoints
     }
     
     // MARK: - Statistics

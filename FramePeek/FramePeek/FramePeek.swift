@@ -34,7 +34,12 @@ struct FramePeek: View {
             .sheet(isPresented: $appViewModel.showAboutView) {
                 AboutView()
             }
-            .sheet(isPresented: $appViewModel.showSettingsView) {
+            .sheet(isPresented: $appViewModel.showSettingsView, onDismiss: {
+                // Reload settings for all tabs when settings view is dismissed
+                for tab in tabManager.tabs {
+                    tab.viewModel.loadSettingsFromUserDefaults()
+                }
+            }) {
                 SettingsView()
             }
     }

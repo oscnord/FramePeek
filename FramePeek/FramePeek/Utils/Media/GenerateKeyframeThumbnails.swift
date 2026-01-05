@@ -33,7 +33,8 @@ func GenerateKeyframeThumbnailsStream(
     asset: AVAsset,
     keyframeTimes: [Double],
     maxThumbnails: Int = 150,  // Reasonable limit for smooth scrolling
-    batchSize: Int = 10  // Generate thumbnails in batches
+    batchSize: Int = 10,  // Generate thumbnails in batches
+    thumbnailSize: CGSize = CGSize(width: 192, height: 120)  // Thumbnail size
 ) -> AsyncStream<[KeyframeThumbnail]> {
     
     AsyncStream { continuation in
@@ -84,7 +85,7 @@ func GenerateKeyframeThumbnailsStream(
             // Simple AVAssetImageGenerator approach
             let gen = AVAssetImageGenerator(asset: asset)
             gen.appliesPreferredTrackTransform = true
-            gen.maximumSize = CGSize(width: 192, height: 120)
+            gen.maximumSize = thumbnailSize
             gen.requestedTimeToleranceBefore = CMTime(seconds: 0.2, preferredTimescale: 600)
             gen.requestedTimeToleranceAfter = CMTime(seconds: 0.2, preferredTimescale: 600)
             gen.apertureMode = .productionAperture
@@ -186,14 +187,16 @@ func GenerateKeyframeThumbnailsStream(
 func GenerateKeyframeThumbnails(
     asset: AVAsset,
     keyframeTimes: [Double],
-    maxThumbnails: Int = 150  // Reasonable limit for smooth scrolling
+    maxThumbnails: Int = 150,  // Reasonable limit for smooth scrolling
+    thumbnailSize: CGSize = CGSize(width: 192, height: 120)  // Thumbnail size
 ) async -> [KeyframeThumbnail] {
     var allThumbnails: [KeyframeThumbnail] = []
     
     for await batch in GenerateKeyframeThumbnailsStream(
         asset: asset,
         keyframeTimes: keyframeTimes,
-        maxThumbnails: maxThumbnails
+        maxThumbnails: maxThumbnails,
+        thumbnailSize: thumbnailSize
     ) {
         allThumbnails.append(contentsOf: batch)
     }

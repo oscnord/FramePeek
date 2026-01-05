@@ -16,6 +16,10 @@ extension FramePeekViewModel {
     }
     
     func startKeyframeExtraction(asset: AVAsset) {
+        // Capture settings values before entering detached task
+        let maxKeyframes = self.maxKeyframes
+        let minSpacingSeconds = self.keyframeMinSpacingSeconds
+        
         // Separate keyframe extraction task - runs in parallel with thumbnail generation
         keyframeTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
@@ -40,8 +44,8 @@ extension FramePeekViewModel {
             
             for await keyframeBatch in extractKeyframesStream(
                 asset: asset,
-                maxKeyframes: 50_000,  // High limit, but extract all keyframes
-                minSpacingSeconds: 0.0,  // No minimum spacing - get all keyframes
+                maxKeyframes: maxKeyframes,
+                minSpacingSeconds: minSpacingSeconds,
                 onProgress: { [weak self] progress in
                     Task { @MainActor in
                         self?.keyframeExtractionProgress = progress

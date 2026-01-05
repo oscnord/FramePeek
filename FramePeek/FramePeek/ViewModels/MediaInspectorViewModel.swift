@@ -40,6 +40,19 @@ final class FramePeekViewModel: ObservableObject {
     @Published var maxPointsTarget: Int = 2000             // used if mode == .auto / caps
     @Published var emitEveryNSamples: Int = 100            // UI update batch size
     @Published var preferAccuracy: Bool = false             // Use reader path for accurate bitrate (slower but matches ffprobe)
+    
+    // Keyframes & Thumbnails settings
+    @Published var autoExtractKeyframes: Bool = true
+    @Published var autoGenerateThumbnails: Bool = true
+    @Published var maxThumbnails: Int = 200
+    @Published var thumbnailSize: ThumbnailSize = .medium
+    @Published var maxKeyframes: Int = 50_000
+    @Published var keyframeMinSpacingSeconds: Double = 0.0
+    
+    // Chart Display settings
+    @Published var chartMaxDisplayPoints: Int = 1_000
+    @Published var chartMaxDisplayPointsZoomed: Int = 2_000
+    
     // Always use second-based visualization mode
     var visualizationMode: BitrateVisualizationMode { .second }
     
@@ -68,6 +81,38 @@ final class FramePeekViewModel: ObservableObject {
         }
         if defaults.object(forKey: "preferAccuracy") != nil {
             preferAccuracy = defaults.bool(forKey: "preferAccuracy")
+        }
+        if defaults.object(forKey: "emitEveryNSamples") != nil {
+            emitEveryNSamples = defaults.integer(forKey: "emitEveryNSamples")
+        }
+        
+        // Load Keyframes & Thumbnails settings
+        if defaults.object(forKey: "autoExtractKeyframes") != nil {
+            autoExtractKeyframes = defaults.bool(forKey: "autoExtractKeyframes")
+        }
+        if defaults.object(forKey: "autoGenerateThumbnails") != nil {
+            autoGenerateThumbnails = defaults.bool(forKey: "autoGenerateThumbnails")
+        }
+        if defaults.object(forKey: "maxThumbnails") != nil {
+            maxThumbnails = defaults.integer(forKey: "maxThumbnails")
+        }
+        if let sizeString = defaults.string(forKey: "thumbnailSize"),
+           let size = ThumbnailSize(rawValue: sizeString) {
+            thumbnailSize = size
+        }
+        if defaults.object(forKey: "maxKeyframes") != nil {
+            maxKeyframes = defaults.integer(forKey: "maxKeyframes")
+        }
+        if defaults.object(forKey: "keyframeMinSpacingSeconds") != nil {
+            keyframeMinSpacingSeconds = defaults.double(forKey: "keyframeMinSpacingSeconds")
+        }
+        
+        // Load Chart Display settings
+        if defaults.object(forKey: "chartMaxDisplayPoints") != nil {
+            chartMaxDisplayPoints = defaults.integer(forKey: "chartMaxDisplayPoints")
+        }
+        if defaults.object(forKey: "chartMaxDisplayPointsZoomed") != nil {
+            chartMaxDisplayPointsZoomed = defaults.integer(forKey: "chartMaxDisplayPointsZoomed")
         }
     }
     
