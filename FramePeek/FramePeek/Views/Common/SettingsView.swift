@@ -102,13 +102,12 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: return "gearshape"
         case .analysis: return "chart.line.uptrend.xyaxis"
         case .media: return "photo.on.rectangle"
-        case .display: return "chart.bar"
+        case .display: return "display"
         }
     }
 }
 
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: SettingsTab = .general
     
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
@@ -144,15 +143,23 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView {
             // Sidebar with tabs
-            List(selection: $selectedTab) {
-                ForEach(SettingsTab.allCases) { tab in
-                    Label(tab.displayName, systemImage: tab.systemImage)
-                        .tag(tab)
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                List(selection: $selectedTab) {
+                    ForEach(SettingsTab.allCases) { tab in
+                        Label(tab.displayName, systemImage: tab.systemImage)
+                            .tag(tab)
+                    }
                 }
+                .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
+                .listRowInsets(EdgeInsets(
+                    top: 4,
+                    leading: DesignSystem.Padding.md,
+                    bottom: 4,
+                    trailing: DesignSystem.Padding.md
+                ))
             }
-            .listStyle(.sidebar)
             .navigationTitle("Settings")
-            .frame(minWidth: 180, idealWidth: 200)
         } detail: {
             ScrollView {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
@@ -175,15 +182,7 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(String(localized: "Done")) {
-                        dismiss()
-                    }
-                }
-            }
         }
-        .frame(width: 700, height: 600)
     }
     
     // MARK: - General Settings
@@ -611,3 +610,4 @@ private struct SettingsSection<Content: View>: View {
 #Preview {
     SettingsView()
 }
+

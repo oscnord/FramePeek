@@ -30,6 +30,14 @@ struct FramePeekApp: App {
                 .keyboardShortcut(",", modifiers: [.command])
             }
         }
+        
+        WindowGroup(id: "settings") {
+            SettingsView()
+                .preferredColorScheme(appearanceMode.colorScheme)
+                .animation(.easeInOut(duration: 0.3), value: appearanceMode)
+        }
+        .windowStyle(.automatic)
+        .defaultSize(width: 700, height: 600)
     }
 }
 

@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct FramePeek: View {
     @EnvironmentObject var appViewModel: FramePeekViewModel
+    @Environment(\.openWindow) private var openWindow
     @StateObject private var tabManager = TabManager()
 
     @AppStorage("inspectorWidth") private var inspectorWidth: Double = 380
@@ -34,13 +35,16 @@ struct FramePeek: View {
             .sheet(isPresented: $appViewModel.showAboutView) {
                 AboutView()
             }
-            .sheet(isPresented: $appViewModel.showSettingsView, onDismiss: {
-                // Reload settings for all tabs when settings view is dismissed
-                for tab in tabManager.tabs {
-                    tab.viewModel.loadSettingsFromUserDefaults()
+            .onChange(of: appViewModel.showSettingsView) { oldValue, newValue in
+                if newValue {
+                    openWindow(id: "settings")
+                    // Reload settings for all tabs when settings window opens
+                    for tab in tabManager.tabs {
+                        tab.viewModel.loadSettingsFromUserDefaults()
+                    }
+                    // Reset the flag so it can be triggered again
+                    appViewModel.showSettingsView = false
                 }
-            }) {
-                SettingsView()
             }
     }
     
@@ -177,7 +181,6 @@ struct FramePeek: View {
         .navigationSplitViewStyle(.balanced)
         .navigationSplitViewColumnWidth(min: 200, ideal: 200)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ignoresSafeArea(.container, edges: .top)
     }
     
     @ToolbarContentBuilder

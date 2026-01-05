@@ -38,25 +38,16 @@ struct KeyframeThumbnailStrip: View {
                         .background(DesignSystem.Colors.Chart.keyframe.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous))
                     } else {
-                        if visibleTimeRange != nil {
-                            Text("\(filteredThumbs.count) of \(thumbs.count) keyframes")
-                                .font(.caption2)
-                                .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
-                        } else if totalKeyframes > thumbs.count {
-                            Text("\(thumbs.count) of \(totalKeyframes) keyframes")
-                                .font(.caption2)
-                                .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
-                        } else {
-                            Text("\(thumbs.count) keyframes")
-                                .font(.caption2)
-                                .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
-                        }
+                        // Invisible placeholder to maintain layout
+                        Color.clear
+                            .frame(height: 24)
                     }
                 }
                 .frame(height: 24, alignment: .leading)
                 
                 Spacer()
             }
+            .frame(height: 24)
             .padding(.horizontal, DesignSystem.Padding.lg)
             .padding(.top, DesignSystem.Padding.sm)
             strip
