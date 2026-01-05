@@ -130,16 +130,9 @@ struct KeyframeLoadingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             HStack(spacing: DesignSystem.Spacing.sm) {
-                HStack(spacing: DesignSystem.Spacing.md2) {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(minWidth: 0, maxWidth: 20, minHeight: 0, maxHeight: 20)
-                    
-                    Text(message)
-                        .font(.caption2)
-                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                }
-                .frame(height: 24, alignment: .leading)
+                // Invisible placeholder to maintain layout (matching KeyframeThumbnailStrip)
+                Color.clear
+                    .frame(height: 24)
                 
                 Spacer()
                 
@@ -167,13 +160,25 @@ struct KeyframeLoadingView: View {
                     .help(String(localized: "Stop thumbnail generation"))
                 }
             }
-            .padding(.horizontal, DesignSystem.Padding.lg)
+            .frame(height: 24)
+            .padding(.horizontal, DesignSystem.Padding.sm)
             .padding(.top, DesignSystem.Padding.sm)
             
-            // Placeholder area to match thumbnail strip height
-            Rectangle()
-                .fill(Color.clear)
-                .frame(height: 80)
+            // Placeholder area to match thumbnail strip height with centered content
+            ZStack {
+                Color.clear
+                    .frame(height: 80)
+                
+                HStack(spacing: DesignSystem.Spacing.md2) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(minWidth: 0, maxWidth: 20, minHeight: 0, maxHeight: 20)
+                    
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                }
+            }
         }
     }
 }

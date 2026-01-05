@@ -33,7 +33,7 @@ extension InfoInspectorView {
         var lines: [String] = []
         func kv(_ k: String, _ v: String?) { if let v, !v.isEmpty { lines.append("\(k): \(v)") } }
 
-        lines.append("Media Inspector")
+        lines.append("FramePeek")
         lines.append("")
 
         lines.append("[File]")

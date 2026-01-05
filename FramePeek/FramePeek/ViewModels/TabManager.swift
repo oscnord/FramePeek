@@ -120,5 +120,38 @@ final class TabManager: ObservableObject {
             tab.displayName == "Untitled" && tab.viewModel.extendedInfo == nil
         }
     }
+    
+    /// Closes all tabs except the specified one
+    func closeOtherTabs(keeping id: UUID) {
+        guard tabs.contains(where: { $0.id == id }) else { return }
+        
+        let tabsToClose = tabs.filter { $0.id != id }
+        for tab in tabsToClose {
+            let viewModel = tab.viewModel
+            viewModel.cancelAnalysis()
+            viewModel.reset()
+        }
+        
+        tabs = tabs.filter { $0.id == id }
+        selectedTabId = id
+    }
+    
+    /// Closes all tabs to the right of the specified tab
+    func closeTabsToTheRight(of id: UUID) {
+        guard let currentIndex = tabs.firstIndex(where: { $0.id == id }) else { return }
+        
+        // Get all tabs after the current one
+        let tabsToClose = Array(tabs[(currentIndex + 1)...])
+        for tab in tabsToClose {
+            let viewModel = tab.viewModel
+            viewModel.cancelAnalysis()
+            viewModel.reset()
+        }
+        
+        // Remove tabs to the right
+        tabs = Array(tabs[...currentIndex])
+        // Ensure the clicked tab is selected
+        selectedTabId = id
+    }
 }
 

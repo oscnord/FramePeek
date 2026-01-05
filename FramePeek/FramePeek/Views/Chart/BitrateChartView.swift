@@ -84,10 +84,6 @@ struct BitrateChartView: View {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs2) {
                     Text("Bitrate over time")
                         .font(.headline)
-
-                    Text(viewModel.isAnalyzing ? "Streaming samples…" : "Drag to inspect a point")
-                        .font(.subheadline)
-                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 }
 
                 Spacer()
@@ -194,8 +190,7 @@ struct BitrateChartView: View {
                         visibleTimeRange: viewModel.visibleTimeRange,
                         frameRate: viewModel.effectiveFPS
                     )
-                    .padding(.horizontal, DesignSystem.Padding.lg)
-                    .padding(.bottom, DesignSystem.Padding.lg)
+                    .padding(.horizontal, DesignSystem.Padding.sm)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }

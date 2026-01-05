@@ -135,6 +135,7 @@ struct SettingsView: View {
     // UI Preferences (for reset buttons)
     @AppStorage("inspectorWidth") private var inspectorWidth: Double = 380
     @AppStorage("sidebarTabBarWidth") private var sidebarTabBarWidth: Double = 200
+    @AppStorage("showTabCloseButton") private var showTabCloseButton: Bool = true
     
     var body: some View {
         NavigationSplitView {
@@ -225,6 +226,17 @@ struct SettingsView: View {
                                 }
                                 
                                 Text("Choose what happens when you open a file while another file is already open in the current tab.")
+                                    .font(.system(size: DesignSystem.Typography.footnote))
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                            }
+                            
+                            Divider()
+                            
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                                Toggle("Show Tab Close Button", isOn: $showTabCloseButton)
+                                    .font(.system(size: DesignSystem.Typography.body, weight: .medium))
+                                
+                                Text("Show the X button on tabs. When disabled, use right-click to close tabs.")
                                     .font(.system(size: DesignSystem.Typography.footnote))
                                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             }

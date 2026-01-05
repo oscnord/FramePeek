@@ -22,6 +22,7 @@ struct SidebarTabBarView: View {
                 ForEach(tabManager.tabs) { tab in
                     SidebarTabButton(
                         tab: tab,
+                        tabManager: tabManager,
                         isSelected: tab.id == tabManager.selectedTabId,
                         onSelect: {
                             DispatchQueue.main.async {
@@ -53,15 +54,18 @@ struct SidebarTabBarView: View {
 
 struct SidebarTabButton: View {
     let tab: TabItem
+    let tabManager: TabManager
     let isSelected: Bool
     let onSelect: () -> Void
     let onClose: () -> Void
     
     @ObservedObject private var viewModel: FramePeekViewModel
     @State private var isHovered: Bool = false
+    @AppStorage("showTabCloseButton") private var showCloseButton: Bool = true
     
-    init(tab: TabItem, isSelected: Bool, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
+    init(tab: TabItem, tabManager: TabManager, isSelected: Bool, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
         self.tab = tab
+        self.tabManager = tabManager
         self.isSelected = isSelected
         self.onSelect = onSelect
         self.onClose = onClose
@@ -87,22 +91,24 @@ struct SidebarTabButton: View {
                     .layoutPriority(-1)
             }
             
-            // Close button - always reserve space to prevent layout shifts
-            Group {
-                if isHovered || isSelected {
-                    Button(action: onClose) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(.secondary)
+            // Close button - only show if enabled in settings
+            if showCloseButton {
+                Group {
+                    if isHovered || isSelected {
+                        Button(action: onClose) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 16, height: 16)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    } else {
+                        // Invisible spacer to maintain consistent layout
+                        Color.clear
                             .frame(width: 16, height: 16)
-                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                } else {
-                    // Invisible spacer to maintain consistent layout
-                    Color.clear
-                        .frame(width: 16, height: 16)
                 }
             }
         }
@@ -110,6 +116,35 @@ struct SidebarTabButton: View {
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
+            }
+        }
+        .contextMenu {
+            Button(role: .destructive, action: onClose) {
+                Label("Close", systemImage: "xmark")
+            }
+            
+            Divider()
+            
+            if tabManager.tabs.count > 1 {
+                Button(role: .destructive, action: {
+                    DispatchQueue.main.async {
+                        tabManager.closeOtherTabs(keeping: tab.id)
+                    }
+                }) {
+                    Label("Close Other Tabs", systemImage: "xmark.circle")
+                }
+                
+                // Only show "Close Tabs to the Right" if there are tabs after this one
+                if let currentIndex = tabManager.getTabIndex(id: tab.id),
+                   currentIndex < tabManager.tabs.count - 1 {
+                    Button(role: .destructive, action: {
+                        DispatchQueue.main.async {
+                            tabManager.closeTabsToTheRight(of: tab.id)
+                        }
+                    }) {
+                        Label("Close Tabs to the Right", systemImage: "arrow.right.circle")
+                    }
+                }
             }
         }
     }

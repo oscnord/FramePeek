@@ -446,7 +446,7 @@ private struct ThumbCell: View {
     }
     
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
         
         Image(nsImage: image)
             .resizable()
@@ -455,11 +455,11 @@ private struct ThumbCell: View {
             .clipShape(shape)
             .overlay(
                 shape.strokeBorder(
-                    isHovered ? DesignSystem.Colors.Chart.keyframe.opacity(0.8) : Color.clear,
-                    lineWidth: isHovered ? 2.5 : 0
+                    isHovered ? DesignSystem.Colors.Chart.keyframe.opacity(0.8) : Color.gray.opacity(0.2),
+                    lineWidth: isHovered ? 2.5 : 0.5
                 )
             )
-            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+            .shadow(color: .black.opacity(0.6), radius: 2, y: 1)
             .contentShape(shape)
     }
 }
