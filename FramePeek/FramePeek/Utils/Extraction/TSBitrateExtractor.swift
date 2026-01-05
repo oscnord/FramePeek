@@ -88,38 +88,46 @@ func extractTS(
     allSamples.reserveCapacity(min(estimatedFrameCount, 1_000_000))
 
     var readCount = 0
+    let batchSize = 1000  // Process frames in batches for better performance
+    
     while !Task.isCancelled {
-        guard let sb = output.copyNextSampleBuffer() else {
-            break
-        }
-        
         autoreleasepool {
-            let pts = CMSampleBufferGetPresentationTimeStamp(sb).seconds
-            let size = CMSampleBufferGetTotalSampleSize(sb)
-            guard size > 0, pts.isFinite else { return }
-            allSamples.append((pts: pts, size: Int64(size)))
-            readCount += 1
+            var batchCount = 0
+            
+            while batchCount < batchSize && !Task.isCancelled {
+                guard let sb = output.copyNextSampleBuffer() else {
+                    break
+                }
+                
+                let pts = CMSampleBufferGetPresentationTimeStamp(sb).seconds
+                let size = CMSampleBufferGetTotalSampleSize(sb)
+                guard size > 0, pts.isFinite else { continue }
+                allSamples.append((pts: pts, size: Int64(size)))
+                readCount += 1
+                batchCount += 1
+            }
         }
 
         if readCount % 500 == 0 {
             await Task.yield()
         }
+        
+        // Break if no more samples available
+        if reader.status != .reading {
+            break
+        }
     }
     
-    // Sort by PTS
     allSamples.sort { $0.pts < $1.pts }
 
-    // Rolling window state
-    var window: [(pts: Double, size: Int64)] = []
-    window.reserveCapacity(Int(estimatedFPS * windowSize) + 10)
+    guard let firstPTS = allSamples.first?.pts else {
+        continuation.yield(makeFinalUpdate(rawFrames: []))
+        continuation.finish()
+        return
+    }
 
     var previousPTS: Double? = nil
-    var nextEmitPTS: Double? = nil
-
-    for (pts, size) in allSamples {
-        if Task.isCancelled || totalEmitted >= options.maxSamples { break }
-        
-        // FPS stats
+    for (pts, _) in allSamples {
         if let prev = previousPTS, pts > prev {
             let dt = pts - prev
             sumInterval += dt
@@ -128,75 +136,139 @@ func extractTS(
             if dt > maxInterval { maxInterval = dt }
         }
         previousPTS = pts
+    }
 
-        // Add current sample to window
-        window.append((pts: pts, size: size))
+    let bucketSize: Double = 1.0
+    let startTime = firstPTS
+    let endTime = allSamples.last!.pts
+    let totalDuration = endTime - startTime + defaultFrameDuration
+    let numBuckets = Int(ceil(totalDuration / bucketSize))
+    
+    var frameIndex = 0
+    var bucketIndex = 0
+    var lastEmittedBucket = -1
 
-        // Remove samples outside the 1-second window
-        let cutoffTime = pts - windowSize
-        window.removeAll { $0.pts < cutoffTime }
-
-        // Initialize emit schedule
-        if nextEmitPTS == nil {
-            nextEmitPTS = pts
-        }
-
-        let shouldEmit: Bool
-        if emitInterval > 0, let next = nextEmitPTS {
-            shouldEmit = pts >= next
-        } else {
-            shouldEmit = true
-        }
-
-        if shouldEmit && totalEmitted < options.maxSamples && !window.isEmpty {
-            var totalBytes = window.reduce(0) { $0 + $1.size }
+    for (pts, size) in allSamples {
+        if Task.isCancelled { break }
+        
+        let currentBucket = Int(floor((pts - startTime) / bucketSize))
+        
+        while bucketIndex <= currentBucket && bucketIndex < numBuckets && bucketIndex > lastEmittedBucket {
+            let bucketStart = startTime + Double(bucketIndex) * bucketSize
+            let bucketEnd = bucketStart + bucketSize
             
-            // Calculate proper duration for bitrate
-            let oldestPTS = window.first!.pts
-            let newestPTS = window.last!.pts
-            let actualSpan = newestPTS - oldestPTS
-            
-            let duration: Double
-            if actualSpan >= windowSize - defaultFrameDuration {
-                duration = windowSize
-            } else {
-                duration = actualSpan + defaultFrameDuration
+            while frameIndex < allSamples.count && allSamples[frameIndex].pts < bucketStart {
+                frameIndex += 1
             }
             
-            guard duration > 0 && duration.isFinite else {
-                continue
+            var totalBytes: Int64 = 0
+            var tempIndex = frameIndex
+            var firstFramePTS: Double? = nil
+            var lastFramePTS: Double? = nil
+            while tempIndex < allSamples.count && allSamples[tempIndex].pts < bucketEnd {
+                if firstFramePTS == nil {
+                    firstFramePTS = allSamples[tempIndex].pts
+                }
+                lastFramePTS = allSamples[tempIndex].pts
+                totalBytes += allSamples[tempIndex].size
+                tempIndex += 1
             }
-
-            // Calculate raw bitrate
-            var bitrate = (Double(totalBytes) * 8.0) / duration
             
-            // Account for TS packet overhead if enabled
-            if options.accountTSOverhead && options.formatAccuracyMode != .performance {
-                // Estimate TS packet count from sample sizes
-                // TS packets are 188 bytes, with 4-byte header overhead per packet
-                // We estimate: average sample might span multiple TS packets
-                // Conservative estimate: assume samples are roughly aligned to packet boundaries
-                let estimatedPackets = Double(totalBytes) / 184.0  // 188 - 4 (payload per packet, roughly)
-                let overheadBytes = estimatedPackets * 4.0  // 4 bytes header per packet
-                let overheadBits = overheadBytes * 8.0
-                let overheadBitrate = overheadBits / duration
+            if totalBytes > 0 {
+                let actualDuration: Double
+                if let first = firstFramePTS, let last = lastFramePTS {
+                    let actualSpan = last - first
+                    if actualSpan < bucketSize - defaultFrameDuration {
+                        actualDuration = actualSpan + defaultFrameDuration
+                    } else {
+                        actualDuration = bucketSize
+                    }
+                } else {
+                    actualDuration = bucketSize
+                }
                 
-                // Subtract overhead from bitrate to get actual video bitrate
+                var bitrate = (Double(totalBytes) * 8.0) / actualDuration
+                
+                if options.accountTSOverhead && options.formatAccuracyMode != .performance {
+                    let estimatedPackets = Double(totalBytes) / 184.0
+                    let overheadBytes = estimatedPackets * 4.0
+                    let overheadBits = overheadBytes * 8.0
+                    let overheadBitrate = overheadBits / actualDuration
+                    bitrate = max(0, bitrate - overheadBitrate)
+                }
+                
+                let sampleTime = bucketStart + bucketSize / 2.0
+                
+                pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
+                totalEmitted += 1
+                lastEmittedBucket = bucketIndex
+
+                if pending.count >= options.emitEveryNSamples {
+                    continuation.yield(makeUpdate())
+                    pending.removeAll(keepingCapacity: true)
+                }
+            }
+            
+            bucketIndex += 1
+        }
+    }
+    
+    while bucketIndex < numBuckets {
+        let bucketStart = startTime + Double(bucketIndex) * bucketSize
+        let bucketEnd = bucketStart + bucketSize
+        
+        while frameIndex < allSamples.count && allSamples[frameIndex].pts < bucketStart {
+            frameIndex += 1
+        }
+        
+        var totalBytes: Int64 = 0
+        var tempIndex = frameIndex
+        var firstFramePTS: Double? = nil
+        var lastFramePTS: Double? = nil
+        while tempIndex < allSamples.count && allSamples[tempIndex].pts < bucketEnd {
+            if firstFramePTS == nil {
+                firstFramePTS = allSamples[tempIndex].pts
+            }
+            lastFramePTS = allSamples[tempIndex].pts
+            totalBytes += allSamples[tempIndex].size
+            tempIndex += 1
+        }
+        
+        if totalBytes > 0 {
+            let actualDuration: Double
+            if let first = firstFramePTS, let last = lastFramePTS {
+                let actualSpan = last - first
+                if actualSpan < bucketSize - defaultFrameDuration {
+                    actualDuration = actualSpan + defaultFrameDuration
+                } else {
+                    actualDuration = bucketSize
+                }
+            } else {
+                actualDuration = bucketSize
+            }
+            
+            var bitrate = (Double(totalBytes) * 8.0) / actualDuration
+            
+            if options.accountTSOverhead && options.formatAccuracyMode != .performance {
+                let estimatedPackets = Double(totalBytes) / 184.0
+                let overheadBytes = estimatedPackets * 4.0
+                let overheadBits = overheadBytes * 8.0
+                let overheadBitrate = overheadBits / actualDuration
                 bitrate = max(0, bitrate - overheadBitrate)
             }
             
-            pending.append(BitrateSample(time: pts, bitrate: bitrate, duration: duration))
+            let sampleTime = bucketStart + bucketSize / 2.0
+            
+            pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
             totalEmitted += 1
-
-            if emitInterval > 0 {
-                nextEmitPTS = (nextEmitPTS ?? pts) + emitInterval
-            }
 
             if pending.count >= options.emitEveryNSamples {
                 continuation.yield(makeUpdate())
                 pending.removeAll(keepingCapacity: true)
             }
         }
+        
+        bucketIndex += 1
     }
 
     if !pending.isEmpty {

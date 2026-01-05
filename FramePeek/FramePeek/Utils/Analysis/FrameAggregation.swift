@@ -17,142 +17,124 @@ func aggregateFrames(
     
     switch mode {
     case .second:
-        return aggregateBySecond(rawFrames: rawFrames, maxSamples: maxSamples, defaultFrameDuration: defaultFrameDuration)
+        return aggregateBySecond(rawFrames: rawFrames, maxSamples: maxSamples, defaultFrameDuration: defaultFrameDuration, estimatedFPS: estimatedFPS)
     case .frame:
-        return aggregateByFrame(rawFrames: rawFrames, maxSamples: maxSamples, defaultFrameDuration: defaultFrameDuration)
+        return aggregateByFrame(rawFrames: rawFrames, maxSamples: maxSamples, defaultFrameDuration: defaultFrameDuration, estimatedFPS: estimatedFPS)
     case .gop:
         return aggregateByGOP(rawFrames: rawFrames, maxSamples: maxSamples, defaultFrameDuration: defaultFrameDuration)
     }
 }
 
-// MARK: - Second-based aggregation (fixed 1-second time buckets)
+// MARK: - Frame-by-Frame Instantaneous Bitrate Calculation
 
-private func aggregateBySecond(
+/// Calculates instantaneous bitrate for every frame
+/// This gives a true per-frame bitrate value without any windowing or aggregation
+func calculateInstantaneousBitrates(
     rawFrames: [RawFrame],
-    maxSamples: Int,
-    defaultFrameDuration: Double
+    estimatedFPS: Double
 ) -> [BitrateSample] {
     guard !rawFrames.isEmpty else { return [] }
     
-    // Use fixed 1-second time buckets like ffprobe/mediainfo
-    // This groups frames into discrete buckets: [0-1), [1-2), [2-3), etc.
-    // and divides by exactly 1.0 second for accurate bitrate
-    
-    let bucketSize: Double = 1.0
-    var samples: [BitrateSample] = []
-    
-    // Find the time range
-    let startTime = rawFrames.first!.pts
-    let endTime = rawFrames.last!.pts
-    let totalDuration = endTime - startTime + defaultFrameDuration
-    
-    // Calculate number of buckets
-    let numBuckets = Int(ceil(totalDuration / bucketSize))
-    guard numBuckets > 0 else { return [] }
-    
-    // Pre-sort frames (should already be sorted, but ensure it)
     let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
+    var samples: [BitrateSample] = []
+    samples.reserveCapacity(sortedFrames.count)
     
-    // First, process ALL buckets to get complete data
-    var allBucketSamples: [BitrateSample] = []
-    allBucketSamples.reserveCapacity(numBuckets)
+    let defaultFrameDuration = 1.0 / estimatedFPS
     
-    var frameIndex = 0
-    var bucketIndex = 0
-    
-    while bucketIndex < numBuckets {
-        let bucketStart = startTime + Double(bucketIndex) * bucketSize
-        let bucketEnd = bucketStart + bucketSize
+    for i in 0..<sortedFrames.count {
+        let frame = sortedFrames[i]
+        let frameDuration: Double
         
-        // Sum all frame sizes in this bucket
-        var totalBytes: Int64 = 0
-        var framesInBucket = 0
-        
-        // Advance to first frame in this bucket
-        while frameIndex < sortedFrames.count && sortedFrames[frameIndex].pts < bucketStart {
-            frameIndex += 1
+        if i < sortedFrames.count - 1 {
+            // Duration to next frame
+            frameDuration = sortedFrames[i + 1].pts - frame.pts
+        } else {
+            // Last frame: use estimated frame duration
+            frameDuration = defaultFrameDuration
         }
         
-        // Sum frames in bucket [bucketStart, bucketEnd)
-        var tempIndex = frameIndex
-        while tempIndex < sortedFrames.count && sortedFrames[tempIndex].pts < bucketEnd {
-            totalBytes += sortedFrames[tempIndex].size
-            framesInBucket += 1
-            tempIndex += 1
-        }
+        // Ensure minimum duration to avoid division by zero or unrealistic values
+        let safeDuration = max(frameDuration, defaultFrameDuration / 2.0)
         
-        // Only emit if bucket has frames
-        if framesInBucket > 0 {
-            // Bitrate = total bits / bucket duration (exactly 1.0 second)
-            let bitrate = (Double(totalBytes) * 8.0) / bucketSize
-            let sampleTime = bucketStart + bucketSize / 2.0 // Center of bucket
-            
-            allBucketSamples.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: bucketSize))
-        }
+        // Instantaneous bitrate for this frame
+        let bitrate = (Double(frame.size) * 8.0) / safeDuration
         
-        bucketIndex += 1
-    }
-    
-    // Now downsample to maxSamples if needed, ensuring we always include first and last buckets
-    if allBucketSamples.count <= maxSamples {
-        return allBucketSamples
-    }
-    
-    // Downsample: always include first and last, then evenly sample the rest
-    samples.reserveCapacity(maxSamples)
-    
-    // Always include first sample
-    samples.append(allBucketSamples.first!)
-    
-    if maxSamples > 2 {
-        // Calculate step to evenly distribute remaining samples
-        let remainingSlots = maxSamples - 2 // Reserve one for first, one for last
-        let step = Double(allBucketSamples.count - 2) / Double(remainingSlots)
-        
-        for i in 1..<remainingSlots {
-            let sourceIndex = Int(round(Double(i) * step)) + 1
-            if sourceIndex < allBucketSamples.count - 1 {
-                samples.append(allBucketSamples[sourceIndex])
-            }
-        }
-    }
-    
-    // Always include last sample
-    if allBucketSamples.count > 1 {
-        samples.append(allBucketSamples.last!)
+        samples.append(BitrateSample(
+            time: frame.pts,
+            bitrate: bitrate,
+            duration: safeDuration
+        ))
     }
     
     return samples
 }
 
-// MARK: - Frame-based aggregation (per-frame bitrate)
+// MARK: - Peak-Preserving Downsampling
 
-private func aggregateByFrame(
+/// Downsamples bitrate samples while preserving all peaks above a threshold
+func downsampleWithPeakPreservation(
+    samples: [BitrateSample],
+    targetCount: Int,
+    peakThreshold: Double = 1.2  // Peaks must be 20% above average
+) -> [BitrateSample] {
+    guard samples.count > targetCount, targetCount >= 2 else { return samples }
+    
+    // Calculate average bitrate
+    let avgBitrate = samples.map(\.bitrate).reduce(0, +) / Double(samples.count)
+    let threshold = avgBitrate * peakThreshold
+    
+    // Detect all peaks (local maxima above threshold)
+    var peakIndices = Set<Int>()
+    for i in 1..<(samples.count - 1) {
+        if samples[i].bitrate > samples[i-1].bitrate &&
+           samples[i].bitrate > samples[i+1].bitrate &&
+           samples[i].bitrate > threshold {
+            peakIndices.insert(i)
+        }
+    }
+    
+    // Always include first and last
+    var includedIndices = Set<Int>([0, samples.count - 1])
+    includedIndices.formUnion(peakIndices)
+    
+    // Fill remaining slots uniformly
+    if includedIndices.count < targetCount {
+        let remaining = targetCount - includedIndices.count
+        let available = (0..<samples.count).filter { !includedIndices.contains($0) }
+        
+        if !available.isEmpty && remaining > 0 {
+            let step = Double(available.count) / Double(remaining + 1)
+            
+            for i in 1...remaining {
+                let idx = min(Int(round(Double(i) * step)), available.count - 1)
+                includedIndices.insert(available[idx])
+            }
+        }
+    }
+    
+    return includedIndices.sorted().map { samples[$0] }
+}
+
+// MARK: - Unified sliding window aggregation
+
+/// Calculates bitrate using a 1-second sliding window
+/// This is the core algorithm used by both second-based and frame-based modes
+private func calculateSlidingWindowBitrates(
     rawFrames: [RawFrame],
-    maxSamples: Int,
-    defaultFrameDuration: Double
+    windowSize: Double = 1.0
 ) -> [BitrateSample] {
     guard !rawFrames.isEmpty else { return [] }
     
-    var samples: [BitrateSample] = []
-    samples.reserveCapacity(min(maxSamples, rawFrames.count))
-    
-    // Pre-sort frames by PTS (should already be sorted, but ensure it)
     let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
-    
-    // Use a 1-second rolling window approach, but sample at frame intervals
-    // This gives comparable bitrate values to seconds mode, but with frame-level granularity
-    let windowSize: Double = 1.0
-    
-    // If we have too many frames, sample them
-    let step = max(1, sortedFrames.count / maxSamples)
+    var allSamples: [BitrateSample] = []
+    allSamples.reserveCapacity(sortedFrames.count)
     
     // Use sliding window for efficiency
     var windowStartIndex = 0
     var windowEndIndex = 0
     var windowTotalBytes: Int64 = 0
     
-    for i in stride(from: 0, to: sortedFrames.count, by: step) {
+    for i in 0..<sortedFrames.count {
         let frame = sortedFrames[i]
         let windowStart = frame.pts - windowSize / 2.0
         let windowEnd = frame.pts + windowSize / 2.0
@@ -169,16 +151,114 @@ private func aggregateByFrame(
             windowEndIndex += 1
         }
         
-        // Calculate bitrate over the 1-second window (same as seconds mode)
+        // Calculate bitrate over the 1-second window
         let bitrate = (Double(windowTotalBytes) * 8.0) / windowSize
-        samples.append(BitrateSample(time: frame.pts, bitrate: bitrate, duration: windowSize))
+        allSamples.append(BitrateSample(time: frame.pts, bitrate: bitrate, duration: windowSize))
+    }
+    
+    return allSamples
+}
+
+// MARK: - Second-based aggregation (fixed 1-second time buckets)
+
+private func aggregateBySecond(
+    rawFrames: [RawFrame],
+    maxSamples: Int,
+    defaultFrameDuration: Double,
+    estimatedFPS: Double
+) -> [BitrateSample] {
+    guard !rawFrames.isEmpty else { return [] }
+    
+    // Use fixed 1-second time buckets like ffprobe/mediainfo
+    // This groups frames into discrete buckets: [0-1), [1-2), [2-3), etc.
+    // and divides by exactly 1.0 second for accurate bitrate
+    let bucketSize: Double = 1.0
+    let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
+    
+    guard let startTime = sortedFrames.first?.pts,
+          let endTime = sortedFrames.last?.pts else { return [] }
+    
+    let totalDuration = endTime - startTime + defaultFrameDuration
+    let numBuckets = Int(ceil(totalDuration / bucketSize))
+    guard numBuckets > 0 else { return [] }
+    
+    var bucketSamples: [BitrateSample] = []
+    bucketSamples.reserveCapacity(numBuckets)
+    
+    var frameIndex = 0
+    
+    for bucketIndex in 0..<numBuckets {
+        let bucketStart = startTime + Double(bucketIndex) * bucketSize
+        let bucketEnd = bucketStart + bucketSize
         
-        if samples.count >= maxSamples {
-            break
+        // Advance to first frame in this bucket
+        while frameIndex < sortedFrames.count && sortedFrames[frameIndex].pts < bucketStart {
+            frameIndex += 1
+        }
+        
+        // Sum frames in bucket [bucketStart, bucketEnd)
+        var totalBytes: Int64 = 0
+        var tempIndex = frameIndex
+        var firstFramePTS: Double? = nil
+        var lastFramePTS: Double? = nil
+        
+        while tempIndex < sortedFrames.count && sortedFrames[tempIndex].pts < bucketEnd {
+            if firstFramePTS == nil {
+                firstFramePTS = sortedFrames[tempIndex].pts
+            }
+            lastFramePTS = sortedFrames[tempIndex].pts
+            totalBytes += sortedFrames[tempIndex].size
+            tempIndex += 1
+        }
+        
+        if totalBytes > 0 {
+            // Calculate average bitrate over the 1-second bucket
+            let actualDuration: Double
+            if let first = firstFramePTS, let last = lastFramePTS {
+                let actualSpan = last - first
+                if actualSpan < bucketSize - defaultFrameDuration {
+                    actualDuration = actualSpan + defaultFrameDuration
+                } else {
+                    actualDuration = bucketSize
+                }
+            } else {
+                actualDuration = bucketSize
+            }
+            
+            let bitrate = (Double(totalBytes) * 8.0) / actualDuration
+            let sampleTime = bucketStart + bucketSize / 2.0
+            
+            bucketSamples.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
         }
     }
     
-    return samples
+    // Use peak-preserving downsampling if needed
+    if bucketSamples.count <= maxSamples {
+        return bucketSamples
+    }
+    
+    return downsampleWithPeakPreservation(samples: bucketSamples, targetCount: maxSamples)
+}
+
+// MARK: - Frame-based aggregation (per-frame bitrate)
+
+private func aggregateByFrame(
+    rawFrames: [RawFrame],
+    maxSamples: Int,
+    defaultFrameDuration: Double,
+    estimatedFPS: Double
+) -> [BitrateSample] {
+    guard !rawFrames.isEmpty else { return [] }
+    
+    // Calculate bitrate for every frame using sliding window
+    let allSamples = calculateSlidingWindowBitrates(rawFrames: rawFrames, windowSize: 1.0)
+    
+    // Use peak-preserving downsampling to reduce to maxSamples
+    if allSamples.count <= maxSamples {
+        return allSamples
+    }
+    
+    return downsampleWithPeakPreservation(samples: allSamples, targetCount: maxSamples)
 }
 
 // MARK: - GOP-based aggregation (per-GOP bitrate)
@@ -322,4 +402,6 @@ private func aggregateByGOP(
     
     return samples
 }
+
+
 

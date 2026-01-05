@@ -565,6 +565,7 @@ See [LOCALIZATION.md](LOCALIZATION.md) for complete localization documentation.
 - Use `@MainActor` for ViewModels and ensure UI updates happen on the main thread.
 - Follow existing naming conventions: `load*`, `get*`, `parse*`, `extract*`, `detect*`.
 - **Always use localization** for user-facing strings (see Localization Guidelines above).
+- **Do not add unnecessary comments** - code should be self-explanatory. Only add comments when they provide essential context that cannot be inferred from the code itself.
 - When proposing changes to an existing file, always include the entire file content in a single code block, prefixed with the filename:
 
 ```swift:SomeFile.swift

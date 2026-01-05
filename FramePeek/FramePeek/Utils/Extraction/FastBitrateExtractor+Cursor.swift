@@ -32,16 +32,14 @@ func extractWithCursor(
     var maxInterval = 0.0
     var previousPTS: Double? = nil
 
-    // Rolling window: store (PTS, size) pairs
-    var window: [(pts: Double, size: Int64)] = []
-    window.reserveCapacity(Int(estimatedFPS * windowSize) + 10)
+    var firstPTS: Double? = nil
 
-    var nextEmitPTS: Double? = nil
-    var firstPTS: Double? = nil  // Track the first PTS to know when window is full
-
-    // Store all raw frames for re-aggregation
     var allRawFrames: [RawFrame] = []
     allRawFrames.reserveCapacity(Int(estimatedFPS * durationSeconds) + 1000)
+    
+    let bucketSize: Double = 1.0
+    var bucketFrames: [Int: [(pts: Double, size: Int64)]] = [:]
+    var lastEmittedBucket = -1
 
     func makeUpdate(isFinished: Bool = false) -> FrameAnalysisUpdate {
         let avgFPS: Double?
@@ -97,7 +95,6 @@ func extractWithCursor(
                 firstPTS = pts
             }
             
-            // FPS stats
             if let prev = previousPTS, pts > prev {
                 let dt = pts - prev
                 sumInterval += dt
@@ -107,67 +104,50 @@ func extractWithCursor(
             }
             previousPTS = pts
 
-            // Add current sample to window
-            window.append((pts: pts, size: sampleSize))
-
-            // Remove samples outside the 1-second window
-            let cutoffTime = pts - windowSize
-            window.removeAll { $0.pts < cutoffTime }
-
-            // Initialize emit schedule
-            if nextEmitPTS == nil {
-                nextEmitPTS = pts
-            }
-
-            // Decide whether to emit
-            let shouldEmit: Bool
-            if emitInterval > 0, let next = nextEmitPTS {
-                shouldEmit = pts >= next
-            } else {
-                shouldEmit = true
-            }
-
-            if shouldEmit && totalEmitted < options.maxSamples && !window.isEmpty {
-                let totalBytes = window.reduce(0) { $0 + $1.size }
-                
-                // Calculate proper duration for bitrate
-                // Once we have at least 1 second of data, use exactly 1.0 second
-                // For partial windows at the start, use actual span + last frame duration
-                let oldestPTS = window.first!.pts
-                let newestPTS = window.last!.pts
-                let actualSpan = newestPTS - oldestPTS
-                
-                let duration: Double
-                if actualSpan >= windowSize - defaultFrameDuration {
-                    // Window is essentially full - use the window size for accurate bitrate
-                    duration = windowSize
-                } else {
-                    // Partial window - add frame duration to span for more accurate calculation
-                    duration = actualSpan + defaultFrameDuration
+            guard let startPTS = firstPTS else {
+                let steps = cursor.stepInPresentationOrder(byCount: 1)
+                hasMoreSamples = (steps == 1)
+                sampleCount += 1
+                if sampleCount % 1000 == 0 {
+                    await Task.yield()
                 }
-                
-                guard duration > 0 && duration.isFinite else {
-                    let steps = cursor.stepInPresentationOrder(byCount: 1)
-                    hasMoreSamples = (steps == 1)
-                    sampleCount += 1
-                    if sampleCount % 1000 == 0 {
-                        await Task.yield()
+                continue
+            }
+
+            let bucketIndex = Int(floor((pts - startPTS) / bucketSize))
+            
+            if bucketFrames[bucketIndex] == nil {
+                bucketFrames[bucketIndex] = []
+            }
+            bucketFrames[bucketIndex]?.append((pts: pts, size: sampleSize))
+            
+            let prevBucketIndex = bucketIndex - 1
+            if prevBucketIndex > lastEmittedBucket {
+                if let frames = bucketFrames[prevBucketIndex], !frames.isEmpty {
+                    let bucketStart = startPTS + Double(prevBucketIndex) * bucketSize
+                    let totalBytes = frames.reduce(0) { $0 + $1.size }
+                    
+                    let firstFramePTS = frames.first!.pts
+                    let lastFramePTS = frames.last!.pts
+                    let actualSpan = lastFramePTS - firstFramePTS
+                    let actualDuration: Double
+                    if actualSpan < bucketSize - defaultFrameDuration {
+                        actualDuration = actualSpan + defaultFrameDuration
+                    } else {
+                        actualDuration = bucketSize
                     }
-                    continue
-                }
+                    
+                    let bitrate = (Double(totalBytes) * 8.0) / actualDuration
+                    let sampleTime = bucketStart + bucketSize / 2.0
+                    
+                    pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
+                    totalEmitted += 1
+                    lastEmittedBucket = prevBucketIndex
 
-                // Apply standard bitrate formula: bits = bytes * 8, then divide by duration
-                let bitrate = (Double(totalBytes) * 8.0) / duration
-                pending.append(BitrateSample(time: pts, bitrate: bitrate, duration: duration))
-                totalEmitted += 1
-
-                if emitInterval > 0 {
-                    nextEmitPTS = (nextEmitPTS ?? pts) + emitInterval
-                }
-
-                if pending.count >= options.emitEveryNSamples {
-                    continuation.yield(makeUpdate())
-                    pending.removeAll(keepingCapacity: true)
+                    if pending.count >= options.emitEveryNSamples {
+                        continuation.yield(makeUpdate())
+                        pending.removeAll(keepingCapacity: true)
+                    }
                 }
             }
         }
@@ -182,6 +162,47 @@ func extractWithCursor(
 
         // Note: We continue reading even after hitting maxSamples to collect all raw frames
         // for re-aggregation. The maxSamples limit only affects emitted samples, not raw frame collection.
+    }
+
+    guard let startPTS = firstPTS else {
+        continuation.yield(makeFinalUpdate())
+        continuation.finish()
+        return true
+    }
+
+    let endTime = allRawFrames.map(\.pts).max() ?? startPTS
+    let totalDuration = endTime - startPTS + defaultFrameDuration
+    let numBuckets = Int(ceil(totalDuration / bucketSize))
+    
+    for bucketIndex in (lastEmittedBucket + 1)..<numBuckets {
+        let bucketStart = startPTS + Double(bucketIndex) * bucketSize
+        let bucketEnd = bucketStart + bucketSize
+        
+        let frames = bucketFrames[bucketIndex] ?? []
+        let totalBytes = frames.reduce(0) { $0 + $1.size }
+        
+        if totalBytes > 0 && !frames.isEmpty {
+            let firstFramePTS = frames.first!.pts
+            let lastFramePTS = frames.last!.pts
+            let actualSpan = lastFramePTS - firstFramePTS
+            let actualDuration: Double
+            if actualSpan < bucketSize - defaultFrameDuration {
+                actualDuration = actualSpan + defaultFrameDuration
+            } else {
+                actualDuration = bucketSize
+            }
+            
+            let bitrate = (Double(totalBytes) * 8.0) / actualDuration
+            let sampleTime = bucketStart + bucketSize / 2.0
+            
+            pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
+            totalEmitted += 1
+
+            if pending.count >= options.emitEveryNSamples {
+                continuation.yield(makeUpdate())
+                pending.removeAll(keepingCapacity: true)
+            }
+        }
     }
 
     if !pending.isEmpty {
