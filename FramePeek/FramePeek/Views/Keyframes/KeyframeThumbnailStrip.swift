@@ -35,8 +35,7 @@ struct KeyframeThumbnailStrip: View {
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                         .padding(.horizontal, DesignSystem.Padding.md)
                         .padding(.vertical, DesignSystem.Padding.xs)
-                        .background(DesignSystem.Colors.Chart.keyframe.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous))
+                        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.medium))
                     } else {
                         // Invisible placeholder to maintain layout
                         Color.clear

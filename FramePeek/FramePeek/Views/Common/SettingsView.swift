@@ -260,128 +260,123 @@ struct SettingsView: View {
     
     private var analysisSettings: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
-                    SettingsSection(title: "Analysis") {
-                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
+            SettingsSection(title: "Analysis") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                        Text("Sampling Mode")
+                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
+                        
+                        Picker("", selection: $samplingMode) {
+                            ForEach(SamplingModeSetting.allCases) { mode in
+                                Text(mode.displayName).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.radioGroup)
+                        
+                        Text("Choose how frames are sampled for bitrate analysis.")
+                            .font(.system(size: DesignSystem.Typography.footnote))
+                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                    }
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                        switch samplingMode {
+                        case .auto:
+                            HStack {
+                                Text("Target Samples")
+                                    .frame(width: 140, alignment: .leading)
+                                Spacer()
+                                Stepper(value: $maxPointsTarget, in: 500...50_000, step: 500) {
+                                    Text("\(maxPointsTarget)")
+                                        .monospacedDigit()
+                                        .frame(minWidth: 80, alignment: .trailing)
+                                }
+                            }
+                            
+                        case .interval:
+                            HStack {
+                                Text("Interval")
+                                    .frame(width: 140, alignment: .leading)
+                                Spacer()
+                                Stepper(value: $samplingIntervalSeconds, in: 0.05...10.0, step: 0.05) {
+                                    Text("\(samplingIntervalSeconds, specifier: "%.2f") s")
+                                        .monospacedDigit()
+                                        .frame(minWidth: 80, alignment: .trailing)
+                                }
+                            }
+                            
+                            HStack {
+                                Text("Max Samples")
+                                    .frame(width: 140, alignment: .leading)
+                                Spacer()
+                                Stepper(value: $maxPointsTarget, in: 500...50_000, step: 500) {
+                                    Text("\(maxPointsTarget)")
+                                        .monospacedDigit()
+                                        .frame(minWidth: 80, alignment: .trailing)
+                                }
+                            }
+                            
+                        case .everyFrame:
+                            HStack {
+                                Text("Maximum Samples")
+                                    .frame(width: 140, alignment: .leading)
+                                Spacer()
+                                Stepper(value: $maxPointsTarget, in: 1_000...200_000, step: 1_000) {
+                                    Text("\(maxPointsTarget)")
+                                        .monospacedDigit()
+                                        .frame(minWidth: 80, alignment: .trailing)
+                                }
+                            }
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
+                        Text("Format-Specific Options")
+                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
+                        
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                                Text("Sampling Mode")
-                                    .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                                
-                                Picker("", selection: $samplingMode) {
-                                    ForEach(SamplingModeSetting.allCases) { mode in
+                                Picker("Accuracy Mode", selection: $formatAccuracyMode) {
+                                    ForEach(FormatAccuracyMode.allCases) { mode in
                                         Text(mode.displayName).tag(mode)
                                     }
                                 }
-                                .pickerStyle(.radioGroup)
+                                .pickerStyle(.menu)
                                 
-                                Text("Choose how frames are sampled for bitrate analysis.")
+                                Text("Performance: Fastest, uses AVFoundation data as-is. Balanced: Format-specific optimizations. Accuracy: Full format parsing for maximum precision.")
                                     .font(.system(size: DesignSystem.Typography.footnote))
                                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             }
                             
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                                switch samplingMode {
-                                case .auto:
-                                    HStack {
-                                        Text("Target Samples")
-                                            .frame(width: 140, alignment: .leading)
-                                        Spacer()
-                                        Stepper(value: $maxPointsTarget, in: 500...50_000, step: 500) {
-                                            Text("\(maxPointsTarget)")
-                                                .monospacedDigit()
-                                                .frame(minWidth: 80, alignment: .trailing)
-                                        }
-                                    }
-                                    
-                                case .interval:
-                                    HStack {
-                                        Text("Interval")
-                                            .frame(width: 140, alignment: .leading)
-                                        Spacer()
-                                        Stepper(value: $samplingIntervalSeconds, in: 0.05...10.0, step: 0.05) {
-                                            Text("\(samplingIntervalSeconds, specifier: "%.2f") s")
-                                                .monospacedDigit()
-                                                .frame(minWidth: 80, alignment: .trailing)
-                                        }
-                                    }
-                                    
-                                    HStack {
-                                        Text("Max Samples")
-                                            .frame(width: 140, alignment: .leading)
-                                        Spacer()
-                                        Stepper(value: $maxPointsTarget, in: 500...50_000, step: 500) {
-                                            Text("\(maxPointsTarget)")
-                                                .monospacedDigit()
-                                                .frame(minWidth: 80, alignment: .trailing)
-                                        }
-                                    }
-                                    
-                                case .everyFrame:
-                                    HStack {
-                                        Text("Maximum Samples")
-                                            .frame(width: 140, alignment: .leading)
-                                        Spacer()
-                                        Stepper(value: $maxPointsTarget, in: 1_000...200_000, step: 1_000) {
-                                            Text("\(maxPointsTarget)")
-                                                .monospacedDigit()
-                                                .frame(minWidth: 80, alignment: .trailing)
-                                        }
-                                    }
-                                }
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                                Toggle("Account for TS Packet Overhead", isOn: $accountTSOverhead)
+                                    .font(.system(size: DesignSystem.Typography.body, weight: .medium))
+                                
+                                Text("For MPEG-TS files: Subtract transport stream packet header overhead from bitrate calculations for more accurate video bitrate.")
+                                    .font(.system(size: DesignSystem.Typography.footnote))
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             }
                             
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
-                                Text("Format-Specific Options")
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                                Toggle("Smooth Segment Boundaries", isOn: $smoothSegmentBoundaries)
                                     .font(.system(size: DesignSystem.Typography.body, weight: .medium))
                                 
-                                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                                        Picker("Accuracy Mode", selection: $formatAccuracyMode) {
-                                            ForEach(FormatAccuracyMode.allCases) { mode in
-                                                Text(mode.displayName).tag(mode)
-                                            }
-                                        }
-                                        .pickerStyle(.menu)
-                                        
-                                        Text("Performance: Fastest, uses AVFoundation data as-is. Balanced: Format-specific optimizations. Accuracy: Full format parsing for maximum precision.")
-                                            .font(.system(size: DesignSystem.Typography.footnote))
-                                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                                    }
-                                    
-                                    Divider()
-                                    
-                                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                                        Toggle("Account for TS Packet Overhead", isOn: $accountTSOverhead)
-                                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                                        
-                                        Text("For MPEG-TS files: Subtract transport stream packet header overhead from bitrate calculations for more accurate video bitrate.")
-                                            .font(.system(size: DesignSystem.Typography.footnote))
-                                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                                    }
-                                    
-                                    Divider()
-                                    
-                                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                                        Toggle("Smooth Segment Boundaries", isOn: $smoothSegmentBoundaries)
-                                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                                        
-                                        Text("For fragmented MP4/CMAF files: Smooth bitrate spikes at segment boundaries for more consistent visualization.")
-                                            .font(.system(size: DesignSystem.Typography.footnote))
-                                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                                    }
-                                }
+                                Text("For fragmented MP4/CMAF files: Smooth bitrate spikes at segment boundaries for more consistent visualization.")
+                                    .font(.system(size: DesignSystem.Typography.footnote))
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             }
-                        }
-                        .padding()
-                        .background {
-                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                                .fill(DesignSystem.Materials.regular)
                         }
                     }
                 }
+            }
+        }
     }
     
     // MARK: - Media Settings
@@ -433,11 +428,6 @@ struct SettingsView: View {
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     }
                 }
-                .padding()
-                .background {
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                        .fill(DesignSystem.Materials.regular)
-                }
             }
         }
     }
@@ -471,7 +461,7 @@ struct SettingsView: View {
                         HStack {
                             Text("Max Points (Zoomed)")
                                 .frame(width: 140, alignment: .leading)
-            Spacer()
+                            Spacer()
                             Stepper(value: $chartMaxDisplayPointsZoomed, in: 1_000...10_000, step: 500) {
                                 Text("\(chartMaxDisplayPointsZoomed)")
                                     .monospacedDigit()
@@ -484,7 +474,7 @@ struct SettingsView: View {
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     }
                     
-                Divider()
+                    Divider()
                     
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                         HStack {
@@ -502,11 +492,6 @@ struct SettingsView: View {
                             .font(.system(size: DesignSystem.Typography.footnote))
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     }
-                }
-                .padding()
-                .background {
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                        .fill(DesignSystem.Materials.regular)
                 }
             }
         }
