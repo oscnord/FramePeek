@@ -33,7 +33,7 @@ struct KeyframeThumbnailStrip: View {
                         }
                         .font(.caption2)
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                        .padding(.horizontal, DesignSystem.Padding.md)
+                        .padding(.horizontal, DesignSystem.Padding.xs)
                         .padding(.vertical, DesignSystem.Padding.xs)
                         .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.medium))
                     } else {
@@ -47,7 +47,7 @@ struct KeyframeThumbnailStrip: View {
                 Spacer()
             }
             .frame(height: 24)
-            .padding(.horizontal, DesignSystem.Padding.lg)
+            .padding(.horizontal, DesignSystem.Padding.sm)
             .padding(.top, DesignSystem.Padding.sm)
             strip
         }
@@ -157,8 +157,8 @@ private struct ScrollableThumbnailView: View {
                     }
                 }
             }
-            .padding(.horizontal, DesignSystem.Padding.lg)
-            .padding(.vertical, DesignSystem.Padding.sm)
+            .padding(.horizontal, DesignSystem.Padding.xs)
+            .padding(.vertical, DesignSystem.Padding.xs)
         }
     }
 }
@@ -459,7 +459,7 @@ private struct ThumbCell: View {
                     lineWidth: isHovered ? 2.5 : 0
                 )
             )
-            .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
             .contentShape(shape)
     }
 }
