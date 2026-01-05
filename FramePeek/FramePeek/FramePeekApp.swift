@@ -24,7 +24,7 @@ struct FramePeekApp: App {
             
             CommandGroup(after: .appInfo) {
                 Divider()
-                Button("Settings") {
+                Button("Settings...") {
                     appViewModel.showSettingsView = true
                 }
                 .keyboardShortcut(",", modifiers: [.command])

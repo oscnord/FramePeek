@@ -60,10 +60,6 @@ struct SidebarTabButton: View {
     @ObservedObject private var viewModel: FramePeekViewModel
     @State private var isHovered: Bool = false
     
-    private var isProcessing: Bool {
-        viewModel.isAnalyzing || viewModel.isExtractingKeyframes || viewModel.isGeneratingThumbnails
-    }
-    
     init(tab: TabItem, isSelected: Bool, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
         self.tab = tab
         self.isSelected = isSelected
@@ -83,8 +79,9 @@ struct SidebarTabButton: View {
             
             Spacer(minLength: DesignSystem.Spacing.sm)
             
-            // Processing indicator
-            if isProcessing {
+            // Processing indicator - only show for main analysis, not background keyframe/thumbnail generation
+            // This ensures the spinner disappears when the main file loading is complete
+            if viewModel.isAnalyzing {
                 ProgressView()
                     .controlSize(.small)
                     .layoutPriority(-1)

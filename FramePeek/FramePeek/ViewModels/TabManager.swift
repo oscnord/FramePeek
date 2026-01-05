@@ -113,5 +113,12 @@ final class TabManager: ObservableObject {
         let insertIndex = destinationIndex > sourceIndex ? destinationIndex - 1 : destinationIndex
         tabs.insert(tab, at: insertIndex)
     }
+    
+    /// Finds the first untitled tab (displayName == "Untitled" and no file loaded)
+    func findUntitledTab() -> TabItem? {
+        tabs.first { tab in
+            tab.displayName == "Untitled" && tab.viewModel.extendedInfo == nil
+        }
+    }
 }
 

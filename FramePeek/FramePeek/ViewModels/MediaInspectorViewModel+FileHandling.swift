@@ -38,30 +38,12 @@ extension FramePeekViewModel {
             case .currentTab:
                 // Load in current tab (replaces existing file)
                 pendingURL = url
-                
-                // Check if user wants to see settings dialog on file load
-                let showDialog = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
-                
-                if showDialog {
-                    showSamplingDialog = true
-                } else {
-                    // Skip dialog and use settings directly
-                    confirmSamplingAndLoad()
-                }
+                confirmSamplingAndLoad()
             }
         } else {
             // No file loaded, proceed directly
             pendingURL = url
-            
-            // Check if user wants to see settings dialog on file load
-            let showDialog = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
-            
-            if showDialog {
-                showSamplingDialog = true
-            } else {
-                // Skip dialog and use settings directly
-                confirmSamplingAndLoad()
-            }
+            confirmSamplingAndLoad()
         }
     }
     
@@ -79,16 +61,7 @@ extension FramePeekViewModel {
         case .currentTab:
             // Load in current tab (replaces existing file)
             pendingURL = url
-            
-            // Check if user wants to see settings dialog on file load
-            let showDialog = UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") == nil ? true : UserDefaults.standard.bool(forKey: "showSettingsOnFileLoad")
-            
-            if showDialog {
-                showSamplingDialog = true
-            } else {
-                // Skip dialog and use settings directly
-                confirmSamplingAndLoad()
-            }
+            confirmSamplingAndLoad()
             
         case .newTab:
             // Signal to open in new tab (FramePeek.swift will handle this via onChange observer)
@@ -113,20 +86,13 @@ extension FramePeekViewModel {
 
     func confirmSamplingAndLoad() {
         guard let url = pendingURL else {
-            showSamplingDialog = false
             return
         }
         // Save current settings to UserDefaults before loading
         saveSettingsToUserDefaults()
-        showSamplingDialog = false
         let urlToLoad = url
         pendingURL = nil
         loadAsset(url: urlToLoad)
-    }
-
-    func cancelSamplingDialog() {
-        showSamplingDialog = false
-        pendingURL = nil
     }
 
     private func loadAsset(url: URL) {
@@ -137,7 +103,7 @@ extension FramePeekViewModel {
         // Create separate asset instances for each reader to avoid blocking
         // AVAsset can only have one active AVAssetReader at a time
         let assetForInfo = AVURLAsset(url: url)
-        let assetForKeyframes = AVURLAsset(url: url)
+        let assetForThumbnails = AVURLAsset(url: url)
         let assetForFrames = AVURLAsset(url: url)
 
         // cancel in-flight work
@@ -158,14 +124,9 @@ extension FramePeekViewModel {
             }
         }
         
-        // Keyframe extraction - check if enabled
-        if autoExtractKeyframes {
-            startKeyframeExtraction(asset: assetForKeyframes)
-        }
-        
-        // Start thumbnail generation (works without keyframes - uses evenly distributed times)
+        // Start thumbnail generation (uses evenly distributed times)
         if autoGenerateThumbnails {
-            startThumbnailGeneration(asset: assetForKeyframes)
+            startThumbnailGeneration(asset: assetForThumbnails)
         }
         
         // Start frame analysis
@@ -175,10 +136,8 @@ extension FramePeekViewModel {
     private func cancelAllTasks() {
         infoTask?.cancel()
         framesTask?.cancel()
-        keyframeTask?.cancel()
         thumbnailTask?.cancel()
         infoTask = nil
-        keyframeTask = nil
         thumbnailTask = nil
         framesTask = nil
     }
@@ -192,11 +151,8 @@ extension FramePeekViewModel {
         hoveredSample = nil
         extendedInfo = nil
         isAnalyzing = true
-        keyframes = []
         keyframeThumbs = []
-        isExtractingKeyframes = false
         isGeneratingThumbnails = false
-        keyframeExtractionProgress = nil
     }
 
     func cancelAnalysis() {
@@ -214,13 +170,10 @@ extension FramePeekViewModel {
         maxInterval = nil
         hoveredSample = nil
         hoveredKeyframeTime = nil
-        keyframes = [] // Clear keyframes
         keyframeThumbs = []
         visibleTimeRange = nil
         durationSeconds = 0
-        isExtractingKeyframes = false
         isGeneratingThumbnails = false
-        keyframeExtractionProgress = nil
     }
 }
 

@@ -12,18 +12,13 @@ final class FramePeekViewModel: ObservableObject {
     @Published var maxInterval: Double?
     @Published var hoveredSample: BitrateSample?
     @Published var isAnalyzing: Bool = false
-    // Keyframes
-    @Published var keyframes: [KeyframeMarker] = []
     @Published var durationSeconds: Double = 0
     @Published var keyframeThumbs: [KeyframeThumbnail] = []
-    @Published var hoveredKeyframeTime: Double? = nil  // Shared hover state for syncing thumbnails, timeline, and chart
+    @Published var hoveredKeyframeTime: Double? = nil  // Shared hover state for syncing thumbnails and chart
     @Published var visibleTimeRange: ClosedRange<Double>? = nil // Zoom state
-    @Published var isExtractingKeyframes: Bool = false
     @Published var isGeneratingThumbnails: Bool = false
-    @Published var keyframeExtractionProgress: String? = nil  // Optional progress message
 
-    // Sampling UI
-    @Published var showSamplingDialog: Bool = false
+    // UI
     @Published var showAboutView: Bool = false
     @Published var showSettingsView: Bool = false
     
@@ -41,13 +36,10 @@ final class FramePeekViewModel: ObservableObject {
     @Published var emitEveryNSamples: Int = 100            // UI update batch size
     @Published var preferAccuracy: Bool = false             // Use reader path for accurate bitrate (slower but matches ffprobe)
     
-    // Keyframes & Thumbnails settings
-    @Published var autoExtractKeyframes: Bool = true
+    // Thumbnails settings
     @Published var autoGenerateThumbnails: Bool = true
     @Published var maxThumbnails: Int = 200
     @Published var thumbnailSize: ThumbnailSize = .medium
-    @Published var maxKeyframes: Int = 50_000
-    @Published var keyframeMinSpacingSeconds: Double = 0.0
     
     // Chart Display settings
     @Published var chartMaxDisplayPoints: Int = 1_000
@@ -86,10 +78,7 @@ final class FramePeekViewModel: ObservableObject {
             emitEveryNSamples = defaults.integer(forKey: "emitEveryNSamples")
         }
         
-        // Load Keyframes & Thumbnails settings
-        if defaults.object(forKey: "autoExtractKeyframes") != nil {
-            autoExtractKeyframes = defaults.bool(forKey: "autoExtractKeyframes")
-        }
+        // Load Thumbnails settings
         if defaults.object(forKey: "autoGenerateThumbnails") != nil {
             autoGenerateThumbnails = defaults.bool(forKey: "autoGenerateThumbnails")
         }
@@ -99,12 +88,6 @@ final class FramePeekViewModel: ObservableObject {
         if let sizeString = defaults.string(forKey: "thumbnailSize"),
            let size = ThumbnailSize(rawValue: sizeString) {
             thumbnailSize = size
-        }
-        if defaults.object(forKey: "maxKeyframes") != nil {
-            maxKeyframes = defaults.integer(forKey: "maxKeyframes")
-        }
-        if defaults.object(forKey: "keyframeMinSpacingSeconds") != nil {
-            keyframeMinSpacingSeconds = defaults.double(forKey: "keyframeMinSpacingSeconds")
         }
         
         // Load Chart Display settings
@@ -129,7 +112,6 @@ final class FramePeekViewModel: ObservableObject {
     private var currentURL: URL?  // Store current URL for re-analysis
     var rawFrames: [RawFrame] = []  // Store raw frame data for re-aggregation
     var infoTask: Task<Void, Never>?
-    var keyframeTask: Task<Void, Never>?
     var thumbnailTask: Task<Void, Never>?
     var framesTask: Task<Void, Never>?
 

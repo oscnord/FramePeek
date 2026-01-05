@@ -14,21 +14,14 @@ struct FramePeek: View {
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
     @State private var isProcessing: Bool = false
-    @State private var showSamplingDialog: Bool = false
     
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
     }
     
-    private var shouldShowSettingsDialog: Bool {
-        UserDefaults.standard.object(forKey: "showSettingsOnFileLoad") as? Bool ?? true
-    }
 
     var body: some View {
         contentWithObservers
-            .sheet(isPresented: $showSamplingDialog) {
-                samplingSheet
-            }
             .sheet(isPresented: $showTabChoiceDialog) {
                 tabChoiceSheet
             }
@@ -96,12 +89,6 @@ struct FramePeek: View {
                     handleShouldOpenInNewTabChange()
                 }
             }
-            .onChange(of: currentViewModel?.showSamplingDialog) {
-                DispatchQueue.main.async {
-                    // Sync local state with view model state
-                    showSamplingDialog = currentViewModel?.showSamplingDialog ?? false
-                }
-            }
     }
     
     private var contentWithProcessingObservers: some View {
@@ -109,11 +96,6 @@ struct FramePeek: View {
             .toolbar { toolbarContent }
             .animation(.spring(response: 0.7, dampingFraction: 0.8), value: isProcessing)
             .onChange(of: currentViewModel?.isAnalyzing) {
-                DispatchQueue.main.async {
-                    updateProcessingState()
-                }
-            }
-            .onChange(of: currentViewModel?.isExtractingKeyframes) {
                 DispatchQueue.main.async {
                     updateProcessingState()
                 }
@@ -138,6 +120,7 @@ struct FramePeek: View {
     private var mainContent: some View {
         NavigationSplitView {
             SidebarTabBarView(tabManager: tabManager)
+            .toolbar { newTabToolbarContent }
         } detail: {
             // Detail view with main content and inspector
             ZStack(alignment: .trailing) {
@@ -187,6 +170,10 @@ struct FramePeek: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .confirmationAction) {
             Button {
+                // Check for untitled tab first, then open file picker
+                if let untitledTab = tabManager.findUntitledTab() {
+                    tabManager.switchToTab(id: untitledTab.id)
+                }
                 currentViewModel?.pickFile()
             } label: {
                 Label("Open…", systemImage: "folder")
@@ -197,20 +184,25 @@ struct FramePeek: View {
         
         ToolbarItem(placement: .confirmationAction) {
             Button {
+                appViewModel.showSettingsView = true
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .keyboardShortcut(",", modifiers: [.command])
+            .transition(.move(edge: .trailing).combined(with: .opacity))
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var newTabToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .confirmationAction) {
+            Button {
                 tabManager.addTab()
             } label: {
                 Label("New Tab", systemImage: "plus.square.on.square")
             }
             .keyboardShortcut("t", modifiers: [.command])
             .transition(.move(edge: .trailing).combined(with: .opacity))
-        }
-    }
-    
-    @ViewBuilder
-    private var samplingSheet: some View {
-        if let viewModel = currentViewModel {
-            SamplingSheet(viewModel: viewModel)
-                .frame(minWidth: 420, minHeight: 300)
         }
     }
     
@@ -289,16 +281,23 @@ struct FramePeek: View {
         // Clear the signal first to prevent re-triggering
         currentViewModel?.shouldOpenInNewTab = nil
         
-        // Create new tab and load file there
-        tabManager.addTab()
-        if let newViewModel = tabManager.currentViewModel,
-           let newTabId = tabManager.selectedTabId {
-            // Update tab name immediately
-            tabManager.updateTabDisplayName(id: newTabId, name: url.lastPathComponent)
-            newViewModel.pendingURL = url
-            if shouldShowSettingsDialog {
-                newViewModel.showSamplingDialog = true
-            } else {
+        // First check if there's an untitled tab we can use
+        if let untitledTab = tabManager.findUntitledTab() {
+            // Switch to the untitled tab and load the file there
+            tabManager.switchToTab(id: untitledTab.id)
+            if let viewModel = tabManager.currentViewModel {
+                tabManager.updateTabDisplayName(id: untitledTab.id, name: url.lastPathComponent)
+                viewModel.pendingURL = url
+                viewModel.confirmSamplingAndLoad()
+            }
+        } else {
+            // No untitled tab, create new tab and load file there
+            tabManager.addTab()
+            if let newViewModel = tabManager.currentViewModel,
+               let newTabId = tabManager.selectedTabId {
+                // Update tab name immediately
+                tabManager.updateTabDisplayName(id: newTabId, name: url.lastPathComponent)
+                newViewModel.pendingURL = url
                 newViewModel.confirmSamplingAndLoad()
             }
         }
@@ -320,16 +319,24 @@ struct FramePeek: View {
         if let viewModel = currentViewModel {
             viewModel.cancelTabChoice()
         }
-        // Create new tab and load file there
-        tabManager.addTab()
-        if let newViewModel = tabManager.currentViewModel,
-           let newTabId = tabManager.selectedTabId {
-            // Update tab name immediately
-            tabManager.updateTabDisplayName(id: newTabId, name: url.lastPathComponent)
-            newViewModel.pendingURL = url
-            if shouldShowSettingsDialog {
-                newViewModel.showSamplingDialog = true
-            } else {
+        
+        // First check if there's an untitled tab we can use
+        if let untitledTab = tabManager.findUntitledTab() {
+            // Switch to the untitled tab and load the file there
+            tabManager.switchToTab(id: untitledTab.id)
+            if let viewModel = tabManager.currentViewModel {
+                tabManager.updateTabDisplayName(id: untitledTab.id, name: url.lastPathComponent)
+                viewModel.pendingURL = url
+                viewModel.confirmSamplingAndLoad()
+            }
+        } else {
+            // No untitled tab, create new tab and load file there
+            tabManager.addTab()
+            if let newViewModel = tabManager.currentViewModel,
+               let newTabId = tabManager.selectedTabId {
+                // Update tab name immediately
+                tabManager.updateTabDisplayName(id: newTabId, name: url.lastPathComponent)
+                newViewModel.pendingURL = url
                 newViewModel.confirmSamplingAndLoad()
             }
         }
@@ -346,8 +353,7 @@ struct FramePeek: View {
     }
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first,
-              let viewModel = currentViewModel else { return false }
+        guard let provider = providers.first else { return false }
         
         // Process immediately on main thread for responsiveness
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
@@ -357,12 +363,20 @@ struct FramePeek: View {
             
             // All UI updates must happen on MainActor
             Task { @MainActor in
-                // Update tab name immediately for feedback
-                if let currentTabId = tabManager.selectedTabId {
-                    tabManager.updateTabDisplayName(id: currentTabId, name: url.lastPathComponent)
-                }
-                
-                // Handle file - this will set showTabChoiceDialog if needed
+                openFileInAppropriateTab(url: url)
+            }
+        }
+        return true
+    }
+    
+    /// Opens a file in the appropriate tab - checks for untitled tabs first
+    private func openFileInAppropriateTab(url: URL) {
+        // First, check if there's an untitled tab we can use
+        if let untitledTab = tabManager.findUntitledTab() {
+            // Switch to the untitled tab and load the file there
+            tabManager.switchToTab(id: untitledTab.id)
+            if let viewModel = tabManager.currentViewModel {
+                tabManager.updateTabDisplayName(id: untitledTab.id, name: url.lastPathComponent)
                 viewModel.handleIncomingFile(url: url)
                 
                 // Immediately sync the URL to local state if dialog is shown
@@ -371,8 +385,22 @@ struct FramePeek: View {
                     showTabChoiceDialog = true
                 }
             }
+        } else if let viewModel = currentViewModel {
+            // No untitled tab, use current tab
+            // Update tab name immediately for feedback
+            if let currentTabId = tabManager.selectedTabId {
+                tabManager.updateTabDisplayName(id: currentTabId, name: url.lastPathComponent)
+            }
+            
+            // Handle file - this will set showTabChoiceDialog if needed
+            viewModel.handleIncomingFile(url: url)
+            
+            // Immediately sync the URL to local state if dialog is shown
+            if viewModel.showTabChoiceDialog, let pendingURL = viewModel.pendingURLForTabChoice {
+                tabChoiceURL = pendingURL
+                showTabChoiceDialog = true
+            }
         }
-        return true
     }
     
     private func updateProcessingState() {
@@ -380,7 +408,7 @@ struct FramePeek: View {
             isProcessing = false
             return
         }
-        isProcessing = viewModel.isAnalyzing || viewModel.isExtractingKeyframes || viewModel.isGeneratingThumbnails
+        isProcessing = viewModel.isAnalyzing || viewModel.isGeneratingThumbnails
     }
 }
 

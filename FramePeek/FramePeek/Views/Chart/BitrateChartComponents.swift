@@ -164,7 +164,7 @@ struct KeyframeLoadingView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .help(String(localized: "Stop extraction and keep loaded keyframes"))
+                    .help(String(localized: "Stop thumbnail generation"))
                 }
             }
             .padding(.horizontal, DesignSystem.Padding.lg)

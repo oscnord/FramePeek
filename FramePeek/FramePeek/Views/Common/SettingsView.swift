@@ -111,7 +111,6 @@ struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .general
     
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
-    @AppStorage("showSettingsOnFileLoad") private var showSettingsOnFileLoad: Bool = true
     @AppStorage("fileOpeningBehavior") private var fileOpeningBehavior: FileOpeningBehavior = .prompt
     
     @AppStorage("samplingMode") private var samplingMode: SamplingModeSetting = .auto
@@ -124,12 +123,9 @@ struct SettingsView: View {
     @AppStorage("formatAccuracyMode") private var formatAccuracyMode: FormatAccuracyMode = .balanced
     
     // Keyframes & Thumbnails settings
-    @AppStorage("autoExtractKeyframes") private var autoExtractKeyframes: Bool = true
     @AppStorage("autoGenerateThumbnails") private var autoGenerateThumbnails: Bool = true
     @AppStorage("maxThumbnails") private var maxThumbnails: Int = 200
     @AppStorage("thumbnailSize") private var thumbnailSize: ThumbnailSize = .medium
-    @AppStorage("maxKeyframes") private var maxKeyframes: Int = 50_000
-    @AppStorage("keyframeMinSpacingSeconds") private var keyframeMinSpacingSeconds: Double = 0.0
     
     // Chart Display settings
     @AppStorage("chartMaxDisplayPoints") private var chartMaxDisplayPoints: Int = 1_000
@@ -214,17 +210,6 @@ struct SettingsView: View {
                     
                     SettingsSection(title: "Interface") {
                         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
-                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                                Toggle("Show Settings When Loading Files", isOn: $showSettingsOnFileLoad)
-                                    .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                                
-                                Text("When enabled, analysis settings will be shown when you load a new file. You can always adjust settings in Settings.")
-                                    .font(.system(size: DesignSystem.Typography.footnote))
-                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                            }
-                            
-                            Divider()
-                            
                             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                                 HStack {
                             Text("File Opening Behavior")
@@ -348,20 +333,6 @@ struct SettingsView: View {
                             
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                                Toggle(isOn: $preferAccuracy) {
-                                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                                        Text("High Accuracy")
-                                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                                        Text("More accurate bitrate measurements (may be slower)")
-                                            .font(.system(size: DesignSystem.Typography.footnote))
-                                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                                    }
-                                }
-                            }
-                            
-                            Divider()
-                            
                             VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
                                 Text("Format-Specific Options")
                                     .font(.system(size: DesignSystem.Typography.body, weight: .medium))
@@ -417,19 +388,8 @@ struct SettingsView: View {
     
     private var mediaSettings: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
-            SettingsSection(title: "Keyframes & Thumbnails") {
+            SettingsSection(title: "Thumbnails") {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                        Toggle("Auto-extract Keyframes", isOn: $autoExtractKeyframes)
-                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                        
-                        Text("Automatically extract keyframes when a file loads. Disable to improve performance on very long videos.")
-                            .font(.system(size: DesignSystem.Typography.footnote))
-                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                    }
-                    
-                    Divider()
-                    
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                         Toggle("Auto-generate Thumbnails", isOn: $autoGenerateThumbnails)
                             .font(.system(size: DesignSystem.Typography.body, weight: .medium))
@@ -469,44 +429,6 @@ struct SettingsView: View {
                         .pickerStyle(.menu)
                         
                         Text("Size of generated thumbnails. Larger sizes use more memory but provide better detail.")
-                            .font(.system(size: DesignSystem.Typography.footnote))
-                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                    }
-                    
-                    Divider()
-                    
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                        HStack {
-                            Text("Max Keyframes")
-                                .frame(width: 140, alignment: .leading)
-                            Spacer()
-                            Stepper(value: $maxKeyframes, in: 10_000...100_000, step: 5_000) {
-                                Text("\(maxKeyframes)")
-                                    .monospacedDigit()
-                                    .frame(minWidth: 80, alignment: .trailing)
-                            }
-                        }
-                        
-                        Text("Safety limit for keyframe extraction. Very high values may impact performance.")
-                            .font(.system(size: DesignSystem.Typography.footnote))
-                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                    }
-                    
-                    Divider()
-                    
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                        HStack {
-                            Text("Min Spacing")
-                                .frame(width: 140, alignment: .leading)
-                            Spacer()
-                            Stepper(value: $keyframeMinSpacingSeconds, in: 0.0...1.0, step: 0.1) {
-                                Text("\(keyframeMinSpacingSeconds, specifier: "%.1f") s")
-                                    .monospacedDigit()
-                                    .frame(minWidth: 80, alignment: .trailing)
-                            }
-                        }
-                        
-                        Text("Minimum spacing between keyframes in seconds. 0.0 extracts all keyframes.")
                             .font(.system(size: DesignSystem.Typography.footnote))
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     }

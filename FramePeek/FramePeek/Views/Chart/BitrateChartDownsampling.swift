@@ -64,26 +64,4 @@ func downsampleLTTB(_ samples: [BitrateSample], targetCount: Int) -> [BitrateSam
     return result
 }
 
-/// Downsample keyframes evenly across the video duration for chart display
-func downsampleKeyframes(_ keyframes: [KeyframeMarker], maxCount: Int, visibleRange: ClosedRange<Double>?) -> [KeyframeMarker] {
-    let filteredKeyframes: [KeyframeMarker]
-    if let range = visibleRange {
-        filteredKeyframes = keyframes.filter { range.contains($0.time) }
-    } else {
-        filteredKeyframes = keyframes
-    }
-    
-    guard filteredKeyframes.count > maxCount else { return filteredKeyframes }
-    
-    let step = Double(filteredKeyframes.count) / Double(maxCount)
-    var result: [KeyframeMarker] = []
-    result.reserveCapacity(maxCount)
-    
-    for i in 0..<maxCount {
-        let index = min(Int(Double(i) * step), filteredKeyframes.count - 1)
-        result.append(filteredKeyframes[index])
-    }
-    
-    return result
-}
 
