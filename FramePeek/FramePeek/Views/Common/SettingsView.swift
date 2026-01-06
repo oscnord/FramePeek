@@ -131,6 +131,7 @@ struct SettingsView: View {
     @AppStorage("playerAutoPlay") private var playerAutoPlay: Bool = false
     @AppStorage("playerShowControls") private var playerShowControls: Bool = true
     @AppStorage("playerShowStatistics") private var playerShowStatistics: Bool = true
+    @AppStorage("playerMuted") private var playerMuted: Bool = false
     
     // Chart Display settings
     @AppStorage("chartMaxDisplayPoints") private var chartMaxDisplayPoints: Int = 1_000
@@ -465,6 +466,17 @@ struct SettingsView: View {
                             .font(.system(size: DesignSystem.Typography.body, weight: .medium))
                         
                         Text("Display real-time statistics overlay (time, bitrate, resolution, frame rate) during playback.")
+                            .font(.system(size: DesignSystem.Typography.footnote))
+                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                    }
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                        Toggle("Mute Video", isOn: $playerMuted)
+                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
+                        
+                        Text("Mute video playback by default. You can still control volume using the player controls.")
                             .font(.system(size: DesignSystem.Typography.footnote))
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     }

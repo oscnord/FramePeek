@@ -38,6 +38,8 @@ struct InfoInspectorView: View {
                             .frame(maxHeight: 300)
                             .frame(maxWidth: .infinity)
                         
+                        actionBar(info: info)
+                        
                         // Collapsible sections
                         VStack(spacing: 12) {
                             CollapsibleSection(
@@ -180,7 +182,6 @@ struct InfoInspectorView: View {
                 EmptyInspectorState()
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Auto Expand

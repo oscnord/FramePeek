@@ -13,6 +13,7 @@ struct VideoPlayerView: View {
     @AppStorage("playerAutoPlay") private var playerAutoPlay: Bool = false
     @AppStorage("playerShowControls") private var playerShowControls: Bool = true
     @AppStorage("playerShowStatistics") private var playerShowStatistics: Bool = true
+    @AppStorage("playerMuted") private var playerMuted: Bool = false
     
     @State private var player: AVPlayer?
     @State private var currentTime: Double = 0
@@ -51,6 +52,10 @@ struct VideoPlayerView: View {
                                 setupPlayer(url: url)
                             }
                         }
+                    }
+                    .onChange(of: playerMuted) { oldValue, newValue in
+                        // Update mute state when setting changes
+                        player?.isMuted = newValue
                     }
                 
                 // Statistics overlay
@@ -163,6 +168,9 @@ struct VideoPlayerView: View {
             }
             isPlaying = player.rate > 0
         }
+        
+        // Set mute state
+        newPlayer.isMuted = playerMuted
         
         // Auto-play if enabled
         if playerAutoPlay {

@@ -1,9 +1,15 @@
 import SwiftUI
+import AppKit
 
 @main
 struct FramePeekApp: App {
     @StateObject private var appViewModel = FramePeekViewModel()
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
+    
+    init() {
+        // Disable native macOS window tabbing application-wide
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
     
     var body: some Scene {
         WindowGroup {

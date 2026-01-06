@@ -1,13 +1,11 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import AppKit
 
 struct FramePeek: View {
     @EnvironmentObject var appViewModel: FramePeekViewModel
     @Environment(\.openWindow) private var openWindow
     @StateObject private var tabManager = TabManager()
-
-    private let inspectorMin: Double = 280
-    private let inspectorMax: Double = 520
     
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
@@ -27,6 +25,9 @@ struct FramePeek: View {
             }
             .sheet(isPresented: $appViewModel.showAboutView) {
                 AboutView()
+            }
+            .background {
+                WindowTabbingDisabler()
             }
             .onChange(of: appViewModel.showSettingsView) { oldValue, newValue in
                 if newValue {
@@ -146,8 +147,10 @@ struct FramePeek: View {
                 if let viewModel = currentViewModel {
                     InfoInspectorView(viewModel: viewModel)
                         .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
+                        .inspectorColumnWidth(400)
                 } else {
                     EmptyInspectorState()
+                    .inspectorColumnWidth(400)
                 }
             }
         }
@@ -443,6 +446,32 @@ private struct TabNameObserver: View {
                     tabManager.updateTabDisplayName(id: tab.id, name: url.lastPathComponent)
                 }
             }
+    }
+}
+
+// Helper view to disable native macOS window tabbing
+private struct WindowTabbingDisabler: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        // Try to get window immediately
+        if let window = view.window {
+            window.tabbingMode = .disallowed
+        } else {
+            // If window isn't available yet, try again after a short delay
+            DispatchQueue.main.async {
+                if let window = view.window {
+                    window.tabbingMode = .disallowed
+                }
+            }
+        }
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        // Check again when view updates in case window wasn't available initially
+        if let window = nsView.window {
+            window.tabbingMode = .disallowed
+        }
     }
 }
 

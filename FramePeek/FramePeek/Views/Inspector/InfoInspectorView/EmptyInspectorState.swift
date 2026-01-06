@@ -20,7 +20,6 @@ struct EmptyInspectorState: View {
             
             Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

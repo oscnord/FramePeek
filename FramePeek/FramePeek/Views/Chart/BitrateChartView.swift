@@ -81,11 +81,6 @@ struct BitrateChartView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md2) {
             HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.md2) {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs2) {
-                    Text("Bitrate over time")
-                        .font(.headline)
-                }
-
                 Spacer()
 
                 if !viewModel.samples.isEmpty {
