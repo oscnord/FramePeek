@@ -1,0 +1,250 @@
+# FramePeek – Cursor AI Instructions
+
+This document provides context for Cursor AI to understand, navigate, and extend the FramePeek codebase efficiently.
+
+## Goal of the project
+
+FramePeek is a macOS SwiftUI application that inspects local media files and extracts rich, user-friendly metadata using AVFoundation and CoreMedia. It provides:
+
+- Video metadata (container, codec, resolution, frame rate, HDR/color info, PAR/DAR, bitrate estimations)
+- Audio track details (codec, channels, sample rate, bitrate, language)
+- Frame-by-frame bitrate analysis with interactive charts
+- Keyframe detection and thumbnail visualization
+
+## High-level architecture
+
+- Core frameworks
+  - AVFoundation and CoreMedia for media inspection.
+  - SwiftUI for the user interface.
+  - Foundation for utilities and formatting.
+  - AppKit for macOS-specific features (file dialogs, images).
+
+- Primary flow
+  - Input: A file URL is selected via NSOpenPanel → turned into an AVURLAsset.
+  - Orchestration: `MediaInspectorViewModel` coordinates loading via `getExtendedInfo(url:asset:)`.
+  - Frame Analysis: `extractBitratesFast(asset:options:)` provides progressive bitrate sampling.
+  - Keyframe Detection: `extractKeyframes(asset:)` identifies sync samples (I-frames).
+  - Output: `ExtendedVideoInfo` model and `[BitrateSample]` for UI consumption.
+
+## Project structure
+
+```
+FramePeek/
+├── FramePeekApp.swift          # App entry point (@main)
+├── FramePeek.swift             # Main window/view with drag-and-drop
+├── fileUtils.swift                  # NSOpenPanel file dialog helper
+├── FramePeek.entitlements      # App entitlements (sandbox, file access)
+├── Localizable.xcstrings        # Localization strings (i18n)
+│
+├── Models/                          # Data models
+│   ├── BitrateSample.swift          # Identifiable sample for charts
+│   └── MediaModels.swift            # ExtendedVideoInfo, AudioTrackInfo, etc.
+│
+├── ViewModels/                      # ViewModels and extensions
+│   ├── MediaInspectorViewModel.swift           # @MainActor ViewModel, coordinates all loading
+│   ├── MediaInspectorViewModel+FileHandling.swift # File loading and tab choice handling
+│   ├── MediaInspectorViewModel+Sampling.swift  # Frame sampling logic
+│   ├── MediaInspectorViewModel+Thumbnails.swift # Thumbnail generation logic
+│   ├── PlayerViewModelManager.swift  # Video player view model manager
+│   └── TabManager.swift             # Multi-tab management
+│
+├── Views/                           # UI components organized by feature
+│   ├── Chart/                       # Bitrate chart components
+│   ├── Common/                      # Shared UI components
+│   ├── Inspector/                   # Inspector panel
+│   ├── Keyframes/                   # Keyframe visualization
+│   └── Player/                      # Video player
+│
+└── Utils/                           # Core utilities organized by category
+    ├── Analysis/                    # Frame and bitrate analysis
+    ├── Extraction/                  # Bitrate extraction
+    ├── Formatting/                  # Formatting and display utilities
+    ├── Media/                       # Media loading and processing
+    └── Parsing/                     # Codec and format parsing
+```
+
+## Key modules and responsibilities
+
+### UI Layer
+
+- **FramePeekApp.swift** – App entry point with `@main`. Creates `TabManager` and provides it via `@EnvironmentObject`.
+- **FramePeek.swift** – Main window layout and structure with drag-and-drop support. Manages inspector panel visibility via `@State`. Integrates with `TabManager` for multi-tab support.
+- **ViewModels/MediaInspectorViewModel.swift** – `@MainActor` ViewModel that:
+  - Manages file selection via `pickFile()`.
+  - Coordinates async loading of metadata, frames, and keyframes.
+  - Exposes published properties: `samples`, `extendedInfo`, `keyframeThumbs`, etc.
+  - Supports configurable sampling modes (auto, everyFrame, interval).
+  - Handles analysis cancellation and progress tracking.
+- **ViewModels/TabManager.swift** – `@MainActor` ObservableObject that manages multiple tabs:
+  - Each tab has its own `MediaInspectorViewModel` instance.
+  - Tracks tab selection, creation, and removal.
+  - Updates tab display names based on loaded files.
+  - Handles tab switching and cleanup when tabs are closed.
+- **ViewModels/PlayerViewModelManager.swift** – Manages the active ViewModel for the video player window, allowing the player to sync with the currently selected tab.
+
+### Core Utilities (Utils/)
+
+Utilities are organized into subdirectories by category:
+
+#### Utils/Media/ – Media loading and processing
+
+- **VideoInfoLoader.swift** – Orchestrates metadata extraction from AVAsset via `getExtendedInfo(url:asset:)`.
+- **AudioInfoLoader.swift** – `loadAudioInfo(asset:)` → returns `[AudioTrackInfo]` with codec, channels, sample rate, bitrate, language.
+- **GenerateKeyframeThumbnails.swift** – Thumbnail generation utilities.
+
+#### Utils/Analysis/ – Frame and bitrate analysis
+
+- **ExtractFramesStream.swift** – AsyncStream-based frame extraction utilities.
+- **FrameAnalysis.swift** – Frame rate statistics and extraction utilities.
+- **FrameAggregation.swift** – Frame data aggregation utilities.
+
+#### Utils/Extraction/ – Bitrate extraction
+
+- **FastBitrateExtractor.swift** – Main bitrate extraction orchestrator with format-specific optimizations.
+- **FastBitrateExtractor+Cursor.swift** – Cursor-based extraction implementation (fast path).
+- **FastBitrateExtractor+Reader.swift** – Reader-based extraction implementation (more accurate, slower).
+- **FormatDetector.swift** – Detects media format for format-specific extraction optimizations.
+- **FragmentedMP4Extractor.swift** – Specialized extraction for fragmented MP4 files.
+- **TSBitrateExtractor.swift** – Specialized extraction for Transport Stream files.
+
+#### Utils/Formatting/ – Formatting and display utilities
+
+- **VideoUtils.swift** – File size and bitrate utilities.
+- **FormatUtils.swift** – Formatting and codec mapping.
+- **ColorUtils.swift** – HDR and color metadata.
+- **AspectRatioUtils.swift** – Aspect ratio calculations.
+- **DesignSystem.swift** – Design system constants and utilities.
+
+#### Utils/Parsing/ – Codec and format parsing
+
+- **AV1Parser.swift** – AV1 codec configuration parsing.
+- **KeyframeMarker.swift** – Keyframe detection using sync sample flags.
+- **VUIParser.swift** – Video Usability Information parsing.
+
+### Models
+
+- **Models/MediaModels.swift** – Core data models:
+  - **ExtendedVideoInfo** – All video metadata fields.
+  - **AudioTrackInfo** – Per-track audio info.
+  - **FrameAnalysisResult** – Batch result with samples and FPS stats.
+  - **FrameSamplingOptions** – Configures sampling behavior.
+  - **FormatAccuracyMode** – Enum for format-specific accuracy: `.performance`, `.balanced`, `.accuracy`.
+- **Models/BitrateSample.swift** – `Identifiable` struct with `time` and `bitrate` for chart data.
+
+## Data model (ExtendedVideoInfo)
+
+The following fields are populated by `getExtendedInfo`:
+
+- **File and container**: `fileName`, `fileSize`, `fileSizeBytes`, `overallBitrate`, `duration`, `durationFormatted`, `containerFormat`, `containerFormatProfile`, `codecIdRaw`
+- **Video geometry and timing**: `resolution`, `displayAspectRatio`, `frameRate`, `orientationDegrees`, `pixelAspectRatio`, `cleanAperture`, `scanType`, `frameRateMode`
+- **Codec and stream details**: `codec`, `codecProfile`, `codecIdInfo`, `trackBitrate`, `maxBitrate`, `bitsPerPixelFrame`, `videoStreamSize`
+- **Color and HDR**: `colorSpace`, `chromaSubsampling`, `bitDepth`, `colorPrimaries`, `transferFunction`, `matrixCoefficients`, `colorRange`, `hdrFormat`
+- **AV1 specifics**: `av1CSize`, `av1Profile`, `av1Level`, `av1ChromaSubsampling`, `av1FullRange`
+- **Metadata**: `creationDate`, `metadataTitle`, `metadataArtist`, `metadataEncoder`, `metadataDescription`
+- **Audio**: `audioTracks: [AudioTrackInfo]`
+
+## Control flow of getExtendedInfo(url:asset:)
+
+1. **File-level info** – Derives file name, size, and overall bitrate.
+2. **Duration and basic metadata** – Loads duration and common metadata.
+3. **Video track discovery** – Loads first video track and reads properties.
+4. **Format description parsing** – Extracts codec, color info, and sample description atoms.
+5. **Derived metrics** – Computes DAR, HDR format, bits-per-pixel, etc.
+6. **Audio tracks** – Delegates to `loadAudioInfo(asset:)`.
+7. **Aggregation** – Returns `ExtendedVideoInfo` with all available fields.
+
+## Frame Analysis Flow
+
+The app supports three sampling modes:
+- **auto** – Automatic downsampling based on duration.
+- **everyFrame** – Sample every frame (up to `maxSamples`).
+- **interval** – Sample at fixed time intervals.
+
+### Progressive extraction via AsyncStream
+
+```swift
+for await update in extractBitratesFast(asset: asset, options: options) {
+    // update.appendedSamples: new BitrateSample batch
+    // update.rawFrames: raw frame data for re-aggregation
+    // update.averageFPS, minInterval, maxInterval: running stats
+    // update.isFinished: true when complete
+}
+```
+
+## Concurrency and performance
+
+- Uses Swift Concurrency (`async`/`await`) throughout.
+- `MediaInspectorViewModel` is `@MainActor` to safely update `@Published` properties.
+- Heavy work runs on `.userInitiated` priority via `Task.detached`.
+- Frame extraction uses `AsyncStream` for progressive UI updates.
+- `AVAssetReaderTrackOutput.alwaysCopiesSampleData = false` for performance.
+- Keyframe extraction avoids decoding by inspecting sample attachment flags.
+- Tasks are cancellable – the ViewModel cancels in-flight tasks when loading a new file.
+- Chart downsampling ensures smooth rendering even with thousands of data points.
+- Format-specific optimizations for different container formats (MP4, fragmented MP4, TS).
+
+## Error handling and defaults
+
+- Many lookups use `try? await` with `guard`/fallbacks to avoid throwing.
+- Unknown or missing fields are left `nil` or filled with `"N/A"` / `"Unknown"`.
+- Calculations are guarded by sanity checks (e.g., `> 0` values for dimensions, fps, bitrate).
+- Task cancellation is checked via `Task.isCancelled` in extraction loops.
+
+## Platform notes
+
+- Built for **macOS 15.2+** (Sequoia) using SwiftUI and AppKit.
+- Uses `AVURLAsset`, `AVAssetReader`, `AVAssetImageGenerator` from AVFoundation.
+- Uses Swift Charts framework (macOS 15.0+) for interactive bitrate visualization.
+- Sandboxed apps must have read access to selected file URLs (see `FramePeek.entitlements`).
+- Supported file types: `.mp4`, `.mov`, `.avi`, `.mpeg`, and other movie types via `UTType`.
+- Minimum deployment target: macOS 15.2.
+
+## Code style and contribution rules
+
+- Prefer Swift and Apple frameworks; use Swift Concurrency over GCD/Combine unless the surrounding code dictates otherwise.
+- Keep parsing helpers pure and testable; isolate I/O at the orchestration layer.
+- Use `@MainActor` for ViewModels and ensure UI updates happen on the main thread.
+- Follow existing naming conventions: `load*`, `get*`, `parse*`, `extract*`, `detect*`.
+- **Always use localization** for user-facing strings:
+  - `Text()` views with string literals automatically localize.
+  - For computed strings and `.help()` modifiers, use `String(localized:)`.
+  - See `Localizable.xcstrings` for localization entries.
+- **Do not add unnecessary comments** - code should be self-explanatory. Only add comments when they provide essential context that cannot be inferred from the code itself.
+- When proposing changes to an existing file, always include the entire file content in a single code block, prefixed with the filename.
+
+## Localization Guidelines
+
+1. **Text() Views**: Use string literals directly – they automatically localize when present in `Localizable.xcstrings`.
+2. **Computed Strings**: Use `String(localized:)` for strings passed as parameters or computed properties.
+3. **Help Modifiers**: Always use `String(localized:)` for `.help()` modifiers.
+4. **String Interpolation**: Use format strings with `String(localized:)`.
+5. **Enum Display Names**: For enum `displayName` properties, use `String(localized:)`.
+
+## Extending the codebase
+
+### New container/format detection
+- Update file extension handling or probe container via AVAsset metadata.
+- Container format is currently derived from file extension in `Utils/Media/VideoInfoLoader.swift`.
+
+### New codec parsing
+- Add parser for the codec's configuration atom (e.g., in `Utils/Media/VideoInfoLoader.swift`).
+- Add FourCC → friendly name mapping in `Utils/Formatting/FormatUtils.swift` (`videoCodecMappings`).
+- See `Utils/Parsing/AV1Parser.swift` for a reference implementation of atom parsing.
+
+### Better chroma/bit depth detection
+- Prefer authoritative fields from codec configs over heuristics.
+- AV1 already extracts bit depth from `av1C` atom; similar approach works for HEVC/AVC.
+
+### HDR detection rules
+- Expand `detectHDRFormat(...)` in `Utils/Formatting/ColorUtils.swift` for additional transfer functions/primaries.
+- Currently supports: Dolby Vision, HDR10, HLG, PQ, Wide Color Gamut (BT.2020).
+
+### Audio metadata enhancements
+- Enhance `loadAudioInfo(asset:)` in `Utils/Media/AudioInfoLoader.swift` to parse audio codec config atoms.
+- Add Dolby Atmos detection, format profiles, etc.
+
+### Additional frame analysis
+- Add scene change detection using frame difference metrics in `Utils/Analysis/FrameAnalysis.swift`.
+- Compute GOP structure from keyframe intervals.
+- Track frame types (I/P/B) if decodable from sample attachments.
+

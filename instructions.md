@@ -136,7 +136,6 @@ FramePeek/
   - Coordinates async loading of metadata, frames, and keyframes.
   - Exposes published properties: `samples`, `extendedInfo`, `keyframeThumbs`, etc.
   - Supports configurable sampling modes (auto, everyFrame, interval).
-  - Supports bitrate visualization modes (second, frame, GOP).
   - Handles analysis cancellation and progress tracking.
   - Extensions: `+Sampling.swift`, `+Thumbnails.swift`, `+FileHandling.swift` organize related functionality.
 - **ViewModels/TabManager.swift** – `@MainActor` ObservableObject that manages multiple tabs:
@@ -209,7 +208,6 @@ Utilities are organized into subdirectories by category:
 
 - **FrameAggregation.swift** – Frame data aggregation utilities:
   - `aggregateFrames(rawFrames:mode:averageFPS:maxSamples:)` → aggregates raw frames into BitrateSamples
-  - Supports different visualization modes (second, frame, GOP)
   - Converts raw frame data to `BitrateSample` arrays for charting
 
 #### Utils/Extraction/ – Bitrate extraction
@@ -277,8 +275,7 @@ Utilities are organized into subdirectories by category:
   - **ExtendedVideoInfo** – All video metadata fields (see Data model section).
   - **AudioTrackInfo** – Per-track audio info (index, codec, channels, sampleRate, bitrate, language).
   - **FrameAnalysisResult** – Batch result with samples and FPS stats.
-  - **FrameSamplingOptions** – Configures sampling behavior (interval, maxSamples, emitEveryNSamples, visualizationMode, formatAccuracyMode).
-  - **BitrateVisualizationMode** – Enum for bitrate aggregation: `.second`, `.frame`, `.gop`.
+  - **FrameSamplingOptions** – Configures sampling behavior (interval, maxSamples, emitEveryNSamples, formatAccuracyMode).
   - **FormatAccuracyMode** – Enum for format-specific accuracy: `.performance`, `.balanced`, `.accuracy`.
   - **AV1ConfigSummary** – Parsed AV1 configuration.
   - **KeyframeMarker** – Keyframe position and metadata.
@@ -393,16 +390,6 @@ The app supports three sampling modes (configured via `MediaInspectorViewModel`)
 - **everyFrame** – Sample every frame (up to `maxSamples`).
 - **interval** – Sample at fixed time intervals.
 
-### Bitrate Visualization Modes
-
-The app supports three visualization modes for aggregating bitrate data:
-
-- **second** – Aggregate bitrate per second (default).
-- **frame** – Show bitrate per individual frame.
-- **gop** – Aggregate by Group of Pictures (GOP) boundaries.
-
-Visualization mode is configured via `MediaInspectorViewModel.visualizationMode` and affects how `FrameAggregation` processes raw frame data into `BitrateSample` arrays.
-
 ### Progressive extraction via AsyncStream
 
 ```swift
@@ -416,7 +403,6 @@ for await update in extractBitratesFast(asset: asset, options: options) {
 
 The `options` parameter includes `FrameSamplingOptions` which specifies:
 - Sampling mode (auto/everyFrame/interval)
-- Visualization mode (second/frame/gop)
 - Accuracy preference (cursor vs reader-based extraction)
 - Format accuracy mode (performance/balanced/accuracy)
 - Maximum samples and batch sizes
@@ -460,13 +446,6 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 - **Resizable Inspector** – Inspector width is configurable via SwiftUI's inspector modifier.
 - Inspector visibility can be toggled via `Cmd+I` keyboard shortcut.
 - Inspector uses native SwiftUI inspector panel with collapsible sections.
-
-### Bitrate Visualization Modes
-
-- Support for different aggregation strategies: per-second, per-frame, or per-GOP.
-- Configurable via `MediaInspectorViewModel.visualizationMode`.
-- Affects how raw frame data is aggregated into chart samples.
-- Can be changed dynamically and samples are re-aggregated from raw frames.
 
 ### Video Player
 
@@ -552,7 +531,6 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 - Add scene change detection using frame difference metrics in `Utils/Analysis/FrameAnalysis.swift`.
 - Compute GOP structure from keyframe intervals.
 - Track frame types (I/P/B) if decodable from sample attachments.
-- Add new visualization modes in `Models/MediaModels.swift` (`BitrateVisualizationMode`).
 
 ### Placeholder fields to populate
 
