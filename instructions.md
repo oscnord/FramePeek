@@ -21,8 +21,8 @@ FramePeek is a macOS SwiftUI application that inspects local media files and ext
 
 - Primary flow
   - Input: A file URL is selected via NSOpenPanel → turned into an AVURLAsset.
-  - Orchestration: `FramePeekViewModel` coordinates loading via `getExtendedInfo(url:asset:)`.
-  - Frame Analysis: `extractFramesStream(asset:options:)` provides progressive bitrate sampling.
+  - Orchestration: `MediaInspectorViewModel` coordinates loading via `getExtendedInfo(url:asset:)`.
+  - Frame Analysis: `extractBitratesFast(asset:options:)` provides progressive bitrate sampling.
   - Keyframe Detection: `extractKeyframes(asset:)` identifies sync samples (I-frames).
   - Output: `ExtendedVideoInfo` model and `[BitrateSample]` for UI consumption.
 
@@ -41,11 +41,11 @@ FramePeek/
 │   └── MediaModels.swift            # ExtendedVideoInfo, AudioTrackInfo, etc.
 │
 ├── ViewModels/                      # ViewModels and extensions
-│   ├── FramePeekViewModel.swift      # @MainActor ViewModel, coordinates all loading
-│   ├── FramePeekViewModel+Keyframes.swift    # Keyframe extraction logic
-│   ├── FramePeekViewModel+Sampling.swift     # Frame sampling logic
-│   ├── FramePeekViewModel+Thumbnails.swift   # Thumbnail generation logic
-│   ├── FramePeekViewModel+FileHandling.swift # File loading and tab choice handling
+│   ├── MediaInspectorViewModel.swift           # @MainActor ViewModel, coordinates all loading
+│   ├── MediaInspectorViewModel+FileHandling.swift # File loading and tab choice handling
+│   ├── MediaInspectorViewModel+Sampling.swift  # Frame sampling logic
+│   ├── MediaInspectorViewModel+Thumbnails.swift # Thumbnail generation logic
+│   ├── PlayerViewModelManager.swift  # Video player view model manager
 │   └── TabManager.swift             # Multi-tab management
 │
 ├── Views/                           # UI components organized by feature
@@ -57,12 +57,14 @@ FramePeek/
 │   │
 │   ├── Common/                      # Shared UI components
 │   │   ├── AboutView.swift                 # About dialog
-│   │   ├── InspectorColumn.swift           # Inspector panel container
+│   │   ├── LiquidGlassToolbarButton.swift # Toolbar button styling
+│   │   ├── NoTopInsetScrollView.swift      # Scroll view without top inset
 │   │   ├── ResizeHandle.swift              # Resizable inspector handle
-│   │   ├── SamplingSheet.swift           # Sampling configuration sheet
+│   │   ├── SafeProgressView.swift          # Progress view component
 │   │   ├── SettingsView.swift              # Settings/preferences view
-│   │   ├── TabBarView.swift                # Tab bar UI component
-│   │   └── TabChoiceDialog.swift           # Dialog for choosing tab when file already open
+│   │   ├── SidebarTabBarView.swift         # Sidebar tab bar UI component
+│   │   ├── TabChoiceDialog.swift           # Dialog for choosing tab when file already open
+│   │   └── TimelineView.swift              # Timeline zoom control for charts
 │   │
 │   ├── Inspector/                   # Inspector panel
 │   │   ├── InfoInspectorView/              # Main inspector components
@@ -79,10 +81,10 @@ FramePeek/
 │   │   ├── InfoInspectorView+Copy.swift    # Copy functionality extensions
 │   │   └── InfoInspectorView+Header.swift  # Header component extensions
 │   │
-│   └── Keyframes/                   # Keyframe visualization
-│       ├── KeyframeTimelineView.swift      # Timeline visualization
-│       ├── KeyframeTimelineDragHandling.swift # Timeline drag interactions
-│       └── KeyframeThumbnailStrip.swift    # Thumbnail strip component
+│   ├── Keyframes/                   # Keyframe visualization
+│   │   └── KeyframeThumbnailStrip.swift    # Thumbnail strip component
+│   └── Player/                      # Video player
+│       └── VideoPlayerView.swift           # Video player view with statistics overlay
 │
 └── Utils/                           # Core utilities organized by category
     ├── Analysis/                    # Frame and bitrate analysis
@@ -93,22 +95,34 @@ FramePeek/
     ├── Extraction/                  # Bitrate extraction
     │   ├── FastBitrateExtractor.swift      # Optimized bitrate extraction
     │   ├── FastBitrateExtractor+Cursor.swift # Cursor-based extraction
-    │   └── FastBitrateExtractor+Reader.swift # Reader-based extraction
+    │   ├── FastBitrateExtractor+Reader.swift # Reader-based extraction
+    │   ├── FormatDetector.swift            # Format detection utilities
+    │   ├── FragmentedMP4Extractor.swift    # Fragmented MP4 extraction
+    │   └── TSBitrateExtractor.swift        # Transport Stream extraction
     │
     ├── Formatting/                  # Formatting and display utilities
     │   ├── AspectRatioUtils.swift          # Aspect ratio calculations
     │   ├── ColorUtils.swift                # HDR detection, color metadata helpers
+    │   ├── DesignSystem.swift              # Design system constants and utilities
     │   ├── FormatUtils.swift               # FourCC, duration, codec name utilities
     │   └── VideoUtils.swift                # File size and bitrate utilities
     │
     ├── Media/                       # Media loading and processing
     │   ├── AudioInfoLoader.swift           # Audio track loading
     │   ├── GenerateKeyframeThumbnails.swift # Thumbnail generation
-    │   └── VideoInfoLoader.swift           # Main metadata extraction orchestrator
+    │   ├── VideoInfoLoader.swift           # Main metadata extraction orchestrator
+    │   ├── VideoInfoLoader+AV1.swift       # AV1-specific parsing
+    │   ├── VideoInfoLoader+BasicInfo.swift # Basic video info extraction
+    │   ├── VideoInfoLoader+Codec.swift     # Codec configuration parsing
+    │   ├── VideoInfoLoader+Color.swift     # Color and HDR info extraction
+    │   ├── VideoInfoLoader+Duration.swift  # Duration extraction
+    │   ├── VideoInfoLoader+Metadata.swift  # Metadata extraction
+    │   └── VideoInfoLoader+VideoTrack.swift # Video track info extraction
     │
     └── Parsing/                     # Codec and format parsing
         ├── AV1Parser.swift                 # AV1 codec configuration parsing
-        └── KeyframeMarker.swift            # Keyframe detection
+        ├── KeyframeMarker.swift            # Keyframe detection
+        └── VUIParser.swift                 # Video Usability Information parsing
 ```
 
 ## Key modules and responsibilities
@@ -116,20 +130,21 @@ FramePeek/
 ### UI Layer
 
 - **FramePeekApp.swift** – App entry point with `@main`. Creates `TabManager` and provides it via `@EnvironmentObject`.
-- **FramePeek.swift** – Main window layout and structure with drag-and-drop support. Manages inspector panel visibility and width via `@AppStorage`. Integrates with `TabManager` for multi-tab support.
-- **ViewModels/FramePeekViewModel.swift** – `@MainActor` ViewModel that:
-  - Manages file selection via `openFileDialog()` and `pickFile()`.
+- **FramePeek.swift** – Main window layout and structure with drag-and-drop support. Manages inspector panel visibility via `@State`. Integrates with `TabManager` for multi-tab support.
+- **ViewModels/MediaInspectorViewModel.swift** – `@MainActor` ViewModel that:
+  - Manages file selection via `pickFile()`.
   - Coordinates async loading of metadata, frames, and keyframes.
-  - Exposes published properties: `samples`, `extendedInfo`, `keyframes`, `keyframeThumbs`, etc.
+  - Exposes published properties: `samples`, `extendedInfo`, `keyframeThumbs`, etc.
   - Supports configurable sampling modes (auto, everyFrame, interval).
   - Supports bitrate visualization modes (second, frame, GOP).
   - Handles analysis cancellation and progress tracking.
-  - Extensions: `+Keyframes.swift`, `+Sampling.swift`, `+Thumbnails.swift`, `+FileHandling.swift` organize related functionality.
+  - Extensions: `+Sampling.swift`, `+Thumbnails.swift`, `+FileHandling.swift` organize related functionality.
 - **ViewModels/TabManager.swift** – `@MainActor` ObservableObject that manages multiple tabs:
-  - Each tab has its own `FramePeekViewModel` instance.
+  - Each tab has its own `MediaInspectorViewModel` instance.
   - Tracks tab selection, creation, and removal.
   - Updates tab display names based on loaded files.
   - Handles tab switching and cleanup when tabs are closed.
+- **ViewModels/PlayerViewModelManager.swift** – Manages the active ViewModel for the video player window, allowing the player to sync with the currently selected tab.
 
 ### Views Organization
 
@@ -140,12 +155,14 @@ FramePeek/
   - **BitrateChartStatistics.swift** – Statistics overlay for chart.
 - **Views/Common/** – Shared components:
   - **AboutView.swift** – About dialog with app information and features.
-  - **InspectorColumn.swift** – Container view for the inspector panel with header.
+  - **LiquidGlassToolbarButton.swift** – Toolbar button with liquid glass styling.
+  - **NoTopInsetScrollView.swift** – Scroll view without top inset.
   - **ResizeHandle.swift** – Drag handle for resizing inspector width.
-  - **SamplingSheet.swift** – Configuration sheet for sampling options.
+  - **SafeProgressView.swift** – Progress view component.
   - **SettingsView.swift** – Settings/preferences view with appearance, inspector, and sampling mode options.
-  - **TabBarView.swift** – Tab bar UI component for displaying and managing multiple tabs.
+  - **SidebarTabBarView.swift** – Sidebar tab bar UI component for displaying and managing multiple tabs.
   - **TabChoiceDialog.swift** – Dialog shown when attempting to open a file in a tab that already has a file loaded.
+  - **TimelineView.swift** – Interactive timeline for zooming into specific time ranges in the chart.
 - **Views/Inspector/** – Inspector panel:
   - **InfoInspectorView/InfoInspectorView.swift** – Main inspector view orchestrating all metadata display.
   - **InfoInspectorView/QuickSummaryCard.swift** – Summary card with key metrics.
@@ -160,9 +177,9 @@ FramePeek/
   - **InfoInspectorView+Copy.swift** – Copy functionality extensions.
   - **InfoInspectorView+Header.swift** – Header component extensions.
 - **Views/Keyframes/** – Keyframe visualization:
-  - **KeyframeTimelineView.swift** – Timeline visualization of keyframe positions.
-  - **KeyframeTimelineDragHandling.swift** – Drag interactions for timeline navigation.
-  - **KeyframeThumbnailStrip.swift** – Horizontal strip of keyframe thumbnails.
+  - **KeyframeThumbnailStrip.swift** – Horizontal scrollable strip of keyframe thumbnails with GOP interval display.
+- **Views/Player/** – Video player:
+  - **VideoPlayerView.swift** – Video player view using AVPlayer with statistics overlay showing resolution, frame rate, current time, and bitrate.
 
 ### Core Utilities (Utils/)
 
@@ -184,28 +201,35 @@ Utilities are organized into subdirectories by category:
 
 #### Utils/Analysis/ – Frame and bitrate analysis
 
-- **ExtractFramesStream.swift** – AsyncStream-based frame extraction:
-  - `extractFramesStream(asset:options:)` → yields `FrameAnalysisUpdate` progressively
-  - Supports `BitrateVisualizationMode` (second, frame, GOP) for different aggregation strategies
+- **ExtractFramesStream.swift** – AsyncStream-based frame extraction utilities (used internally by FastBitrateExtractor).
 
-- **FrameAnalysis.swift** – Frame rate statistics and extraction:
+- **FrameAnalysis.swift** – Frame rate statistics and extraction utilities:
   - `frameRateStats(from:)` → average FPS, min/max intervals
-  - `startFrameExtractionProgressive(asset:...)` → progressive updates
-  - `extractFrames(asset:maxSamples:completion:)` → batch extraction
+  - Frame extraction helpers for progressive updates
 
 - **FrameAggregation.swift** – Frame data aggregation utilities:
-  - Aggregates frame samples and computes statistics based on visualization mode.
-  - Converts raw frame data to `BitrateSample` arrays for charting.
+  - `aggregateFrames(rawFrames:mode:averageFPS:maxSamples:)` → aggregates raw frames into BitrateSamples
+  - Supports different visualization modes (second, frame, GOP)
+  - Converts raw frame data to `BitrateSample` arrays for charting
 
 #### Utils/Extraction/ – Bitrate extraction
 
-- **FastBitrateExtractor.swift** – Optimized bitrate extraction:
-  - High-performance bitrate extraction with configurable accuracy.
-  - Supports both cursor-based and reader-based extraction paths.
+- **FastBitrateExtractor.swift** – Main bitrate extraction orchestrator:
+  - `extractBitratesFast(asset:options:)` → `AsyncStream<FrameAnalysisUpdate>`
+  - Routes to format-specific extractors based on detected container format
+  - High-performance bitrate extraction with configurable accuracy
+  - Supports both cursor-based and reader-based extraction paths
+  - Format-specific optimizations for MP4, fragmented MP4, and Transport Stream
 
-- **FastBitrateExtractor+Cursor.swift** – Cursor-based extraction implementation.
+- **FastBitrateExtractor+Cursor.swift** – Cursor-based extraction implementation (fast path).
 
 - **FastBitrateExtractor+Reader.swift** – Reader-based extraction implementation (more accurate, slower).
+
+- **FormatDetector.swift** – Detects media format for format-specific extraction optimizations.
+
+- **FragmentedMP4Extractor.swift** – Specialized extraction for fragmented MP4 files.
+
+- **TSBitrateExtractor.swift** – Specialized extraction for Transport Stream files with packet overhead accounting.
 
 #### Utils/Formatting/ – Formatting and display utilities
 
@@ -219,6 +243,7 @@ Utilities are organized into subdirectories by category:
   - `formatDuration(seconds:)` → human-readable duration
   - `channelLayoutDescription(channels:)` → "Stereo", "5.1", etc.
   - `audioCodecName(_:)` / `videoCodecName(_:)` → human-readable codec names
+  - `parseVP9Profile(_:)` → VP9 profile parsing
 
 - **ColorUtils.swift** – HDR and color metadata:
   - `detectHDRFormat(transferFunction:colorPrimaries:hasDolbyVisionConfig:)`
@@ -228,6 +253,10 @@ Utilities are organized into subdirectories by category:
   - `calculateDisplayAspectRatio(width:height:parH:parV:)`
   - `resolutionCategory(width:height:)` → "4K UHD", "Full HD", etc.
   - `gcd(_:_:)` – helper for ratio simplification
+
+- **DesignSystem.swift** – Design system constants:
+  - Colors, spacing, padding, corner radius, border widths
+  - Centralized design tokens for consistent UI styling
 
 #### Utils/Parsing/ – Codec and format parsing
 
@@ -239,14 +268,18 @@ Utilities are organized into subdirectories by category:
   - `extractKeyframes(asset:maxKeyframes:minSpacingSeconds:)` → `[KeyframeMarker]`
   - Uses `kCMSampleAttachmentKey_NotSync` to identify sync samples (I-frames).
 
+- **VUIParser.swift** – Video Usability Information parsing:
+  - Parses VUI parameters from codec configuration for additional metadata.
+
 ### Models
 
 - **Models/MediaModels.swift** – Core data models:
   - **ExtendedVideoInfo** – All video metadata fields (see Data model section).
   - **AudioTrackInfo** – Per-track audio info (index, codec, channels, sampleRate, bitrate, language).
   - **FrameAnalysisResult** – Batch result with samples and FPS stats.
-  - **FrameSamplingOptions** – Configures sampling behavior (interval, maxSamples, emitEveryNSamples, visualizationMode).
+  - **FrameSamplingOptions** – Configures sampling behavior (interval, maxSamples, emitEveryNSamples, visualizationMode, formatAccuracyMode).
   - **BitrateVisualizationMode** – Enum for bitrate aggregation: `.second`, `.frame`, `.gop`.
+  - **FormatAccuracyMode** – Enum for format-specific accuracy: `.performance`, `.balanced`, `.accuracy`.
   - **AV1ConfigSummary** – Parsed AV1 configuration.
   - **KeyframeMarker** – Keyframe position and metadata.
   - **KeyframeThumbnail** – Thumbnail image with associated time.
@@ -354,7 +387,7 @@ struct AudioTrackInfo {
 
 ## Frame Analysis Flow
 
-The app supports three sampling modes (configured via `FramePeekViewModel`):
+The app supports three sampling modes (configured via `MediaInspectorViewModel`):
 
 - **auto** – Automatic downsampling based on duration.
 - **everyFrame** – Sample every frame (up to `maxSamples`).
@@ -368,13 +401,14 @@ The app supports three visualization modes for aggregating bitrate data:
 - **frame** – Show bitrate per individual frame.
 - **gop** – Aggregate by Group of Pictures (GOP) boundaries.
 
-Visualization mode is configured via `FramePeekViewModel.visualizationMode` and affects how `FrameAggregation` processes raw frame data into `BitrateSample` arrays.
+Visualization mode is configured via `MediaInspectorViewModel.visualizationMode` and affects how `FrameAggregation` processes raw frame data into `BitrateSample` arrays.
 
 ### Progressive extraction via AsyncStream
 
 ```swift
-for await update in extractFramesStream(asset: asset, options: options) {
+for await update in extractBitratesFast(asset: asset, options: options) {
     // update.appendedSamples: new BitrateSample batch
+    // update.rawFrames: raw frame data for re-aggregation
     // update.averageFPS, minInterval, maxInterval: running stats
     // update.isFinished: true when complete
 }
@@ -384,7 +418,9 @@ The `options` parameter includes `FrameSamplingOptions` which specifies:
 - Sampling mode (auto/everyFrame/interval)
 - Visualization mode (second/frame/gop)
 - Accuracy preference (cursor vs reader-based extraction)
+- Format accuracy mode (performance/balanced/accuracy)
 - Maximum samples and batch sizes
+- Format-specific options (TS overhead accounting, segment boundary smoothing)
 
 ### Keyframe extraction
 
@@ -399,8 +435,8 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 
 ### Multi-Tab Support
 
-- **TabManager** – Manages multiple tabs, each with its own `FramePeekViewModel` instance.
-- **TabBarView** – Native-style tab bar UI for switching between tabs.
+- **TabManager** – Manages multiple tabs, each with its own `MediaInspectorViewModel` instance.
+- **SidebarTabBarView** – Sidebar-style tab bar UI for switching between tabs.
 - **TabChoiceDialog** – Prompts users to choose between opening a file in the current tab or a new tab when a file is already loaded.
 - Tabs can be created, closed, and switched independently.
 - Each tab maintains its own analysis state, samples, and keyframes.
@@ -421,21 +457,28 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 
 ### Inspector Panel Enhancements
 
-- **Resizable Inspector** – Users can drag the left edge to adjust inspector width (stored via `@AppStorage`).
-- **InspectorColumn** – Dedicated container component with header for better organization.
-- **SamplingSheet** – Dedicated configuration sheet for sampling options.
-- Inspector visibility persists across app launches via `@AppStorage`.
+- **Resizable Inspector** – Inspector width is configurable via SwiftUI's inspector modifier.
+- Inspector visibility can be toggled via `Cmd+I` keyboard shortcut.
+- Inspector uses native SwiftUI inspector panel with collapsible sections.
 
 ### Bitrate Visualization Modes
 
 - Support for different aggregation strategies: per-second, per-frame, or per-GOP.
-- Configurable via `FramePeekViewModel.visualizationMode`.
+- Configurable via `MediaInspectorViewModel.visualizationMode`.
 - Affects how raw frame data is aggregated into chart samples.
+- Can be changed dynamically and samples are re-aggregated from raw frames.
+
+### Video Player
+
+- **VideoPlayerView** – Separate window for video playback using AVPlayer.
+- **Statistics Overlay** – Real-time display of resolution, frame rate, current time, and bitrate at playback position.
+- **PlayerViewModelManager** – Manages synchronization between player window and active tab.
+- Customizable settings: auto-play, show controls, mute, statistics overlay position.
+- Statistics overlay is draggable and remembers position.
 
 ### ViewModel Organization
 
 - ViewModel logic split into extensions for better maintainability:
-  - `+Keyframes.swift` – Keyframe extraction and thumbnail generation.
   - `+Sampling.swift` – Frame sampling and analysis coordination.
   - `+Thumbnails.swift` – Thumbnail generation logic.
   - `+FileHandling.swift` – File loading, tab choice handling, and state management.
@@ -451,13 +494,14 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 ## Concurrency and performance
 
 - Uses Swift Concurrency (`async`/`await`) throughout.
-- `FramePeekViewModel` is `@MainActor` to safely update `@Published` properties.
+- `MediaInspectorViewModel` is `@MainActor` to safely update `@Published` properties.
 - Heavy work runs on `.userInitiated` priority via `Task.detached`.
 - Frame extraction uses `AsyncStream` for progressive UI updates.
 - `AVAssetReaderTrackOutput.alwaysCopiesSampleData = false` for performance.
 - Keyframe extraction avoids decoding by inspecting sample attachment flags.
 - Tasks are cancellable – the ViewModel cancels in-flight tasks when loading a new file.
 - Chart downsampling ensures smooth rendering even with thousands of data points.
+- Format-specific optimizations for different container formats (MP4, fragmented MP4, TS).
 
 ## Error handling and defaults
 

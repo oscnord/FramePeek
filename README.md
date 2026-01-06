@@ -2,8 +2,6 @@
 
 A professional macOS application for inspecting video and audio files with comprehensive metadata analysis, bitrate visualization, and keyframe detection.
 
-![FramePeek Screenshot](screenshot.png)
-
 ## Overview
 
 FramePeek is a native macOS application built with SwiftUI that leverages AVFoundation and CoreMedia to provide detailed analysis of media files. It offers an intuitive interface for examining video and audio properties, visualizing bitrate patterns, and exploring keyframe structures.
@@ -22,16 +20,22 @@ FramePeek is a native macOS application built with SwiftUI that leverages AVFoun
 - **Codec Detection**: AAC, AC-3, E-AC-3, MP3, Opus, and more
 
 ### Bitrate Analysis
-- **Interactive Charts**: Per-frame bitrate visualization with Swift Charts
+- **Interactive Charts**: Bitrate visualization with Swift Charts
 - **Flexible Sampling**: Automatic, fixed interval, or per-frame sampling modes
 - **Visualization Modes**: Aggregate bitrate by second, frame, or GOP (Group of Pictures)
 - **Progressive Updates**: Real-time bitrate analysis with streaming updates
 - **Performance Optimized**: Efficient frame extraction with configurable accuracy settings and LTTB downsampling
+- **Timeline Zoom**: Interactive timeline for zooming into specific time ranges
 
 ### Keyframe Detection
-- **Visual Timeline**: Timeline visualization of keyframe positions
-- **Thumbnail Strip**: Horizontal strip of keyframe thumbnails for quick navigation
+- **Thumbnail Strip**: Horizontal scrollable strip of keyframe thumbnails for quick navigation
 - **Sync Sample Detection**: Identifies I-frames (intra-coded frames) without decoding
+- **GOP Interval Display**: Shows Group of Pictures intervals for each keyframe
+
+### Video Player
+- **Built-in Player**: Play videos with AVPlayer integration
+- **Statistics Overlay**: Real-time display of resolution, frame rate, current time, and bitrate
+- **Customizable Controls**: Toggle controls, auto-play, and mute settings
 
 ## System Requirements
 
@@ -66,7 +70,6 @@ The project uses the following Apple frameworks (included with macOS):
 - **SwiftUI**: User interface
 - **AppKit**: macOS-specific features (file dialogs, images)
 - **Charts**: Interactive chart visualization (macOS 15.0+)
-- **Metal**: Graphics acceleration
 
 No external dependencies or package managers required.
 
@@ -76,31 +79,35 @@ No external dependencies or package managers required.
 
 1. **File Dialog**: Click the "Open…" button in the toolbar or press `Cmd+O`
 2. **Drag and Drop**: Drag a video or audio file onto the main window
-3. **Supported Formats**: MP4, MOV, AVI, MPEG, and other common media formats
+3. **Supported Formats**: MP4, MOV, AVI, MPEG, and other common media formats supported by AVFoundation
 
 ### Analysis Settings
 
-Before analyzing a file, you can configure sampling options:
+Configure sampling options in Settings:
 
 - **Automatic Mode**: Automatically determines optimal sampling based on video duration
 - **Fixed Interval**: Sample at regular time intervals (configurable)
-- **High Accuracy**: Enable for more precise bitrate measurements (may be slower)
+- **Per-Frame Mode**: Sample every frame (for high accuracy)
 - **Visualization Mode**: Choose how to aggregate bitrate data (per second, per frame, or per GOP)
+- **Accuracy Mode**: Balance between performance and accuracy (Performance, Balanced, Accuracy)
 
 ### Interface
 
-- **Main Chart**: Interactive bitrate visualization over time
-- **Inspector Panel**: Toggle with `Cmd+Option+I` or the sidebar button
+- **Main Chart**: Interactive bitrate visualization over time with zoomable timeline
+- **Inspector Panel**: Toggle with `Cmd+I` or the sidebar button
   - Quick summary card with key metrics
   - Collapsible sections for detailed metadata
   - Audio track information
-  - Keyframe timeline and thumbnails
-- **Resizable Inspector**: Drag the left edge of the inspector to adjust width
+  - Keyframe thumbnail strip
+- **Video Player**: Separate window for video playback with statistics overlay
+- **Tab Management**: Multiple tabs for analyzing different files simultaneously
 
 ### Keyboard Shortcuts
 
 - `Cmd+O`: Open file dialog
-- `Cmd+Option+I`: Toggle inspector panel
+- `Cmd+I`: Toggle inspector panel
+- `Cmd+T`: New tab
+- `Cmd+,`: Open settings
 - `Esc`: Cancel ongoing analysis
 
 ## Project Structure
@@ -109,30 +116,37 @@ Before analyzing a file, you can configure sampling options:
 FramePeek/
 ├── FramePeekApp.swift          # App entry point
 ├── FramePeek.swift              # Main window and UI
-├── fileUtils.swift                   # File dialog utilities
+├── fileUtils.swift              # File dialog utilities
 │
-├── Models/                           # Data models
-│   ├── BitrateSample.swift           # Bitrate data model
-│   └── MediaModels.swift             # ExtendedVideoInfo, AudioTrackInfo, etc.
+├── Models/                      # Data models
+│   ├── BitrateSample.swift      # Bitrate data model
+│   └── MediaModels.swift       # ExtendedVideoInfo, AudioTrackInfo, etc.
 │
-├── ViewModels/                       # ViewModels and extensions
-│   ├── FramePeekViewModel.swift      # ViewModel and state management
-│   ├── FramePeekViewModel+Keyframes.swift
-│   ├── FramePeekViewModel+Sampling.swift
-│   └── FramePeekViewModel+Thumbnails.swift
+├── ViewModels/                  # ViewModels and extensions
+│   ├── MediaInspectorViewModel.swift           # ViewModel and state management
+│   ├── MediaInspectorViewModel+FileHandling.swift
+│   ├── MediaInspectorViewModel+Sampling.swift
+│   ├── MediaInspectorViewModel+Thumbnails.swift
+│   ├── PlayerViewModelManager.swift
+│   └── TabManager.swift
 │
-├── Views/                            # UI components
-│   ├── Chart/                        # Bitrate chart components
+├── Views/                       # UI components
+│   ├── Chart/                   # Bitrate chart components
 │   │   ├── BitrateChartView.swift
 │   │   ├── BitrateChartComponents.swift
 │   │   ├── BitrateChartDownsampling.swift
 │   │   └── BitrateChartStatistics.swift
-│   ├── Common/                       # Shared components
+│   ├── Common/                  # Shared components
 │   │   ├── AboutView.swift
-│   │   ├── InspectorColumn.swift
+│   │   ├── LiquidGlassToolbarButton.swift
+│   │   ├── NoTopInsetScrollView.swift
 │   │   ├── ResizeHandle.swift
-│   │   └── SamplingSheet.swift
-│   ├── Inspector/                    # Inspector panel
+│   │   ├── SafeProgressView.swift
+│   │   ├── SettingsView.swift
+│   │   ├── SidebarTabBarView.swift
+│   │   ├── TabChoiceDialog.swift
+│   │   └── TimelineView.swift
+│   ├── Inspector/               # Inspector panel
 │   │   ├── InfoInspectorView/
 │   │   │   ├── InfoInspectorView.swift
 │   │   │   ├── QuickSummaryCard.swift
@@ -140,32 +154,44 @@ FramePeek/
 │   │   │   └── ...
 │   │   ├── InfoInspectorView+Copy.swift
 │   │   └── InfoInspectorView+Header.swift
-│   └── Keyframes/                    # Keyframe visualization
-│       ├── KeyframeTimelineView.swift
-│       ├── KeyframeTimelineDragHandling.swift
-│       └── KeyframeThumbnailStrip.swift
+│   ├── Keyframes/               # Keyframe visualization
+│   │   └── KeyframeThumbnailStrip.swift
+│   └── Player/                  # Video player
+│       └── VideoPlayerView.swift
 │
-└── Utils/                             # Core utilities
-    ├── Analysis/                     # Frame and bitrate analysis
+└── Utils/                       # Core utilities
+    ├── Analysis/                # Frame and bitrate analysis
     │   ├── ExtractFramesStream.swift
     │   ├── FrameAggregation.swift
     │   └── FrameAnalysis.swift
-    ├── Extraction/                    # Bitrate extraction
+    ├── Extraction/              # Bitrate extraction
     │   ├── FastBitrateExtractor.swift
     │   ├── FastBitrateExtractor+Cursor.swift
-    │   └── FastBitrateExtractor+Reader.swift
-    ├── Formatting/                    # Formatting utilities
+    │   ├── FastBitrateExtractor+Reader.swift
+    │   ├── FormatDetector.swift
+    │   ├── FragmentedMP4Extractor.swift
+    │   └── TSBitrateExtractor.swift
+    ├── Formatting/              # Formatting utilities
     │   ├── AspectRatioUtils.swift
     │   ├── ColorUtils.swift
+    │   ├── DesignSystem.swift
     │   ├── FormatUtils.swift
     │   └── VideoUtils.swift
-    ├── Media/                         # Media loading
+    ├── Media/                   # Media loading
     │   ├── AudioInfoLoader.swift
     │   ├── GenerateKeyframeThumbnails.swift
-    │   └── VideoInfoLoader.swift
-    └── Parsing/                       # Codec parsing
+    │   ├── VideoInfoLoader.swift
+    │   ├── VideoInfoLoader+AV1.swift
+    │   ├── VideoInfoLoader+BasicInfo.swift
+    │   ├── VideoInfoLoader+Codec.swift
+    │   ├── VideoInfoLoader+Color.swift
+    │   ├── VideoInfoLoader+Duration.swift
+    │   ├── VideoInfoLoader+Metadata.swift
+    │   └── VideoInfoLoader+VideoTrack.swift
+    └── Parsing/                 # Codec parsing
         ├── AV1Parser.swift
-        └── KeyframeMarker.swift
+        ├── KeyframeMarker.swift
+        └── VUIParser.swift
 ```
 
 ## Architecture
@@ -177,7 +203,7 @@ FramePeek follows a clean architecture pattern:
 - **Data Layer**: AVFoundation and CoreMedia for media access
 - **Concurrency**: Swift Concurrency (`async`/`await`) for all async operations
 
-The app uses progressive loading with `AsyncStream` to provide real-time updates during analysis, ensuring a responsive user experience even with large files.
+The app uses progressive loading with `AsyncStream` to provide real-time updates during analysis, ensuring a responsive user experience even with large files. Multiple tabs allow analyzing different files simultaneously, and the video player provides a separate window for playback with real-time statistics.
 
 ## Contributing
 
