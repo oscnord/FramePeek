@@ -74,6 +74,7 @@ struct VideoPreviewView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .aspectRatio(aspectRatio ?? 16/9, contentMode: .fit)
+                .border(DesignSystem.Colors.Semantic.secondary.opacity(0.4), width: DesignSystem.Borders.thin)
                 .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
                 .contentShape(Rectangle())
                 .onHover { hovering in

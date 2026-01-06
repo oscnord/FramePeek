@@ -14,12 +14,18 @@ struct VideoPlayerView: View {
     @AppStorage("playerShowControls") private var playerShowControls: Bool = true
     @AppStorage("playerShowStatistics") private var playerShowStatistics: Bool = true
     @AppStorage("playerMuted") private var playerMuted: Bool = false
+    @AppStorage("statisticsOverlayOffsetX") private var savedOffsetX: Double = 0
+    @AppStorage("statisticsOverlayOffsetY") private var savedOffsetY: Double = 0
     
     @State private var player: AVPlayer?
     @State private var currentTime: Double = 0
     @State private var isPlaying: Bool = false
     @State private var timeObserver: Any?
     @State private var duration: Double = 0
+    @State private var dragOffset: CGSize = .zero
+    @State private var overlaySize: CGSize = .zero
+    @State private var shouldInitializePosition: Bool = false
+    @State private var hasInitializedPosition: Bool = false
     
     var body: some View {
         ZStack {
@@ -28,6 +34,8 @@ struct VideoPlayerView: View {
                 AVPlayerViewRepresentable(player: player, showsControls: playerShowControls)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onAppear {
+                        // Reset overlay position when opening video player
+                        resetOverlayPosition()
                         // Delay setup slightly to ensure view is laid out
                         DispatchQueue.main.async {
                             setupPlayer(url: videoURL)
@@ -38,6 +46,8 @@ struct VideoPlayerView: View {
                     }
                     .onChange(of: manager.activeViewModel?.currentVideoURL) { oldValue, newValue in
                         if let newURL = newValue, newURL != oldValue {
+                            // Reset overlay position when loading new video
+                            resetOverlayPosition()
                             DispatchQueue.main.async {
                                 setupPlayer(url: newURL)
                             }
@@ -60,13 +70,70 @@ struct VideoPlayerView: View {
                 
                 // Statistics overlay
                 if playerShowStatistics {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            statisticsOverlay
-                                .padding(DesignSystem.Padding.lg)
-                            Spacer()
-                        }
+                    GeometryReader { geometry in
+                        statisticsOverlay
+                            .background(
+                                GeometryReader { overlayGeometry in
+                                    Color.clear
+                                        .onAppear {
+                                            overlaySize = overlayGeometry.size
+                                            initializePositionIfNeeded(geometry: geometry, overlaySize: overlayGeometry.size)
+                                        }
+                                        .onChange(of: overlayGeometry.size) { oldValue, newValue in
+                                            overlaySize = newValue
+                                            initializePositionIfNeeded(geometry: geometry, overlaySize: newValue)
+                                        }
+                                }
+                            )
+                            .contentShape(Rectangle())
+                            .offset(
+                                x: savedOffsetX + dragOffset.width,
+                                y: savedOffsetY + dragOffset.height
+                            )
+                            .highPriorityGesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        dragOffset = value.translation
+                                    }
+                                    .onEnded { value in
+                                        // Calculate new position
+                                        let newX = savedOffsetX + value.translation.width
+                                        let newY = savedOffsetY + value.translation.height
+                                        
+                                        // Calculate bounds (accounting for padding)
+                                        let padding = DesignSystem.Padding.lg
+                                        let minX = -geometry.size.width / 2 + overlaySize.width / 2 + padding
+                                        let maxX = geometry.size.width / 2 - overlaySize.width / 2 - padding
+                                        let minY = -geometry.size.height / 2 + overlaySize.height / 2 + padding
+                                        let maxY = geometry.size.height / 2 - overlaySize.height / 2 - padding
+                                        
+                                        // Check if position is outside visible bounds
+                                        let isOutsideBounds = newX < minX || newX > maxX || newY < minY || newY > maxY
+                                        
+                                        if isOutsideBounds {
+                                            // Reset to default position if dragged out of view
+                                            let horizontalPadding = DesignSystem.Padding.lg
+                                            let bottomPadding = DesignSystem.Padding.xl3 // Extra padding to avoid covering timeline
+                                            
+                                            // Calculate default bottom-left position
+                                            savedOffsetX = -geometry.size.width / 2 + overlaySize.width / 2 + horizontalPadding
+                                            savedOffsetY = geometry.size.height / 2 - overlaySize.height / 2 - bottomPadding
+                                        } else {
+                                            // Keep the constrained position
+                                            let constrainedX = max(minX, min(maxX, newX))
+                                            let constrainedY = max(minY, min(maxY, newY))
+                                            
+                                            savedOffsetX = constrainedX
+                                            savedOffsetY = constrainedY
+                                        }
+                                        
+                                        dragOffset = .zero
+                                    }
+                            )
+                            .position(
+                                x: geometry.size.width / 2,
+                                y: geometry.size.height / 2.2
+                            )
                     }
                 }
             } else {
@@ -139,6 +206,37 @@ struct VideoPlayerView: View {
         .padding(DesignSystem.Padding.md)
         .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.medium))
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous))
+    }
+    
+    // MARK: - Overlay Position
+    
+    private func resetOverlayPosition() {
+        savedOffsetX = 0
+        savedOffsetY = 0
+        dragOffset = .zero
+        shouldInitializePosition = true
+        hasInitializedPosition = false
+    }
+    
+    private func initializePositionIfNeeded(geometry: GeometryProxy, overlaySize: CGSize) {
+        // Only initialize if we explicitly need to reset, or if we've never initialized before
+        guard (shouldInitializePosition || !hasInitializedPosition),
+              overlaySize.width > 0 && overlaySize.height > 0,
+              geometry.size.width > 0 && geometry.size.height > 0 else {
+            return
+        }
+        
+        // Position at bottom-left (from center position)
+        // Since .position() centers the view, we offset to move it to bottom-left
+        let horizontalPadding = DesignSystem.Padding.lg
+        let bottomPadding = DesignSystem.Padding.xl2 // Extra padding to avoid covering timeline
+        
+        // Calculate offset from center to bottom-left
+        savedOffsetX = -geometry.size.width / 2 + overlaySize.width / 2 + horizontalPadding
+        savedOffsetY = geometry.size.height / 2 - overlaySize.height / 2 - bottomPadding
+        
+        shouldInitializePosition = false
+        hasInitializedPosition = true
     }
     
     // MARK: - Player Setup
