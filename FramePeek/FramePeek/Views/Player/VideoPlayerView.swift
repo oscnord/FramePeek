@@ -86,6 +86,9 @@ struct VideoPlayerView: View {
                                 }
                             )
                             .contentShape(Rectangle())
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                            .padding(.leading, DesignSystem.Padding.lg)
+                            .padding(.bottom, DesignSystem.Padding.xl3)
                             .offset(
                                 x: savedOffsetX + dragOffset.width,
                                 y: savedOffsetY + dragOffset.height
@@ -96,43 +99,39 @@ struct VideoPlayerView: View {
                                         dragOffset = value.translation
                                     }
                                     .onEnded { value in
-                                        // Calculate new position
-                                        let newX = savedOffsetX + value.translation.width
-                                        let newY = savedOffsetY + value.translation.height
+                                        // Calculate new offset (relative to bottom-left anchor with padding)
+                                        let newOffsetX = savedOffsetX + value.translation.width
+                                        let newOffsetY = savedOffsetY + value.translation.height
                                         
                                         // Calculate bounds (accounting for padding)
+                                        let horizontalPadding = DesignSystem.Padding.lg
+                                        let bottomPadding = DesignSystem.Padding.xl2
                                         let padding = DesignSystem.Padding.lg
-                                        let minX = -geometry.size.width / 2 + overlaySize.width / 2 + padding
-                                        let maxX = geometry.size.width / 2 - overlaySize.width / 2 - padding
-                                        let minY = -geometry.size.height / 2 + overlaySize.height / 2 + padding
-                                        let maxY = geometry.size.height / 2 - overlaySize.height / 2 - padding
+                                        
+                                        // Minimum position: can't go further left/up than the default position
+                                        let minOffsetX = -horizontalPadding
+                                        let minOffsetY = -(geometry.size.height - overlaySize.height - bottomPadding - padding)
+                                        
+                                        // Maximum position: can't go further right/down than the opposite corner
+                                        let maxOffsetX = geometry.size.width - overlaySize.width - horizontalPadding
+                                        let maxOffsetY = -bottomPadding
                                         
                                         // Check if position is outside visible bounds
-                                        let isOutsideBounds = newX < minX || newX > maxX || newY < minY || newY > maxY
+                                        let isOutsideBounds = newOffsetX < minOffsetX || newOffsetX > maxOffsetX || 
+                                                             newOffsetY < minOffsetY || newOffsetY > maxOffsetY
                                         
                                         if isOutsideBounds {
                                             // Reset to default position if dragged out of view
-                                            let horizontalPadding = DesignSystem.Padding.lg
-                                            let bottomPadding = DesignSystem.Padding.xl3 // Extra padding to avoid covering timeline
-                                            
-                                            // Calculate default bottom-left position
-                                            savedOffsetX = -geometry.size.width / 2 + overlaySize.width / 2 + horizontalPadding
-                                            savedOffsetY = geometry.size.height / 2 - overlaySize.height / 2 - bottomPadding
+                                            savedOffsetX = 0
+                                            savedOffsetY = 0
                                         } else {
                                             // Keep the constrained position
-                                            let constrainedX = max(minX, min(maxX, newX))
-                                            let constrainedY = max(minY, min(maxY, newY))
-                                            
-                                            savedOffsetX = constrainedX
-                                            savedOffsetY = constrainedY
+                                            savedOffsetX = max(minOffsetX, min(maxOffsetX, newOffsetX))
+                                            savedOffsetY = max(minOffsetY, min(maxOffsetY, newOffsetY))
                                         }
                                         
                                         dragOffset = .zero
                                     }
-                            )
-                            .position(
-                                x: geometry.size.width / 2,
-                                y: geometry.size.height / 2.2
                             )
                     }
                 }
@@ -226,14 +225,14 @@ struct VideoPlayerView: View {
             return
         }
         
-        // Position at bottom-left (from center position)
-        // Since .position() centers the view, we offset to move it to bottom-left
-        let horizontalPadding = DesignSystem.Padding.lg
-        let bottomPadding = DesignSystem.Padding.xl2 // Extra padding to avoid covering timeline
-        
-        // Calculate offset from center to bottom-left
-        savedOffsetX = -geometry.size.width / 2 + overlaySize.width / 2 + horizontalPadding
-        savedOffsetY = geometry.size.height / 2 - overlaySize.height / 2 - bottomPadding
+        // With frame alignment at bottom-leading, offsets are relative to that position
+        // Default position is already at bottom-left via frame alignment, so offsets start at 0
+        // Only set non-zero offsets if we have saved values from AppStorage
+        if shouldInitializePosition {
+            // Reset to default (bottom-left with padding)
+            savedOffsetX = 0
+            savedOffsetY = 0
+        }
         
         shouldInitializePosition = false
         hasInitializedPosition = true
