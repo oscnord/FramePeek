@@ -6,14 +6,14 @@ struct FramePeek: View {
     @Environment(\.openWindow) private var openWindow
     @StateObject private var tabManager = TabManager()
 
-    @AppStorage("inspectorWidth") private var inspectorWidth: Double = 380
-
     private let inspectorMin: Double = 280
     private let inspectorMax: Double = 520
     
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
     @State private var isProcessing: Bool = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+    @State private var isInspectorVisible: Bool = true
     
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
@@ -108,6 +108,10 @@ struct FramePeek: View {
             .onChange(of: tabManager.selectedTabId) {
                 DispatchQueue.main.async {
                     updateProcessingState()
+                    // Update player window if it's open
+                    if let currentViewModel = currentViewModel {
+                        PlayerViewModelManager.shared.setActiveViewModel(currentViewModel)
+                    }
                 }
             }
             .onAppear {
@@ -118,17 +122,16 @@ struct FramePeek: View {
     }
     
     private var mainContent: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarTabBarView(tabManager: tabManager)
-            .toolbar { newTabToolbarContent }
+                .toolbar { newTabToolbarContent }
+                .navigationSplitViewColumnWidth(min: 200, ideal: 200)
         } detail: {
-            // Detail view with main content and inspector
-            ZStack(alignment: .trailing) {
-                // Main content area - rendered first so it's behind the inspector
+            // Main content area
+            Group {
                 if let viewModel = currentViewModel {
                     BitrateChartView(viewModel: viewModel)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.trailing, CGFloat(inspectorWidth))
                         .contentShape(Rectangle())
                         .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
                         .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
@@ -138,36 +141,33 @@ struct FramePeek: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                
-                // Inspector - rendered last so it appears on top (always visible)
+            }
+            .inspector(isPresented: $isInspectorVisible) {
                 if let viewModel = currentViewModel {
-                    InspectorColumn(
-                        width: CGFloat(inspectorWidth)
-                    ) {
-                        InfoInspectorView(viewModel: viewModel)
-                    }
-                    .frame(maxHeight: .infinity, alignment: .trailing)
-                    .overlay(alignment: .leading) {
-                        // Optional: resize handle (feels like pro apps)
-                        ResizeHandle(
-                            minWidth: inspectorMin,
-                            maxWidth: inspectorMax,
-                            width: $inspectorWidth
-                        )
-                        .offset(x: -4) // sits just on top of divider
-                    }
-                    .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
+                    InfoInspectorView(viewModel: viewModel)
+                        .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
+                } else {
+                    EmptyInspectorState()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationSplitViewStyle(.balanced)
-        .navigationSplitViewColumnWidth(min: 200, ideal: 200)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+
+        ToolbarItem(placement: .confirmationAction) {
+            Button {
+                appViewModel.showSettingsView = true
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+            .keyboardShortcut(",", modifiers: [.command])
+            .transition(.move(edge: .trailing).combined(with: .opacity))
+        }
+        
         ToolbarItem(placement: .confirmationAction) {
             Button {
                 // Check for untitled tab first, then open file picker
@@ -183,12 +183,19 @@ struct FramePeek: View {
         }
         
         ToolbarItem(placement: .confirmationAction) {
+            Spacer()
+        }
+        
+        ToolbarItem(placement: .confirmationAction) {
             Button {
-                appViewModel.showSettingsView = true
+                withAnimation {
+                    isInspectorVisible.toggle()
+                }
             } label: {
-                Label("Settings", systemImage: "gearshape")
+                Label(isInspectorVisible ? "Hide Inspector" : "Show Inspector",
+                      systemImage: "sidebar.right")
             }
-            .keyboardShortcut(",", modifiers: [.command])
+            .keyboardShortcut("i", modifiers: [.command])
             .transition(.move(edge: .trailing).combined(with: .opacity))
         }
     }
@@ -443,3 +450,4 @@ private struct TabNameObserver: View {
     FramePeek()
         .environmentObject(FramePeekViewModel())
 }
+

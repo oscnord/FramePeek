@@ -18,7 +18,7 @@ struct QuickSummaryCard: View {
                 SummaryItem(label: "Bitrate", value: info.overallBitrate, icon: "arrow.up.arrow.down")
             }
         }
-        .padding(12)
+        .padding(DesignSystem.Padding.md) // Use design system padding for consistency
     }
 }
 

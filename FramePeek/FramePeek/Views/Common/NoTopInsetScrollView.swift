@@ -27,6 +27,16 @@ struct NoTopInsetScrollView<Content: View>: NSViewRepresentable {
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         
         scrollView.documentView = hostingView
+
+        // Add width constraint to match scroll view's content view width
+        // This ensures the SwiftUI content knows its available width for proper text wrapping
+        NSLayoutConstraint.activate([
+            hostingView.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
+            hostingView.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
+            hostingView.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
+            hostingView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor)
+        ])
+
         
         context.coordinator.hostingView = hostingView
         context.coordinator.scrollView = scrollView

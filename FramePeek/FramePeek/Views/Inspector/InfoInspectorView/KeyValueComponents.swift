@@ -13,7 +13,7 @@ struct KV: View {
     }
 
     var body: some View {
-        HStack(alignment: .top) {
+        HStack(alignment: .top, spacing: 8) {
             Text(key)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -24,6 +24,7 @@ struct KV: View {
                 .foregroundStyle(.primary)
                 .if(monospace) { $0.monospaced() }
                 .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -47,6 +48,7 @@ struct KVMultiline: View {
                 .font(.caption)
                 .foregroundStyle(.primary)
                 .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

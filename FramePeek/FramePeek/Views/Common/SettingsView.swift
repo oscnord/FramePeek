@@ -127,13 +127,17 @@ struct SettingsView: View {
     @AppStorage("maxThumbnails") private var maxThumbnails: Int = 200
     @AppStorage("thumbnailSize") private var thumbnailSize: ThumbnailSize = .medium
     
+    // Player settings
+    @AppStorage("playerAutoPlay") private var playerAutoPlay: Bool = false
+    @AppStorage("playerShowControls") private var playerShowControls: Bool = true
+    @AppStorage("playerShowStatistics") private var playerShowStatistics: Bool = true
+    
     // Chart Display settings
     @AppStorage("chartMaxDisplayPoints") private var chartMaxDisplayPoints: Int = 1_000
     @AppStorage("chartMaxDisplayPointsZoomed") private var chartMaxDisplayPointsZoomed: Int = 2_000
     @AppStorage("emitEveryNSamples") private var emitEveryNSamples: Int = 100
     
     // UI Preferences (for reset buttons)
-    @AppStorage("inspectorWidth") private var inspectorWidth: Double = 380
     @AppStorage("sidebarTabBarWidth") private var sidebarTabBarWidth: Double = 200
     @AppStorage("showTabCloseButton") private var showTabCloseButton: Bool = true
     
@@ -244,22 +248,12 @@ struct SettingsView: View {
                     Divider()
                     
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                        Text("Reset UI Layout")
-                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                        
-                        HStack(spacing: DesignSystem.Spacing.md) {
-                            Button(String(localized: "Reset Sidebar Width")) {
-                                sidebarTabBarWidth = 200
-                            }
-                            .buttonStyle(.bordered)
-                            
-                            Button(String(localized: "Reset Inspector Width")) {
-                                inspectorWidth = 380
-                            }
-                            .buttonStyle(.bordered)
+                        Button(String(localized: "Reset Sidebar Width")) {
+                            sidebarTabBarWidth = 200
                         }
+                        .buttonStyle(.bordered)
                         
-                        Text("Reset panel widths to their default values.")
+                        Text("Reset sidebar width to its default value.")
                             .font(.system(size: DesignSystem.Typography.footnote))
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     }
@@ -436,6 +430,41 @@ struct SettingsView: View {
                         .pickerStyle(.menu)
                         
                         Text("Size of generated thumbnails. Larger sizes use more memory but provide better detail.")
+                            .font(.system(size: DesignSystem.Typography.footnote))
+                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                    }
+                }
+            }
+            
+            SettingsSection(title: "Video Player") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                        Toggle("Auto-play", isOn: $playerAutoPlay)
+                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
+                        
+                        Text("Automatically start playback when the player window opens.")
+                            .font(.system(size: DesignSystem.Typography.footnote))
+                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                    }
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                        Toggle("Show Playback Controls", isOn: $playerShowControls)
+                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
+                        
+                        Text("Show play/pause and seek controls in the player window.")
+                            .font(.system(size: DesignSystem.Typography.footnote))
+                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                    }
+                    
+                    Divider()
+                    
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                        Toggle("Show Statistics", isOn: $playerShowStatistics)
+                            .font(.system(size: DesignSystem.Typography.body, weight: .medium))
+                        
+                        Text("Display real-time statistics overlay (time, bitrate, resolution, frame rate) during playback.")
                             .font(.system(size: DesignSystem.Typography.footnote))
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     }

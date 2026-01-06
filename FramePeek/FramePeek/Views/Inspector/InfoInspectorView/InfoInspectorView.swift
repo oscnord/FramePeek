@@ -29,10 +29,14 @@ struct InfoInspectorView: View {
                             .frame(height: DesignSystem.Padding.lg2)
                         
                         header(info: info)
-                        actionBar(info: info)
                         
                         // Quick Summary Card (always visible)
                         QuickSummaryCard(info: info)
+                        
+                        // Video Preview (thumbnail)
+                        VideoPreviewView(viewModel: viewModel)
+                            .frame(maxHeight: 300)
+                            .frame(maxWidth: .infinity)
                         
                         // Collapsible sections
                         VStack(spacing: 12) {
@@ -150,8 +154,8 @@ struct InfoInspectorView: View {
                             }
                         }
                     }
-                    .padding(.leading, DesignSystem.Padding.md3)
-                    .padding(.trailing, DesignSystem.Padding.lg)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, DesignSystem.Padding.md) // Consistent horizontal padding for all content
                     .padding(.bottom, DesignSystem.Padding.md3)
                 }
                 .overlay(alignment: .top) {

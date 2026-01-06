@@ -111,6 +111,9 @@ extension FramePeekViewModel {
 
         // reset state for new asset
         resetStateForNewAsset()
+        
+        // Store current video URL for player window
+        currentVideoURL = url
 
         // Start all tasks in parallel with detached tasks for true background processing
         infoTask = Task.detached(priority: .userInitiated) { [weak self] in
@@ -121,6 +124,10 @@ extension FramePeekViewModel {
             await MainActor.run {
                 self.extendedInfo = info
                 self.durationSeconds = duration
+                // Update player window if it's open and this is the active ViewModel
+                if PlayerViewModelManager.shared.activeViewModel === self {
+                    PlayerViewModelManager.shared.setActiveViewModel(self)
+                }
             }
         }
         
@@ -153,6 +160,7 @@ extension FramePeekViewModel {
         isAnalyzing = true
         keyframeThumbs = []
         isGeneratingThumbnails = false
+        currentVideoURL = nil
     }
 
     func cancelAnalysis() {
@@ -174,6 +182,7 @@ extension FramePeekViewModel {
         visibleTimeRange = nil
         durationSeconds = 0
         isGeneratingThumbnails = false
+        currentVideoURL = nil
     }
 }
 

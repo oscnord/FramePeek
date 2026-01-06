@@ -69,13 +69,10 @@ struct LeadingRoundedRectangle: Shape {
 }
 
 struct InspectorColumn<Content: View>: View {
-    let width: CGFloat
     @ViewBuilder var content: Content
 
     var body: some View {
         content
-            .frame(width: width)
-            .frame(maxHeight: .infinity)
     }
 }
 

@@ -56,7 +56,7 @@ struct CollapsibleSection<Content: View>: View {
                     content
                 }
                 .padding(.top, 8)
-                .padding(.leading, 20)
+                .padding(.leading, DesignSystem.Padding.md2) // Use design system padding instead of fixed value
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }

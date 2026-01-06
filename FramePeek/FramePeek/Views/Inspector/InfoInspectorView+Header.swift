@@ -9,16 +9,19 @@ extension InfoInspectorView {
                 .font(.headline)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 6) {
                 Text("\(info.resolution) • \(info.codec)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    func actionBar(info: ExtendedVideoInfo) -> some View {
+    func actionBar(info: ExtendedVideoInfo, onClose: (() -> Void)? = nil) -> some View {
         HStack(spacing: 8) {
             Button {
                 copyAll(info: info)
@@ -45,8 +48,21 @@ extension InfoInspectorView {
             .buttonStyle(.bordered)
             .controlSize(.small)
 
-            Spacer()
+            Spacer(minLength: 0)
+            
+            if let onClose = onClose {
+                Button {
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Hide Inspector")
+            }
         }
+        .frame(maxWidth: .infinity)
     }
     
     func expandAll() {

@@ -29,6 +29,9 @@ struct FramePeekApp: App {
                 }
                 .keyboardShortcut(",", modifiers: [.command])
             }
+            
+            InspectorCommands()
+            SidebarCommands()
         }
         
         WindowGroup(id: "settings") {
@@ -38,6 +41,14 @@ struct FramePeekApp: App {
         }
         .windowStyle(.automatic)
         .defaultSize(width: 700, height: 600)
+        
+        WindowGroup(id: "videoPlayer") {
+            VideoPlayerView()
+                .preferredColorScheme(appearanceMode.colorScheme)
+                .animation(.easeInOut(duration: 0.3), value: appearanceMode)
+        }
+        .windowStyle(.automatic)
+        .defaultSize(width: 800, height: 600)
     }
 }
 

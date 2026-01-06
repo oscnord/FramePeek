@@ -110,6 +110,7 @@ final class FramePeekViewModel: ObservableObject {
     
     var pendingURL: URL?
     private var currentURL: URL?  // Store current URL for re-analysis
+    @Published var currentVideoURL: URL?  // Current video URL for player window
     var rawFrames: [RawFrame] = []  // Store raw frame data for re-aggregation
     var infoTask: Task<Void, Never>?
     var thumbnailTask: Task<Void, Never>?
