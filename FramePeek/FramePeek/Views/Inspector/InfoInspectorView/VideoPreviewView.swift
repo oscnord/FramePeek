@@ -31,9 +31,10 @@ struct VideoPreviewView: View {
                         Image(nsImage: image)
                             .resizable()
                             .aspectRatio(aspectRatio ?? 16/9, contentMode: .fill)
+                            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
                     } else {
                         // Loading placeholder
-                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
                             .fill(DesignSystem.Materials.thin)
                             .overlay {
                                 ProgressView()
@@ -74,9 +75,9 @@ struct VideoPreviewView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .aspectRatio(aspectRatio ?? 16/9, contentMode: .fit)
-                .border(DesignSystem.Colors.Semantic.secondary.opacity(0.4), width: DesignSystem.Borders.thin)
-                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
+                .border(DesignSystem.Colors.Semantic.secondary.opacity(0.2), width: DesignSystem.Borders.thin)
                 .contentShape(Rectangle())
+                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
                 .onHover { hovering in
                     isHovering = hovering
                 }
@@ -97,7 +98,7 @@ struct VideoPreviewView: View {
                 }
             } else {
                 // Placeholder when no video
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
                     .fill(DesignSystem.Materials.thin)
                     .frame(maxWidth: .infinity)
                     .aspectRatio(16/9, contentMode: .fit) // Default aspect ratio
