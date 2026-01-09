@@ -24,10 +24,6 @@ final class PurchaseManager: ObservableObject {
         }
     }
     
-    deinit {
-        updateListenerTask?.cancel()
-    }
-    
     private func loadPurchaseState() {
         // Load cached state from UserDefaults (for performance)
         // StoreKit is the source of truth and will verify on app launch
