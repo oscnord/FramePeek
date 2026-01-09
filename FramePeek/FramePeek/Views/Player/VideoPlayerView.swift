@@ -148,6 +148,7 @@ struct VideoPlayerView: View {
             }
         }
         .frame(minWidth: 400, minHeight: 300)
+        .navigationTitle(viewModel?.extendedInfo?.fileName ?? "Video Player")
     }
     
     // MARK: - Statistics Overlay
