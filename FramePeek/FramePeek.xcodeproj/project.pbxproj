@@ -10,7 +10,8 @@
 		552AB1442D60CB1A00A4C7B5 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1432D60CB1A00A4C7B5 /* AVFoundation.framework */; };
 		552AB1462D60CB3B00A4C7B5 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1452D60CB3B00A4C7B5 /* Charts.framework */; };
 		552AB1482D60CB4400A4C7B5 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1472D60CB4400A4C7B5 /* AppKit.framework */; };
-		552AB14A2D60CBEC00A4C7B5 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1492D60CBEC00A4C7B5 /* Metal.framework */; };
+		555E735C2F11075000EC8F95 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735B2F11075000EC8F95 /* CoreMedia.framework */; };
+		555E735E2F11076600EC8F95 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735D2F11076600EC8F95 /* MediaPlayer.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,6 +39,8 @@
 		552AB1452D60CB3B00A4C7B5 /* Charts.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Charts.framework; path = System/Library/Frameworks/Charts.framework; sourceTree = SDKROOT; };
 		552AB1472D60CB4400A4C7B5 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		552AB1492D60CBEC00A4C7B5 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		555E735B2F11075000EC8F95 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		555E735D2F11076600EC8F95 /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -85,9 +88,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				552AB1482D60CB4400A4C7B5 /* AppKit.framework in Frameworks */,
+				555E735E2F11076600EC8F95 /* MediaPlayer.framework in Frameworks */,
 				552AB1442D60CB1A00A4C7B5 /* AVFoundation.framework in Frameworks */,
-				552AB14A2D60CBEC00A4C7B5 /* Metal.framework in Frameworks */,
 				552AB1462D60CB3B00A4C7B5 /* Charts.framework in Frameworks */,
+				555E735C2F11075000EC8F95 /* CoreMedia.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -132,6 +136,8 @@
 		552AB1422D60CB1A00A4C7B5 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				555E735D2F11076600EC8F95 /* MediaPlayer.framework */,
+				555E735B2F11075000EC8F95 /* CoreMedia.framework */,
 				552AB1492D60CBEC00A4C7B5 /* Metal.framework */,
 				552AB1472D60CB4400A4C7B5 /* AppKit.framework */,
 				552AB1452D60CB3B00A4C7B5 /* Charts.framework */,
@@ -445,7 +451,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_ASSET_PATHS = "\"framepeek/Preview Content\"";
 				DEVELOPMENT_TEAM = 9JFT83BZMT;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -477,7 +483,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_ASSET_PATHS = "\"framepeek/Preview Content\"";
 				DEVELOPMENT_TEAM = 9JFT83BZMT;
 				ENABLE_HARDENED_RUNTIME = YES;
