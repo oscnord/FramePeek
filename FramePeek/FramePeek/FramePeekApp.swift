@@ -9,6 +9,10 @@ struct FramePeekApp: App {
     init() {
         // Disable native macOS window tabbing application-wide
         NSWindow.allowsAutomaticWindowTabbing = false
+        
+        // Initialize purchase manager and file count tracker
+        _ = PurchaseManager.shared
+        _ = FileCountTracker.shared
     }
     
     var body: some Scene {

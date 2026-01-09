@@ -26,6 +26,21 @@ struct FramePeek: View {
             .sheet(isPresented: $appViewModel.showAboutView) {
                 AboutView()
             }
+            .sheet(isPresented: Binding(
+                get: { currentViewModel?.showPaywall ?? false },
+                set: { currentViewModel?.showPaywall = $0 }
+            )) {
+                if let viewModel = currentViewModel {
+                    PaywallView(
+                        purchaseManager: PurchaseManager.shared,
+                        fileCount: FileCountTracker.shared.getFileCount(),
+                        remainingFiles: FileCountTracker.shared.getRemainingFreeFiles(),
+                        onDismiss: {
+                            viewModel.showPaywall = false
+                        }
+                    )
+                }
+            }
             .background {
                 WindowTabbingDisabler()
             }

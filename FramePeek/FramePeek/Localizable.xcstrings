@@ -1128,6 +1128,248 @@
           }
         }
       }
+    },
+    "You've used up your free file inspections" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You've used up your free file inspections"
+          }
+        }
+      }
+    },
+    "After analyzing %lld files for free, consider purchasing FramePeek to continue." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After analyzing %lld files for free, consider purchasing FramePeek to continue."
+          }
+        }
+      }
+    },
+    "You've used %lld of 3 free file inspections" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You've used %lld of 3 free file inspections"
+          }
+        }
+      }
+    },
+    "With Premium, you get:" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With Premium, you get:"
+          }
+        }
+      }
+    },
+    "Unlimited file inspections" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited file inspections"
+          }
+        }
+      }
+    },
+    "Advanced bitrate analysis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced bitrate analysis"
+          }
+        }
+      }
+    },
+    "Keyframe visualization" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keyframe visualization"
+          }
+        }
+      }
+    },
+    "All future updates and enhancements" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All future updates and enhancements"
+          }
+        }
+      }
+    },
+    "Support the development of FramePeek" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support the development of FramePeek"
+          }
+        }
+      }
+    },
+    "Processing…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processing…"
+          }
+        }
+      }
+    },
+    "You've used %lld of 3 free file inspections. Purchase FramePeek Premium to continue analyzing unlimited files." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You've used %lld of 3 free file inspections. Purchase FramePeek Premium to continue analyzing unlimited files."
+          }
+        }
+      }
+    },
+    "Purchase FramePeek" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase FramePeek"
+          }
+        }
+      }
+    },
+    "Restore Purchases" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Purchases"
+          }
+        }
+      }
+    },
+    "Product not available" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Product not available"
+          }
+        }
+      }
+    },
+    "Purchase verification failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase verification failed"
+          }
+        }
+      }
+    },
+    "Purchase is pending approval" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase is pending approval"
+          }
+        }
+      }
+    },
+    "Unknown purchase result" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown purchase result"
+          }
+        }
+      }
+    },
+    "Purchase failed: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase failed: %@"
+          }
+        }
+      }
+    },
+    "No previous purchases found" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No previous purchases found"
+          }
+        }
+      }
+    },
+    "Failed to restore purchases: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to restore purchases: %@"
+          }
+        }
+      }
+    },
+    "Dismiss" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss"
+          }
+        }
+      }
+    },
+    "One-time purchase" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One-time purchase"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

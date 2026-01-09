@@ -12,6 +12,8 @@
 		552AB1482D60CB4400A4C7B5 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1472D60CB4400A4C7B5 /* AppKit.framework */; };
 		555E735C2F11075000EC8F95 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735B2F11075000EC8F95 /* CoreMedia.framework */; };
 		555E735E2F11076600EC8F95 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735D2F11076600EC8F95 /* MediaPlayer.framework */; };
+		555E73682F1133E200EC8F95 /* FramePeek Storekit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 555E73672F1133E200EC8F95 /* FramePeek Storekit.storekit */; };
+		555E736A2F11343200EC8F95 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E73692F11343200EC8F95 /* StoreKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -41,6 +43,8 @@
 		552AB1492D60CBEC00A4C7B5 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		555E735B2F11075000EC8F95 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
 		555E735D2F11076600EC8F95 /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
+		555E73672F1133E200EC8F95 /* FramePeek Storekit.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = "FramePeek Storekit.storekit"; sourceTree = "<group>"; };
+		555E73692F11343200EC8F95 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -58,12 +62,20 @@
 			);
 			target = 552AB12A2D60BA0000A4C7B5 /* FramePeekUITests */;
 		};
+		555E736C2F1137A500EC8F95 /* Exceptions for "FramePeek" folder in "FramePeek" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 552AB10F2D60B9FD00A4C7B5 /* FramePeek */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		552AB1122D60B9FD00A4C7B5 /* FramePeek */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				555E736C2F1137A500EC8F95 /* Exceptions for "FramePeek" folder in "FramePeek" target */,
 				552715822EFF42820087AD5A /* Exceptions for "FramePeek" folder in "FramePeekTests" target */,
 				552715832EFF42820087AD5A /* Exceptions for "FramePeek" folder in "FramePeekUITests" target */,
 			);
@@ -90,6 +102,7 @@
 				552AB1482D60CB4400A4C7B5 /* AppKit.framework in Frameworks */,
 				555E735E2F11076600EC8F95 /* MediaPlayer.framework in Frameworks */,
 				552AB1442D60CB1A00A4C7B5 /* AVFoundation.framework in Frameworks */,
+				555E736A2F11343200EC8F95 /* StoreKit.framework in Frameworks */,
 				552AB1462D60CB3B00A4C7B5 /* Charts.framework in Frameworks */,
 				555E735C2F11075000EC8F95 /* CoreMedia.framework in Frameworks */,
 			);
@@ -115,6 +128,7 @@
 		552AB1072D60B9FD00A4C7B5 = {
 			isa = PBXGroup;
 			children = (
+				555E73672F1133E200EC8F95 /* FramePeek Storekit.storekit */,
 				552AB1122D60B9FD00A4C7B5 /* FramePeek */,
 				552AB1242D60BA0000A4C7B5 /* FramePeekTests */,
 				552AB12E2D60BA0000A4C7B5 /* FramePeekUITests */,
@@ -136,6 +150,7 @@
 		552AB1422D60CB1A00A4C7B5 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				555E73692F11343200EC8F95 /* StoreKit.framework */,
 				555E735D2F11076600EC8F95 /* MediaPlayer.framework */,
 				555E735B2F11075000EC8F95 /* CoreMedia.framework */,
 				552AB1492D60CBEC00A4C7B5 /* Metal.framework */,
@@ -266,6 +281,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				555E73682F1133E200EC8F95 /* FramePeek Storekit.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -457,6 +473,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FramePeek/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -489,6 +506,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FramePeek/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";

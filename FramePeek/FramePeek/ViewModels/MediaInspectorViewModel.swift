@@ -21,6 +21,7 @@ final class FramePeekViewModel: ObservableObject {
     // UI
     @Published var showAboutView: Bool = false
     @Published var showSettingsView: Bool = false
+    @Published var showPaywall: Bool = false
     
     // Tab choice dialog
     @Published var showTabChoiceDialog: Bool = false

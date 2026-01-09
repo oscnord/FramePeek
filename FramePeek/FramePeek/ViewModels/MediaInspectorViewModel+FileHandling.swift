@@ -12,6 +12,12 @@ extension FramePeekViewModel {
         // Reload settings from UserDefaults in case they changed
         loadSettingsFromUserDefaults()
         
+        // Check paywall before processing
+        if FileCountTracker.shared.hasReachedLimit() && !PurchaseManager.shared.isPurchased {
+            showPaywall = true
+            return
+        }
+        
         // Update tab name immediately with filename
         // This will be updated again when extendedInfo loads, but gives immediate feedback
         let fileName = url.lastPathComponent
@@ -127,6 +133,10 @@ extension FramePeekViewModel {
                 // Update player window if it's open and this is the active ViewModel
                 if PlayerViewModelManager.shared.activeViewModel === self {
                     PlayerViewModelManager.shared.setActiveViewModel(self)
+                }
+                // Increment file count after successful processing
+                if !PurchaseManager.shared.isPurchased {
+                    FileCountTracker.shared.incrementFileCount()
                 }
             }
         }
