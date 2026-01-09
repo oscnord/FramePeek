@@ -272,27 +272,3 @@ struct PaywallView: View {
     }
 }
 
-private struct FeatureRow: View {
-    let icon: String
-    let text: String
-    
-    var body: some View {
-        HStack(spacing: DesignSystem.Spacing.md2) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: DesignSystem.Typography.callout))
-                .foregroundStyle(.blue)
-                .frame(width: 22)
-            
-            Image(systemName: icon)
-                .font(.system(size: DesignSystem.Typography.subheadline))
-                .foregroundStyle(.blue.opacity(0.8))
-                .frame(width: 20)
-            
-            Text(text)
-                .font(.system(size: DesignSystem.Typography.subheadline))
-                .foregroundStyle(.primary)
-        }
-    }
-}
-
-
