@@ -58,13 +58,6 @@ struct CollapsibleWaveformTrack: View {
                     }
                     
                     Spacer()
-                    
-                    // Status indicator
-                    if hasWaveformData {
-                        Image(systemName: "waveform")
-                            .font(.caption)
-                            .foregroundStyle(DesignSystem.Colors.Chart.primary)
-                    }
                 }
                 .padding(.horizontal, DesignSystem.Padding.lg)
                 .padding(.vertical, DesignSystem.Padding.md)
