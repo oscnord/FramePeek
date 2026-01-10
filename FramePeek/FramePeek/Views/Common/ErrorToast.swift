@@ -4,6 +4,21 @@ struct ErrorToast: View {
     let message: String
     @Binding var isVisible: Bool
     let onDismiss: () -> Void
+    let autoDismissAfter: TimeInterval?
+    
+    @State private var autoDismissTask: Task<Void, Never>?
+    
+    init(
+        message: String,
+        isVisible: Binding<Bool>,
+        onDismiss: @escaping () -> Void,
+        autoDismissAfter: TimeInterval? = 5.0
+    ) {
+        self.message = message
+        self._isVisible = isVisible
+        self.onDismiss = onDismiss
+        self.autoDismissAfter = autoDismissAfter
+    }
     
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.md) {
@@ -17,13 +32,7 @@ struct ErrorToast: View {
             Spacer(minLength: DesignSystem.Spacing.sm)
             
             Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    isVisible = false
-                }
-                // Call dismiss handler after animation
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    onDismiss()
-                }
+                dismissToast()
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: DesignSystem.Typography.callout))
@@ -54,6 +63,51 @@ struct ErrorToast: View {
         .offset(y: isVisible ? 0 : -60)
         .allowsHitTesting(isVisible)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isVisible)
+        .onChange(of: isVisible) { oldValue, newValue in
+            if newValue {
+                // Toast just became visible, start auto-dismiss timer if configured
+                if let dismissAfter = autoDismissAfter {
+                    startAutoDismiss(dismissAfter: dismissAfter)
+                }
+            } else {
+                // Toast dismissed, cancel auto-dismiss task
+                autoDismissTask?.cancel()
+                autoDismissTask = nil
+            }
+        }
+        .onDisappear {
+            // Cancel auto-dismiss task when view disappears
+            autoDismissTask?.cancel()
+            autoDismissTask = nil
+        }
+    }
+    
+    private func startAutoDismiss(dismissAfter: TimeInterval) {
+        // Cancel any existing auto-dismiss task
+        autoDismissTask?.cancel()
+        
+        autoDismissTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(dismissAfter * 1_000_000_000))
+            await MainActor.run {
+                // Only dismiss if task wasn't cancelled and toast is still visible
+                if !Task.isCancelled && isVisible {
+                    dismissToast()
+                }
+            }
+        }
+    }
+    
+    private func dismissToast() {
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
+        
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            isVisible = false
+        }
+        // Call dismiss handler after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            onDismiss()
+        }
     }
 }
 

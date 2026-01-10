@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import AppKit
+import Combine
 
 struct FramePeek: View {
     @EnvironmentObject var appViewModel: FramePeekViewModel
@@ -12,11 +13,26 @@ struct FramePeek: View {
     @State private var isProcessing: Bool = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var isInspectorVisible: Bool = true
+    @State private var showPaywall: Bool = false
+    @State private var paywallSheetId: UUID = UUID()
     
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
     }
     
+    private var paywallBinding: Binding<Bool> {
+        Binding(
+            get: {
+                showPaywall
+            },
+            set: { newValue in
+                showPaywall = newValue
+                if let viewModel = currentViewModel {
+                    viewModel.showPaywall = newValue
+                }
+            }
+        )
+    }
 
     var body: some View {
         contentWithObservers
@@ -26,23 +42,47 @@ struct FramePeek: View {
             .sheet(isPresented: $appViewModel.showAboutView) {
                 AboutView()
             }
-            .sheet(isPresented: Binding(
-                get: { currentViewModel?.showPaywall ?? false },
-                set: { currentViewModel?.showPaywall = $0 }
-            )) {
+            .sheet(isPresented: paywallBinding, onDismiss: {
+                // Reset ViewModel state when sheet is dismissed
                 if let viewModel = currentViewModel {
+                    viewModel.showPaywall = false
+                }
+                showPaywall = false
+                // Force sheet recreation by changing ID to ensure it can be re-triggered
+                paywallSheetId = UUID()
+            }) {
+                if currentViewModel != nil {
                     PaywallView(
                         purchaseManager: PurchaseManager.shared,
                         fileCount: FileCountTracker.shared.getFileCount(),
                         remainingFiles: FileCountTracker.shared.getRemainingFreeFiles(),
-                        onDismiss: {
-                            viewModel.showPaywall = false
-                        }
+                        onDismiss: nil
                     )
+                    .id(paywallSheetId)
+                }
+            }
+            .onChange(of: tabManager.selectedTabId) { oldValue, newValue in
+                // Sync when tab changes
+                if let viewModel = currentViewModel {
+                    showPaywall = viewModel.showPaywall
+                } else {
+                    showPaywall = false
                 }
             }
             .background {
                 WindowTabbingDisabler()
+                
+                // Observe ViewModel showPaywall changes and sync to local state
+                if let viewModel = currentViewModel {
+                    Color.clear
+                        .onChange(of: viewModel.showPaywall) { oldValue, newValue in
+                            // Sync local state when ViewModel state changes
+                            // This ensures the sheet can be re-triggered after dismissal
+                            if showPaywall != newValue {
+                                showPaywall = newValue
+                            }
+                        }
+                }
             }
             .onChange(of: appViewModel.showSettingsView) { oldValue, newValue in
                 if newValue {

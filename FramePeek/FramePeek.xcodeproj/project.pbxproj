@@ -12,8 +12,8 @@
 		552AB1482D60CB4400A4C7B5 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1472D60CB4400A4C7B5 /* AppKit.framework */; };
 		555E735C2F11075000EC8F95 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735B2F11075000EC8F95 /* CoreMedia.framework */; };
 		555E735E2F11076600EC8F95 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735D2F11076600EC8F95 /* MediaPlayer.framework */; };
-		555E73682F1133E200EC8F95 /* FramePeek Storekit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 555E73672F1133E200EC8F95 /* FramePeek Storekit.storekit */; };
 		555E736A2F11343200EC8F95 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E73692F11343200EC8F95 /* StoreKit.framework */; };
+		555E741D2F113AB100EC8F95 /* FramePeek StoreKit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 555E741C2F113AB100EC8F95 /* FramePeek StoreKit.storekit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -43,8 +43,8 @@
 		552AB1492D60CBEC00A4C7B5 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		555E735B2F11075000EC8F95 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
 		555E735D2F11076600EC8F95 /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
-		555E73672F1133E200EC8F95 /* FramePeek Storekit.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = "FramePeek Storekit.storekit"; sourceTree = "<group>"; };
 		555E73692F11343200EC8F95 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		555E741C2F113AB100EC8F95 /* FramePeek StoreKit.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = "FramePeek StoreKit.storekit"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -128,7 +128,7 @@
 		552AB1072D60B9FD00A4C7B5 = {
 			isa = PBXGroup;
 			children = (
-				555E73672F1133E200EC8F95 /* FramePeek Storekit.storekit */,
+				555E741C2F113AB100EC8F95 /* FramePeek StoreKit.storekit */,
 				552AB1122D60B9FD00A4C7B5 /* FramePeek */,
 				552AB1242D60BA0000A4C7B5 /* FramePeekTests */,
 				552AB12E2D60BA0000A4C7B5 /* FramePeekUITests */,
@@ -281,7 +281,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				555E73682F1133E200EC8F95 /* FramePeek Storekit.storekit in Resources */,
+				555E741D2F113AB100EC8F95 /* FramePeek StoreKit.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

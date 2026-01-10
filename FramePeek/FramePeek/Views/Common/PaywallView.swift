@@ -5,7 +5,6 @@ struct PaywallView: View {
     @ObservedObject var purchaseManager: PurchaseManager
     @Environment(\.dismiss) private var dismiss
     @State private var showErrorToast: Bool = false
-    @State private var autoDismissTask: Task<Void, Never>?
     
     let fileCount: Int
     let remainingFiles: Int
@@ -29,12 +28,33 @@ struct PaywallView: View {
             LinearGradient(
                 colors: [
                     Color(NSColor.controlBackgroundColor),
-                    Color(NSColor.controlBackgroundColor).opacity(0.5)
+                    Color(NSColor.controlBackgroundColor).opacity(0.8)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .ignoresSafeArea()
+            
+            // Close button - placed early in ZStack to be on top
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        onDismiss?()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "Close"))
+                    .padding(DesignSystem.Padding.md)
+                }
+                Spacer()
+            }
             
             // Main content
             VStack(spacing: 0) {
@@ -58,21 +78,13 @@ struct PaywallView: View {
                 }
                 .padding(.top, DesignSystem.Padding.xl2)
                 .padding(.horizontal, DesignSystem.Padding.xl3)
-                .padding(.bottom, DesignSystem.Padding.xxl)
+                .padding(.bottom, DesignSystem.Padding.md)
                 
                 // Action buttons
                 VStack(spacing: DesignSystem.Spacing.lg) {
                     if purchaseManager.isLoading {
-                        HStack(spacing: DesignSystem.Spacing.md) {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text(String(localized: "Processing…"))
-                                .font(.system(size: DesignSystem.Typography.subheadline))
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, DesignSystem.Padding.lg2)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        processingView
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
                     } else {
                         VStack(spacing: DesignSystem.Spacing.md) {
                             if let price = purchaseManager.productPrice {
@@ -84,8 +96,9 @@ struct PaywallView: View {
                                         .font(.system(size: DesignSystem.Typography.caption2))
                                         .foregroundStyle(.secondary)
                                 }
+                                .padding(.vertical, DesignSystem.Padding.xl2)
                             }
-                            
+
                             Button {
                                 Task {
                                     await purchaseManager.purchase()
@@ -122,6 +135,7 @@ struct PaywallView: View {
             
         }
         .frame(width: 520, height: 420)
+        .background(.background, in: RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous))
         .overlay(alignment: .top) {
             // Error toast overlay at top - doesn't affect layout
             if let errorMessage = purchaseManager.errorMessage {
@@ -131,6 +145,7 @@ struct PaywallView: View {
                     onDismiss: dismissErrorToast
                 )
                 .transition(.move(edge: .top).combined(with: .opacity))
+                .allowsHitTesting(false)
             }
         }
         .onAppear {
@@ -140,10 +155,6 @@ struct PaywallView: View {
             }
         }
         .onChange(of: purchaseManager.errorMessage) { oldValue, newValue in
-            // Cancel any existing auto-dismiss task
-            autoDismissTask?.cancel()
-            autoDismissTask = nil
-            
             if let newMessage = newValue {
                 // If already showing an error, dismiss it first (even if same message)
                 if showErrorToast {
@@ -153,24 +164,20 @@ struct PaywallView: View {
                     }
                     // Wait for dismiss animation, then show new error
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        showErrorToastForMessage(newMessage)
+                        showErrorToast = true
                     }
                 } else {
                     // No toast showing, show immediately
-                    showErrorToastForMessage(newMessage)
+                    showErrorToast = true
                 }
             } else {
                 // Error cleared, dismiss toast
                 dismissErrorToast()
             }
         }
-        .onDisappear {
-            // Cancel auto-dismiss task when view disappears
-            autoDismissTask?.cancel()
-            autoDismissTask = nil
-        }
         .onChange(of: purchaseManager.isPurchased) { oldValue, newValue in
             if newValue {
+                onDismiss?()
                 dismiss()
             }
         }
@@ -238,30 +245,18 @@ struct PaywallView: View {
         }
     }
     
-    private func showErrorToastForMessage(_ message: String) {
-        // Show the toast immediately
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            showErrorToast = true
+    private var processingView: some View {
+        HStack(spacing: DesignSystem.Spacing.md) {
+            SafeProgressView(controlSize: .small)
+            
+            Text(String(localized: "Processing…"))
+                .font(.system(size: DesignSystem.Typography.subheadline))
+                .foregroundStyle(.secondary)
         }
-        
-        // Auto-dismiss after 5 seconds
-        let currentMessage = message
-        autoDismissTask = Task {
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            await MainActor.run {
-                // Only dismiss if this is still the current error message
-                if !Task.isCancelled && purchaseManager.errorMessage == currentMessage {
-                    dismissErrorToast()
-                }
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     private func dismissErrorToast() {
-        // Cancel any pending auto-dismiss task
-        autoDismissTask?.cancel()
-        autoDismissTask = nil
-        
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             showErrorToast = false
         }
