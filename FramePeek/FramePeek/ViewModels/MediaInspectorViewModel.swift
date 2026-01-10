@@ -45,6 +45,12 @@ final class FramePeekViewModel: ObservableObject {
     @Published var chartMaxDisplayPoints: Int = 1_000
     @Published var chartMaxDisplayPointsZoomed: Int = 2_000
     
+    // Waveform settings
+    @Published var waveformData: [Int: [WaveformSample]] = [:] // Dictionary keyed by track index
+    @Published var isExtractingWaveforms: Bool = false
+    @Published var expandedWaveformTracks: Set<Int> = [] // Tracks that are expanded/visible
+    @Published var waveformHeight: WaveformHeight = .normal
+    
     // Always use second-based visualization mode
     var visualizationMode: BitrateVisualizationMode { .second }
     
@@ -115,6 +121,7 @@ final class FramePeekViewModel: ObservableObject {
     var infoTask: Task<Void, Never>?
     var thumbnailTask: Task<Void, Never>?
     var framesTask: Task<Void, Never>?
+    var waveformTasks: [Int: Task<Void, Never>] = [:] // Dictionary of extraction tasks per track
 
     enum SamplingMode: String, CaseIterable, Identifiable {
         case auto

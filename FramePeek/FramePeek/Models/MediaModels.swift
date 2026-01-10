@@ -207,3 +207,29 @@ struct AV1ConfigSummary {
     let chromaSubsampling: String
     let fullRange: Bool
 }
+
+// MARK: - Waveform Height
+
+enum WaveformHeight: String, CaseIterable, Identifiable {
+    case compact
+    case normal
+    case large
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .compact: return String(localized: "Compact")
+        case .normal: return String(localized: "Normal")
+        case .large: return String(localized: "Large")
+        }
+    }
+    
+    var height: CGFloat {
+        switch self {
+        case .compact: return 60
+        case .normal: return 100
+        case .large: return 150
+        }
+    }
+}

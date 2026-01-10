@@ -131,11 +131,24 @@ struct FramePeek: View {
             // Main content area
             Group {
                 if let viewModel = currentViewModel {
-                    BitrateChartView(viewModel: viewModel)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
-                        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
-                        .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
+                    VStack(spacing: DesignSystem.Spacing.sm) {
+                        // Bitrate chart
+                        BitrateChartView(viewModel: viewModel)
+                            .frame(maxWidth: .infinity)
+                            .layoutPriority(1)
+                            .contentShape(Rectangle())
+                        
+                        // Waveform container (if audio tracks exist)
+                        if let info = viewModel.extendedInfo, !info.audioTracks.isEmpty {
+                            WaveformContainerView(viewModel: viewModel)
+                                .frame(maxWidth: .infinity)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .layoutPriority(0)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+                    .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
                 } else {
                     // Empty state when no tabs
                     Text("No tabs available")

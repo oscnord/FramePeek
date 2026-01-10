@@ -124,6 +124,20 @@ extension FramePeekViewModel {
             await MainActor.run {
                 self.extendedInfo = info
                 self.durationSeconds = duration
+                
+                // Initialize expanded tracks (first 3 tracks or all if <= 3)
+                if !info.audioTracks.isEmpty {
+                    let trackIndices = Set(info.audioTracks.map { $0.index })
+                    if trackIndices.count <= 3 {
+                        self.expandedWaveformTracks = trackIndices
+                    } else {
+                        // Only expand first 3 tracks by default
+                        self.expandedWaveformTracks = Set(Array(trackIndices.prefix(3)))
+                    }
+                    // Start extracting waveforms for expanded tracks
+                    self.startWaveformExtraction(asset: assetForInfo, audioTracks: info.audioTracks, duration: duration)
+                }
+                
                 // Update player window if it's open and this is the active ViewModel
                 if PlayerViewModelManager.shared.activeViewModel === self {
                     PlayerViewModelManager.shared.setActiveViewModel(self)
@@ -144,6 +158,11 @@ extension FramePeekViewModel {
         infoTask?.cancel()
         framesTask?.cancel()
         thumbnailTask?.cancel()
+        // Cancel all waveform extraction tasks
+        for task in waveformTasks.values {
+            task.cancel()
+        }
+        waveformTasks.removeAll()
         infoTask = nil
         thumbnailTask = nil
         framesTask = nil
@@ -161,6 +180,9 @@ extension FramePeekViewModel {
         keyframeThumbs = []
         isGeneratingThumbnails = false
         currentVideoURL = nil
+        waveformData = [:]
+        isExtractingWaveforms = false
+        expandedWaveformTracks = []
     }
 
     func cancelAnalysis() {
@@ -183,6 +205,9 @@ extension FramePeekViewModel {
         durationSeconds = 0
         isGeneratingThumbnails = false
         currentVideoURL = nil
+        waveformData = [:]
+        isExtractingWaveforms = false
+        expandedWaveformTracks = []
     }
 }
 
