@@ -129,33 +129,62 @@ struct FramePeek: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 200)
         } detail: {
             // Main content area
-            Group {
-                if let viewModel = currentViewModel {
-                    VStack(spacing: DesignSystem.Spacing.sm) {
-                        // Bitrate chart
-                        BitrateChartView(viewModel: viewModel)
-                            .frame(maxWidth: .infinity)
-                            .layoutPriority(1)
-                            .contentShape(Rectangle())
-                        
-                        // Waveform container (if audio tracks exist)
-                        if let info = viewModel.extendedInfo, !info.audioTracks.isEmpty {
-                            WaveformContainerView(viewModel: viewModel)
-                                .frame(maxWidth: .infinity)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .layoutPriority(0)
+            ZStack {
+                if let viewModel = currentViewModel, viewModel.extendedInfo != nil {
+                    ScrollView(.vertical, showsIndicators: true) {
+                        VStack(spacing: DesignSystem.Spacing.sm) {
+                            // Bitrate chart
+                            AnimatedContentWrapper(delay: 0.1) {
+                                BitrateChartView(viewModel: viewModel)
+                                    .frame(maxWidth: .infinity)
+                                    .layoutPriority(1)
+                                    .contentShape(Rectangle())
+                            }
+                            
+                            // Waveform container (if audio tracks exist)
+                            if let info = viewModel.extendedInfo, !info.audioTracks.isEmpty {
+                                AnimatedContentWrapper(delay: 0.2) {
+                                    WaveformContainerView(viewModel: viewModel)
+                                        .frame(maxWidth: .infinity)
+                                        .layoutPriority(0)
+                                }
+                                
+                                // Sync analysis (if audio tracks exist)
+                                AnimatedContentWrapper(delay: 0.3) {
+                                    SyncAnalysisView(viewModel: viewModel)
+                                        .frame(maxWidth: .infinity)
+                                        .layoutPriority(0)
+                                }
+                            }
+                            
+                            // Color analysis (if file is loaded)
+                            AnimatedContentWrapper(delay: viewModel.extendedInfo?.audioTracks.isEmpty ?? true ? 0.2 : 0.4) {
+                                ColorAnalysisView(viewModel: viewModel)
+                                    .frame(maxWidth: .infinity)
+                                    .layoutPriority(0)
+                            }
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, DesignSystem.Padding.lg)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
                     .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .bottom)),
+                        removal: .opacity.combined(with: .move(edge: .top))
+                    ))
                 } else {
-                    // Empty state when no tabs
-                    Text("No tabs available")
-                        .foregroundStyle(.secondary)
+                    // Empty state when no tabs or no file loaded
+                    EmptyMainState()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .top)),
+                            removal: .opacity.combined(with: .move(edge: .bottom))
+                        ))
                 }
             }
+            .animation(.spring(response: 0.6, dampingFraction: 0.85), value: currentViewModel?.extendedInfo != nil)
             .inspector(isPresented: $isInspectorVisible) {
                 if let viewModel = currentViewModel {
                     InfoInspectorView(viewModel: viewModel)

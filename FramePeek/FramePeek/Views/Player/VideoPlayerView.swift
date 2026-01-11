@@ -67,6 +67,13 @@ struct VideoPlayerView: View {
                         // Update mute state when setting changes
                         player?.isMuted = newValue
                     }
+                    .onChange(of: manager.seekTime) { oldValue, newValue in
+                        // Handle seek request
+                        if let seekTime = newValue, let player = player {
+                            let time = CMTime(seconds: seekTime, preferredTimescale: 600)
+                            player.seek(to: time)
+                        }
+                    }
                 
                 // Statistics overlay
                 if playerShowStatistics {
@@ -263,6 +270,8 @@ struct VideoPlayerView: View {
             let seconds = CMTimeGetSeconds(time)
             if seconds.isFinite {
                 currentTime = seconds
+                // Update PlayerViewModelManager with current playback time
+                PlayerViewModelManager.shared.updatePlaybackTime(seconds)
             }
             isPlaying = player.rate > 0
         }

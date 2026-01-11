@@ -17,13 +17,10 @@ struct AudioWaveformView: View {
         return filteredSamples
     }
     
-    private var waveformHeight: CGFloat {
-        // Fixed compact height for all waveforms
-        80
-    }
-    
     var body: some View {
         GeometryReader { geometry in
+            let calculatedHeight = max(geometry.size.width * 0.08, 80) // 8% of width, min 80
+            
             ZStack(alignment: .center) {
                 // Background with subtle grid
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
@@ -40,7 +37,7 @@ struct AudioWaveformView: View {
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 } else {
                     // Waveform path
-                    WaveformShape(samples: displaySamples, height: geometry.size.height)
+                    WaveformShape(samples: displaySamples, height: calculatedHeight)
                         .fill(
                             LinearGradient(
                                 colors: [
@@ -53,8 +50,9 @@ struct AudioWaveformView: View {
                         )
                 }
             }
+            .frame(height: calculatedHeight)
         }
-        .frame(height: waveformHeight)
+        .frame(height: 80) // Minimum height fallback
     }
 }
 

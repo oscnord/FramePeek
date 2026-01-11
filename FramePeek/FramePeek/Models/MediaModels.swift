@@ -233,3 +233,74 @@ enum WaveformHeight: String, CaseIterable, Identifiable {
         }
     }
 }
+
+// MARK: - Audio/Video Sync Analysis
+
+struct SyncAnalysisResult {
+    let videoFirstPTS: Double
+    let audioFirstPTS: Double
+    let videoDuration: Double
+    let audioDuration: Double
+    let videoFrameCount: Int
+    let averageVideoFrameInterval: Double?
+    let frameIntervalVariance: Double?
+    let hasTimestampGaps: Bool
+    let syncStatus: SyncStatus
+    
+    var syncOffsetMs: Double {
+        (audioFirstPTS - videoFirstPTS) * 1000.0
+    }
+    
+    var durationDifferenceMs: Double {
+        (audioDuration - videoDuration) * 1000.0
+    }
+    
+    var isVariableFrameRate: Bool {
+        guard let variance = frameIntervalVariance, let avg = averageVideoFrameInterval else { return false }
+        return variance > avg * 0.1
+    }
+}
+
+enum SyncStatus {
+    case inSync
+    case minorOffset
+    case significantOffset
+    case durationMismatch
+    case noAudio
+    case noVideo
+    case analysisError
+    
+    var displayName: String {
+        switch self {
+        case .inSync: return String(localized: "In Sync")
+        case .minorOffset: return String(localized: "Minor Offset")
+        case .significantOffset: return String(localized: "Significant Offset")
+        case .durationMismatch: return String(localized: "Duration Mismatch")
+        case .noAudio: return String(localized: "No Audio")
+        case .noVideo: return String(localized: "No Video")
+        case .analysisError: return String(localized: "Analysis Error")
+        }
+    }
+}
+
+struct FrameTimingSample: Identifiable {
+    let id = UUID()
+    let time: Double
+    let intervalMs: Double
+}
+
+// MARK: - Color Analysis
+
+struct ColorSample: Identifiable {
+    let id = UUID()
+    let time: Double
+    let brightness: Double  // 0.0 to 1.0
+    let colorTemperature: Double?  // Kelvin (optional)
+    let histogram: ColorHistogram?  // RGB distribution
+}
+
+struct ColorHistogram {
+    let red: [Double]    // 256 bins
+    let green: [Double]
+    let blue: [Double]
+}

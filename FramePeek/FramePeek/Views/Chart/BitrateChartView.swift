@@ -160,7 +160,8 @@ struct BitrateChartView: View {
                 TimelineView(
                     duration: statistics.maxTime == 0 ? viewModel.durationSeconds : statistics.maxTime,
                     visibleTimeRange: $viewModel.visibleTimeRange,
-                    frameRate: viewModel.effectiveFPS
+                    frameRate: viewModel.effectiveFPS,
+                    currentPlaybackTime: viewModel.currentPlaybackTime
                 )
                     .padding(.horizontal, DesignSystem.Padding.lg)
                 }
@@ -254,6 +255,13 @@ struct BitrateChartView: View {
                     .foregroundStyle(DesignSystem.Colors.Chart.keyframeOpacity)
                     .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.thick))
             }
+            
+            // Playback position indicator
+            if let playbackTime = viewModel.currentPlaybackTime {
+                RuleMark(x: .value("Playback", playbackTime))
+                    .foregroundStyle(.blue.opacity(0.8))
+                    .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.thick))
+            }
         }
         .chartYScale(domain: 0...(statistics.maxBitrateKbps * 1.1))
         .chartXScale(domain: xAxisDomain)
@@ -303,14 +311,21 @@ struct BitrateChartView: View {
                                     }
                                 }
                             }
-                            .onEnded { _ in
+                            .onEnded { value in
+                                // On tap (minimal drag), seek to that time
+                                if value.translation.width < 5 && value.translation.height < 5 {
+                                    let location = value.location
+                                    if let time: Double = proxy.value(atX: location.x) {
+                                        PlayerViewModelManager.shared.seekToTime(time)
+                                    }
+                                }
                                 viewModel.hoveredSample = nil
                             }
                     )
             }
         }
         .drawingGroup()
-        .frame(minHeight: 260)
+        .frame(minHeight: 400)
         .overlay(alignment: .topLeading) {
             tooltipOverlay
         }

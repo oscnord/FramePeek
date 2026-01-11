@@ -5,6 +5,7 @@ struct TimelineView: View {
     let duration: Double
     @Binding var visibleTimeRange: ClosedRange<Double>?
     var frameRate: Double? = nil
+    var currentPlaybackTime: Double? = nil
 
     @State var isDraggingRange = false
     @State var dragStartRange: ClosedRange<Double>?
@@ -101,6 +102,26 @@ struct TimelineView: View {
                         geometry: geo,
                         calculateLabelStep: calculateLabelStep
                     )
+                    
+                    // Playback position indicator
+                    if let playbackTime = currentPlaybackTime {
+                        let x: CGFloat = {
+                            if let range = normalizedVisibleTimeRange {
+                                let visibleDuration = range.upperBound - range.lowerBound
+                                let ratio = (playbackTime - range.lowerBound) / visibleDuration
+                                return CGFloat(ratio) * (geo.size.width - 20) + 10
+                            } else {
+                                return CGFloat(playbackTime / duration) * (geo.size.width - 20) + 10
+                            }
+                        }()
+                        
+                        if x >= 10 && x <= geo.size.width - 10 {
+                            Rectangle()
+                                .fill(.blue.opacity(0.9))
+                                .frame(width: 3, height: geo.size.height + 4)
+                                .position(x: x, y: geo.size.height / 2)
+                        }
+                    }
                     
                     Rectangle()
                         .fill(DesignSystem.Colors.Semantic.secondary.opacity(0.3))

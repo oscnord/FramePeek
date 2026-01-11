@@ -136,6 +136,8 @@ extension FramePeekViewModel {
                     }
                     // Start extracting waveforms for expanded tracks
                     self.startWaveformExtraction(asset: assetForInfo, audioTracks: info.audioTracks, duration: duration)
+                    // Start sync analysis automatically when audio tracks are detected
+                    self.startSyncAnalysis(asset: assetForInfo, audioTracks: info.audioTracks)
                 }
                 
                 // Update player window if it's open and this is the active ViewModel
@@ -158,6 +160,8 @@ extension FramePeekViewModel {
         infoTask?.cancel()
         framesTask?.cancel()
         thumbnailTask?.cancel()
+        syncTask?.cancel()
+        colorAnalysisTask?.cancel()
         // Cancel all waveform extraction tasks
         for task in waveformTasks.values {
             task.cancel()
@@ -166,6 +170,8 @@ extension FramePeekViewModel {
         infoTask = nil
         thumbnailTask = nil
         framesTask = nil
+        syncTask = nil
+        colorAnalysisTask = nil
     }
     
     private func resetStateForNewAsset() {
@@ -183,6 +189,12 @@ extension FramePeekViewModel {
         waveformData = [:]
         isExtractingWaveforms = false
         expandedWaveformTracks = []
+        syncAnalysisResult = nil
+        frameTimingSamples = []
+        isAnalyzingSync = false
+        colorSamples = []
+        isAnalyzingColor = false
+        currentPlaybackTime = nil
     }
 
     func cancelAnalysis() {
@@ -208,6 +220,12 @@ extension FramePeekViewModel {
         waveformData = [:]
         isExtractingWaveforms = false
         expandedWaveformTracks = []
+        syncAnalysisResult = nil
+        frameTimingSamples = []
+        isAnalyzingSync = false
+        colorSamples = []
+        isAnalyzingColor = false
+        currentPlaybackTime = nil
     }
 }
 
