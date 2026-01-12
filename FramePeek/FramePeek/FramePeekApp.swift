@@ -1,6 +1,32 @@
 import SwiftUI
 import AppKit
 
+extension Notification.Name {
+    static let menuOpenFile = Notification.Name("menuOpenFile")
+    static let menuOpenRecentFile = Notification.Name("menuOpenRecentFile")
+}
+
+struct OpenRecentCommands: Commands {
+    @ObservedObject private var fileHistory = FileHistoryManager.shared
+    
+    var body: some Commands {
+        CommandGroup(after: .newItem) {
+            Menu("Open Recent") {
+                if fileHistory.validFiles.isEmpty {
+                    Text("No Recent Files")
+                        .disabled(true)
+                } else {
+                    ForEach(fileHistory.validFiles, id: \.self) { url in
+                        Button(url.lastPathComponent) {
+                            NotificationCenter.default.post(name: .menuOpenRecentFile, object: url)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @main
 struct FramePeekApp: App {
     @StateObject private var appViewModel = FramePeekViewModel()
@@ -35,6 +61,15 @@ struct FramePeekApp: App {
                 }
                 .keyboardShortcut(",", modifiers: [.command])
             }
+            
+            CommandGroup(after: .newItem) {
+                Button("Open…") {
+                    NotificationCenter.default.post(name: .menuOpenFile, object: nil)
+                }
+                .keyboardShortcut("o", modifiers: [.command])
+            }
+            
+            OpenRecentCommands()
             
             InspectorCommands()
             SidebarCommands()

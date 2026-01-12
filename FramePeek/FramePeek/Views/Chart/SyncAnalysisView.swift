@@ -90,15 +90,9 @@ struct SyncAnalysisView: View {
     }
     
     private var loadingSection: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            ProgressView()
-                .controlSize(.regular)
-            Text("Analyzing sync…")
-                .font(.subheadline)
-                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, DesignSystem.Padding.xxl)
+        LoadingView(message: "Analyzing sync…")
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DesignSystem.Padding.xxl)
     }
     
     private var emptySection: some View {
@@ -139,6 +133,10 @@ struct SyncAnalysisView: View {
         .padding(.vertical, 4)
         .background(color.opacity(0.15))
         .clipShape(Capsule())
+        .overlay(
+            Capsule()
+                .strokeBorder(color.opacity(0.4), lineWidth: DesignSystem.Borders.thin)
+        )
     }
     
     private func statusAppearance(_ status: SyncStatus) -> (Color, String) {
@@ -386,6 +384,10 @@ struct SyncAnalysisView: View {
                     .padding(.vertical, DesignSystem.Padding.xs)
                     .background(.orange.opacity(0.15))
                     .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(.orange.opacity(0.4), lineWidth: DesignSystem.Borders.thin)
+                    )
                 }
             }
             

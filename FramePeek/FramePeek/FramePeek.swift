@@ -42,6 +42,17 @@ struct FramePeek: View {
                     appViewModel.showSettingsView = false
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .menuOpenFile)) { _ in
+                if let untitledTab = tabManager.findUntitledTab() {
+                    tabManager.switchToTab(id: untitledTab.id)
+                }
+                currentViewModel?.pickFile()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .menuOpenRecentFile)) { notification in
+                if let url = notification.object as? URL {
+                    openFileInAppropriateTab(url: url)
+                }
+            }
     }
     
     private var contentWithObservers: some View {
@@ -225,9 +236,24 @@ struct FramePeek: View {
                             }
                         }
                     }
+                } else if let viewModel = currentViewModel, (viewModel.pendingURL != nil || viewModel.isAnalyzing || viewModel.isGeneratingThumbnails) {
+                    // Loading state - show loading view instead of empty state
+                    LoadingView(message: String(localized: "Loading file…"))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
                 } else {
                     // Empty state when no tabs or no file loaded
-                    EmptyMainState()
+                    EmptyMainState(
+                        onFileSelected: { url in
+                            openFileInAppropriateTab(url: url)
+                        },
+                        onOpenFile: {
+                            if let untitledTab = tabManager.findUntitledTab() {
+                                tabManager.switchToTab(id: untitledTab.id)
+                            }
+                            currentViewModel?.pickFile()
+                        }
+                    )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
                         .transition(.asymmetric(

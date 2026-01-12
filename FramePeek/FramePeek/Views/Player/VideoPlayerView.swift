@@ -182,17 +182,6 @@ struct VideoPlayerView: View {
                             .monospacedDigit()
                     }
                 }
-                
-                // Effective FPS (from frame analysis)
-                if let effectiveFPS = viewModel.effectiveFPS {
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.caption)
-                        Text(String(format: "%.2f fps", effectiveFPS))
-                            .font(.caption)
-                            .monospacedDigit()
-                    }
-                }
             }
             
             // Current time

@@ -125,15 +125,9 @@ struct ColorAnalysisView: View {
     }
     
     private var loadingSection: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            ProgressView()
-                .controlSize(.regular)
-            Text("Analyzing color…")
-                .font(.subheadline)
-                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, DesignSystem.Padding.xxl)
+        LoadingView(message: "Analyzing color…")
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DesignSystem.Padding.xxl)
     }
     
     private var emptySection: some View {

@@ -10,6 +10,8 @@ final class PlayerViewModelManager: ObservableObject {
     @Published var seekTime: Double? = nil
     @Published var currentPlaybackTime: Double? = nil
     
+    private var seekClearTask: Task<Void, Never>?
+    
     private init() {}
     
     func setActiveViewModel(_ viewModel: FramePeekViewModel?) {
@@ -17,11 +19,25 @@ final class PlayerViewModelManager: ObservableObject {
     }
     
     func seekToTime(_ time: Double) {
+        // Cancel any pending clear task
+        seekClearTask?.cancel()
+        seekClearTask = nil
+        
         seekTime = time
-        // Clear after a short delay to allow re-seeking
-        Task {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-            seekTime = nil
+        
+        // Clear after a short delay to allow re-seeking to the same time
+        // This task can be cancelled if a new seek happens
+        seekClearTask = Task {
+            do {
+                try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                // Only clear if task wasn't cancelled
+                if !Task.isCancelled {
+                    seekTime = nil
+                }
+            } catch {
+                // Task was cancelled, which is expected behavior
+            }
+            seekClearTask = nil
         }
     }
     
