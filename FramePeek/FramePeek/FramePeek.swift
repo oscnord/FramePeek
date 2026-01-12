@@ -6,12 +6,14 @@ struct FramePeek: View {
     @EnvironmentObject var appViewModel: FramePeekViewModel
     @Environment(\.openWindow) private var openWindow
     @StateObject private var tabManager = TabManager()
+    @StateObject private var fileHistory = FileHistoryManager.shared
     
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
     @State private var isProcessing: Bool = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var isInspectorVisible: Bool = true
+    @State private var isTimelineVisible: Bool = true
     
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
@@ -38,6 +40,17 @@ struct FramePeek: View {
                     }
                     // Reset the flag so it can be triggered again
                     appViewModel.showSettingsView = false
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .menuOpenFile)) { _ in
+                if let untitledTab = tabManager.findUntitledTab() {
+                    tabManager.switchToTab(id: untitledTab.id)
+                }
+                currentViewModel?.pickFile()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .menuOpenRecentFile)) { notification in
+                if let url = notification.object as? URL {
+                    openFileInAppropriateTab(url: url)
                 }
             }
     }
@@ -129,33 +142,127 @@ struct FramePeek: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 200)
         } detail: {
             // Main content area
-            Group {
-                if let viewModel = currentViewModel {
-                    VStack(spacing: DesignSystem.Spacing.sm) {
-                        // Bitrate chart
-                        BitrateChartView(viewModel: viewModel)
-                            .frame(maxWidth: .infinity)
-                            .layoutPriority(1)
-                            .contentShape(Rectangle())
-                        
-                        // Waveform container (if audio tracks exist)
-                        if let info = viewModel.extendedInfo, !info.audioTracks.isEmpty {
-                            WaveformContainerView(viewModel: viewModel)
-                                .frame(maxWidth: .infinity)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .layoutPriority(0)
+            ZStack {
+                if let viewModel = currentViewModel, viewModel.extendedInfo != nil {
+                    ScrollView(.vertical, showsIndicators: true) {
+                        VStack(spacing: DesignSystem.Spacing.sm) {
+                            // Bitrate chart
+                            AnimatedContentWrapper(delay: 0.1) {
+                                BitrateChartView(viewModel: viewModel)
+                                    .frame(maxWidth: .infinity)
+                                    .layoutPriority(1)
+                                    .contentShape(Rectangle())
+                            }
+                            
+                            // Waveform container (if audio tracks exist)
+                            if let info = viewModel.extendedInfo, !info.audioTracks.isEmpty {
+                                AnimatedContentWrapper(delay: 0.2) {
+                                    WaveformContainerView(viewModel: viewModel)
+                                        .frame(maxWidth: .infinity)
+                                        .layoutPriority(0)
+                                }
+                                
+                                // Sync analysis (if audio tracks exist)
+                                AnimatedContentWrapper(delay: 0.3) {
+                                    SyncAnalysisView(viewModel: viewModel)
+                                        .frame(maxWidth: .infinity)
+                                        .layoutPriority(0)
+                                }
+                            }
+                            
+                            // Color analysis (if file is loaded)
+                            AnimatedContentWrapper(delay: viewModel.extendedInfo?.audioTracks.isEmpty ?? true ? 0.2 : 0.4) {
+                                ColorAnalysisView(viewModel: viewModel)
+                                    .frame(maxWidth: .infinity)
+                                    .layoutPriority(0)
+                            }
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, isTimelineVisible ? DesignSystem.Padding.xxl2 + 80 : DesignSystem.Padding.lg) // Extra padding when timeline is visible
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
                     .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
-                } else {
-                    // Empty state when no tabs
-                    Text("No tabs available")
-                        .foregroundStyle(.secondary)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .bottom)),
+                        removal: .opacity.combined(with: .move(edge: .top))
+                    ))
+                    .overlay(alignment: .bottom) {
+                        if let viewModel = currentViewModel {
+                            if isTimelineVisible {
+                                // Floating timeline popup at bottom
+                                TimelineView(
+                                    duration: viewModel.durationSeconds,
+                                    visibleTimeRange: Binding(
+                                        get: { viewModel.visibleTimeRange },
+                                        set: { viewModel.visibleTimeRange = $0 }
+                                    ),
+                                    frameRate: viewModel.effectiveFPS,
+                                    currentPlaybackTime: viewModel.currentPlaybackTime,
+                                    isVisible: $isTimelineVisible
+                                )
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, DesignSystem.Padding.xl)
+                                .padding(.bottom, DesignSystem.Padding.xl)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            } else {
+                                // Show timeline button when hidden
+                                Button {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        isTimelineVisible = true
+                                    }
+                                } label: {
+                                    HStack(spacing: DesignSystem.Spacing.xs) {
+                                        Image(systemName: "timeline.selection")
+                                            .font(.caption)
+                                        Text("Show Timeline")
+                                            .font(.caption)
+                                    }
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                                    .padding(.horizontal, DesignSystem.Padding.md)
+                                    .padding(.vertical, DesignSystem.Padding.sm)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                                            .fill(DesignSystem.Materials.thin)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                                                    .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
+                                            )
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.horizontal, DesignSystem.Padding.xl)
+                                .padding(.bottom, DesignSystem.Padding.lg)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            }
+                        }
+                    }
+                } else if let viewModel = currentViewModel, (viewModel.pendingURL != nil || viewModel.isAnalyzing || viewModel.isGeneratingThumbnails) {
+                    // Loading state - show loading view instead of empty state
+                    LoadingView(message: String(localized: "Loading file…"))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+                } else {
+                    // Empty state when no tabs or no file loaded
+                    EmptyMainState(
+                        onFileSelected: { url in
+                            openFileInAppropriateTab(url: url)
+                        },
+                        onOpenFile: {
+                            if let untitledTab = tabManager.findUntitledTab() {
+                                tabManager.switchToTab(id: untitledTab.id)
+                            }
+                            currentViewModel?.pickFile()
+                        }
+                    )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .top)),
+                            removal: .opacity.combined(with: .move(edge: .bottom))
+                        ))
                 }
             }
+            .animation(.spring(response: 0.6, dampingFraction: 0.85), value: currentViewModel?.extendedInfo != nil)
             .inspector(isPresented: $isInspectorVisible) {
                 if let viewModel = currentViewModel {
                     InfoInspectorView(viewModel: viewModel)
@@ -185,12 +292,36 @@ struct FramePeek: View {
         }
         
         ToolbarItem(placement: .confirmationAction) {
-            Button {
-                // Check for untitled tab first, then open file picker
-                if let untitledTab = tabManager.findUntitledTab() {
-                    tabManager.switchToTab(id: untitledTab.id)
+            Menu {
+                Button {
+                    if let untitledTab = tabManager.findUntitledTab() {
+                        tabManager.switchToTab(id: untitledTab.id)
+                    }
+                    currentViewModel?.pickFile()
+                } label: {
+                    Label("Open…", systemImage: "folder")
                 }
-                currentViewModel?.pickFile()
+                .keyboardShortcut("o", modifiers: [.command])
+                
+                if !fileHistory.validFiles.isEmpty {
+                    Divider()
+                    
+                    ForEach(fileHistory.validFiles, id: \.self) { url in
+                        Button {
+                            openFileFromHistory(url: url)
+                        } label: {
+                            Text(url.lastPathComponent)
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    Button(role: .destructive) {
+                        fileHistory.clearHistory()
+                    } label: {
+                        Label("Clear History", systemImage: "trash")
+                    }
+                }
             } label: {
                 Label("Open…", systemImage: "folder")
             }
@@ -392,8 +523,20 @@ struct FramePeek: View {
         return true
     }
     
+    /// Opens a file from history
+    private func openFileFromHistory(url: URL) {
+        // Check for untitled tab first, then open file picker
+        if let untitledTab = tabManager.findUntitledTab() {
+            tabManager.switchToTab(id: untitledTab.id)
+        }
+        openFileInAppropriateTab(url: url)
+    }
+    
     /// Opens a file in the appropriate tab - checks for untitled tabs first
     private func openFileInAppropriateTab(url: URL) {
+        // Add to file history
+        fileHistory.addFile(url)
+        
         // First, check if there's an untitled tab we can use
         if let untitledTab = tabManager.findUntitledTab() {
             // Switch to the untitled tab and load the file there

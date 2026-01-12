@@ -171,11 +171,11 @@ private func parseAVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
         guard reader.readUE() != nil else { return nil }
     } else if picOrderCntType == 1 {
         reader.skipBits(1)
-        reader.readSE()
-        reader.readSE()
+        _ = reader.readSE()
+        _ = reader.readSE()
         guard let numRefFrames = reader.readUE() else { return nil }
         for _ in 0..<numRefFrames {
-            reader.readSE()
+            _ = reader.readSE()
         }
     }
     
@@ -196,10 +196,10 @@ private func parseAVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
     reader.skipBits(1)
     
     if let frameCroppingFlag = reader.readBit(), frameCroppingFlag == 1 {
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
     }
     
     guard let vuiPresent = reader.readBit(), vuiPresent == 1 else {
@@ -233,8 +233,8 @@ private func parseAVCSPSVUI(reader: inout BitReader) -> UInt32? {
     }
     
     if let chromaLocPresent = reader.readBit(), chromaLocPresent == 1 {
-        reader.readUE()
-        reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
     }
     
     if let timingPresent = reader.readBit(), timingPresent == 1 {
@@ -266,12 +266,12 @@ private func parseAVCSPSVUI(reader: inout BitReader) -> UInt32? {
     if let bitstreamRestriction = reader.readBit(), bitstreamRestriction == 1 {
         _ = reader.readBit()
         _ = reader.readBit()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
     }
     
     return hrdMaxBitrate
@@ -290,7 +290,7 @@ private func parseHRDParameters(reader: inout BitReader) -> UInt32? {
             let kbps = bitRateValueMinus1 + 1
             maxBitrateValue = max(maxBitrateValue, kbps)
         }
-        reader.readUE()
+        _ = reader.readUE()
         _ = reader.readBit()
     }
     
@@ -320,7 +320,6 @@ func parseHEVCMaxBitrate(_ hvcCData: Data) -> String? {
     
     for _ in 0..<numArrays {
         guard offset + 3 <= hvcCData.count else { break }
-        let arrayCompleteness = (bytes[offset] & 0x80) != 0
         let nalUnitType = bytes[offset] & 0x3F
         offset += 1
         let numNalus = (Int(bytes[offset]) << 8) | Int(bytes[offset + 1])
@@ -397,16 +396,15 @@ private func parseHEVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
     guard reader.readUE() != nil else { return nil }
     
     if let conformanceWindow = reader.readBit(), conformanceWindow == 1 {
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
     }
     
-    guard reader.readUE() != nil else { return nil }
-    guard reader.readUE() != nil else { return nil }
-    
-    guard reader.readUE() != nil else { return nil }
+    _ = reader.readUE()
+    _ = reader.readUE()
+    _ = reader.readUE()
     
     let subLayerOrderingPresent = reader.readBit()
     
@@ -415,17 +413,17 @@ private func parseHEVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
         if i > 0 && subLayerOrderingPresent == 0 {
             break
         }
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
     }
     
-    guard reader.readUE() != nil else { return nil }
-    guard reader.readUE() != nil else { return nil }
-    guard reader.readUE() != nil else { return nil }
-    guard reader.readUE() != nil else { return nil }
-    guard reader.readUE() != nil else { return nil }
-    guard reader.readUE() != nil else { return nil }
+    _ = reader.readUE()
+    _ = reader.readUE()
+    _ = reader.readUE()
+    _ = reader.readUE()
+    _ = reader.readUE()
+    _ = reader.readUE()
     
     if let scalingListEnabled = reader.readBit(), scalingListEnabled == 1 {
         if let scalingListDataPresent = reader.readBit(), scalingListDataPresent == 1 {
@@ -437,8 +435,8 @@ private func parseHEVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
     if let pcmEnabled = reader.readBit(), pcmEnabled == 1 {
         reader.skipBits(4)
         reader.skipBits(4)
-        reader.readUE()
-        reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
         reader.skipBits(1)
     }
     
@@ -446,31 +444,31 @@ private func parseHEVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
     
     for _ in 0..<numShortTermRefPicSets {
         if let interRefPicSetPredictionFlag = reader.readBit(), interRefPicSetPredictionFlag == 1 {
-            reader.readUE()
-            reader.readUE()
-            reader.readUE()
+            _ = reader.readUE()
+            _ = reader.readUE()
+            _ = reader.readUE()
             if let numNegativePics = reader.readUE() {
                 for _ in 0..<numNegativePics {
-                    reader.readUE()
+                    _ = reader.readUE()
                     reader.skipBits(1)
                 }
             }
             if let numPositivePics = reader.readUE() {
                 for _ in 0..<numPositivePics {
-                    reader.readUE()
+                    _ = reader.readUE()
                     reader.skipBits(1)
                 }
             }
         } else {
             if let numNegativePics = reader.readUE() {
                 for _ in 0..<numNegativePics {
-                    reader.readUE()
+                    _ = reader.readUE()
                     reader.skipBits(1)
                 }
             }
             if let numPositivePics = reader.readUE() {
                 for _ in 0..<numPositivePics {
-                    reader.readUE()
+                    _ = reader.readUE()
                     reader.skipBits(1)
                 }
             }
@@ -478,7 +476,7 @@ private func parseHEVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
     }
     
     if let longTermRefPicsPresent = reader.readBit(), longTermRefPicsPresent == 1 {
-        reader.readUE()
+        _ = reader.readUE()
     }
     
     reader.skipBits(1)
@@ -515,7 +513,7 @@ private func parseHEVCSPSVUI(reader: inout BitReader) -> UInt32? {
     }
     
     if let chromaLocPresent = reader.readBit(), chromaLocPresent == 1 {
-        reader.readUE()
+        _ = reader.readUE()
     }
     
     _ = reader.readBit()
@@ -525,17 +523,17 @@ private func parseHEVCSPSVUI(reader: inout BitReader) -> UInt32? {
     _ = reader.readBit()
     
     if let defaultDisplayWindow = reader.readBit(), defaultDisplayWindow == 1 {
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
     }
     
     if let timingPresent = reader.readBit(), timingPresent == 1 {
         reader.skipBits(32)
         reader.skipBits(32)
         if let vuiPocProportionalToTiming = reader.readBit(), vuiPocProportionalToTiming == 1 {
-            reader.readUE()
+            _ = reader.readUE()
         }
         if let vuiHrdParametersPresent = reader.readBit(), vuiHrdParametersPresent == 1 {
             if let maxBitrate = parseHEVCHRDParameters(reader: &reader) {
@@ -548,11 +546,11 @@ private func parseHEVCSPSVUI(reader: inout BitReader) -> UInt32? {
         _ = reader.readBit()
         _ = reader.readBit()
         _ = reader.readBit()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
-        reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
+        _ = reader.readUE()
     }
     
     return nil
@@ -596,7 +594,7 @@ private func parseHEVCSubLayerHRD(reader: inout BitReader) -> UInt32? {
             let bitrate = (bitrateValue + 1) * 100
             maxBitrateValue = max(maxBitrateValue, bitrate)
         }
-        reader.readUE()
+        _ = reader.readUE()
         _ = reader.readBit()
     }
     

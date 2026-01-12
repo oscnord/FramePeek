@@ -12,10 +12,6 @@ extension FramePeekViewModel {
         // Reload settings from UserDefaults in case they changed
         loadSettingsFromUserDefaults()
         
-        // Update tab name immediately with filename
-        // This will be updated again when extendedInfo loads, but gives immediate feedback
-        let fileName = url.lastPathComponent
-        
         // Check if a file is already loaded in this tab
         if extendedInfo != nil {
             // File is loaded, check user's preference for file opening behavior
@@ -79,7 +75,9 @@ extension FramePeekViewModel {
             guard let self, let path else { return }
             // Ensure we're on MainActor for @Published property updates
             Task { @MainActor in
-                self.handleIncomingFile(url: URL(fileURLWithPath: path))
+                let url = URL(fileURLWithPath: path)
+                FileHistoryManager.shared.addFile(url)
+                self.handleIncomingFile(url: url)
             }
         }
     }
@@ -136,6 +134,8 @@ extension FramePeekViewModel {
                     }
                     // Start extracting waveforms for expanded tracks
                     self.startWaveformExtraction(asset: assetForInfo, audioTracks: info.audioTracks, duration: duration)
+                    // Start sync analysis automatically when audio tracks are detected
+                    self.startSyncAnalysis(asset: assetForInfo, audioTracks: info.audioTracks)
                 }
                 
                 // Update player window if it's open and this is the active ViewModel
@@ -158,6 +158,8 @@ extension FramePeekViewModel {
         infoTask?.cancel()
         framesTask?.cancel()
         thumbnailTask?.cancel()
+        syncTask?.cancel()
+        colorAnalysisTask?.cancel()
         // Cancel all waveform extraction tasks
         for task in waveformTasks.values {
             task.cancel()
@@ -166,6 +168,8 @@ extension FramePeekViewModel {
         infoTask = nil
         thumbnailTask = nil
         framesTask = nil
+        syncTask = nil
+        colorAnalysisTask = nil
     }
     
     private func resetStateForNewAsset() {
@@ -183,6 +187,12 @@ extension FramePeekViewModel {
         waveformData = [:]
         isExtractingWaveforms = false
         expandedWaveformTracks = []
+        syncAnalysisResult = nil
+        frameTimingSamples = []
+        isAnalyzingSync = false
+        colorSamples = []
+        isAnalyzingColor = false
+        currentPlaybackTime = nil
     }
 
     func cancelAnalysis() {
@@ -208,6 +218,12 @@ extension FramePeekViewModel {
         waveformData = [:]
         isExtractingWaveforms = false
         expandedWaveformTracks = []
+        syncAnalysisResult = nil
+        frameTimingSamples = []
+        isAnalyzingSync = false
+        colorSamples = []
+        isAnalyzingColor = false
+        currentPlaybackTime = nil
     }
 }
 

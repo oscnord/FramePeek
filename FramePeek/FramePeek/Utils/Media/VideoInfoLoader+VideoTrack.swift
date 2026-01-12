@@ -41,13 +41,13 @@ func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
         let frameRate = String(format: "%.3f FPS", loadedFrameRate)
         
         // Orientation (preferredTransform)
-        let t = videoTrack.preferredTransform
+        let t = (try? await videoTrack.load(.preferredTransform)) ?? CGAffineTransform.identity
         let angle = atan2(t.b, t.a) * 180.0 / .pi
         let normalized = (Int(round(angle)) % 360 + 360) % 360
         let orientationDegrees: Int? = normalized != 0 ? normalized : nil
         
         // Track bitrate
-        let estimated = videoTrack.estimatedDataRate
+        let estimated = (try? await videoTrack.load(.estimatedDataRate)) ?? 0
         let trackBitrateValue = estimated
         let trackBitrate: String? = estimated > 0 ? String(format: "%.0f kb/s", estimated / 1000.0) : nil
         

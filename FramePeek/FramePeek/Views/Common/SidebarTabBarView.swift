@@ -61,7 +61,6 @@ struct SidebarTabButton: View {
     
     @ObservedObject private var viewModel: FramePeekViewModel
     @State private var isHovered: Bool = false
-    @AppStorage("showTabCloseButton") private var showCloseButton: Bool = true
     
     init(tab: TabItem, tabManager: TabManager, isSelected: Bool, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
         self.tab = tab
@@ -91,24 +90,22 @@ struct SidebarTabButton: View {
                     .layoutPriority(-1)
             }
             
-            // Close button - only show if enabled in settings
-            if showCloseButton {
-                Group {
-                    if isHovered || isSelected {
-                        Button(action: onClose) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 16, height: 16)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                    } else {
-                        // Invisible spacer to maintain consistent layout
-                        Color.clear
+            // Close button
+            Group {
+                if isHovered || isSelected {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.secondary)
                             .frame(width: 16, height: 16)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                } else {
+                    // Invisible spacer to maintain consistent layout
+                    Color.clear
+                        .frame(width: 16, height: 16)
                 }
             }
         }

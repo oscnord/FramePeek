@@ -35,8 +35,6 @@ func extractWithReader(
         return
     }
 
-    let emitInterval = options.minEmitIntervalSeconds ?? 0
-    let windowSize: Double = 1.0  // 1-second window
     let estimatedFPS = nominalFrameRate > 0 ? nominalFrameRate : 30.0
     let defaultFrameDuration = 1.0 / estimatedFPS
 
@@ -149,7 +147,7 @@ func extractWithReader(
     var previousPTS: Double? = nil
     var lastEmittedBucket = -1
 
-    for (pts, size) in allSamples {
+    for (pts, _) in allSamples {
         if Task.isCancelled { break }
         
         // FPS stats

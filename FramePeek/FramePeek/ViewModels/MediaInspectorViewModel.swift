@@ -51,6 +51,18 @@ final class FramePeekViewModel: ObservableObject {
     @Published var expandedWaveformTracks: Set<Int> = [] // Tracks that are expanded/visible
     @Published var waveformHeight: WaveformHeight = .normal
     
+    // Sync analysis
+    @Published var syncAnalysisResult: SyncAnalysisResult?
+    @Published var frameTimingSamples: [FrameTimingSample] = []
+    @Published var isAnalyzingSync: Bool = false
+    
+    // Color analysis
+    @Published var colorSamples: [ColorSample] = []
+    @Published var isAnalyzingColor: Bool = false
+    
+    // Playback position
+    @Published var currentPlaybackTime: Double? = nil
+    
     // Always use second-based visualization mode
     var visualizationMode: BitrateVisualizationMode { .second }
     
@@ -122,6 +134,8 @@ final class FramePeekViewModel: ObservableObject {
     var thumbnailTask: Task<Void, Never>?
     var framesTask: Task<Void, Never>?
     var waveformTasks: [Int: Task<Void, Never>] = [:] // Dictionary of extraction tasks per track
+    var syncTask: Task<Void, Never>?
+    var colorAnalysisTask: Task<Void, Never>?
 
     enum SamplingMode: String, CaseIterable, Identifiable {
         case auto

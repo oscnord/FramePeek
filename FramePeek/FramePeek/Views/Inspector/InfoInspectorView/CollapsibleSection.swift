@@ -64,7 +64,7 @@ struct CollapsibleSection<Content: View>: View {
 }
 
 #Preview {
-    @State var isExpanded = true
+    @Previewable @State var isExpanded = true
     return CollapsibleSection(
         title: "Preview Section",
         systemImage: "doc.fill",

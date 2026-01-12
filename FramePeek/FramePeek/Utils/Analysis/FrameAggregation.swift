@@ -307,7 +307,7 @@ private func aggregateByGOP(
     let avgFrameSize = sortedFrames.reduce(0) { $0 + $1.size } / Int64(sortedFrames.count)
     let sizeSpikeThreshold = Double(avgFrameSize) * 1.5
     
-    for (index, frame) in sortedFrames.enumerated() {
+    for frame in sortedFrames {
         var isGOPBoundary = false
         
         if let prev = previousPTS {

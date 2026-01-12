@@ -34,8 +34,6 @@ func extractFragmentedMP4(
         return
     }
 
-    let emitInterval = options.minEmitIntervalSeconds ?? 0
-    let windowSize: Double = 1.0  // 1-second window
     let estimatedFPS = nominalFrameRate > 0 ? nominalFrameRate : 30.0
     let defaultFrameDuration = 1.0 / estimatedFPS
     let maxPTSGap = defaultFrameDuration * 2.0  // Threshold for detecting discontinuities
@@ -151,7 +149,7 @@ func extractFragmentedMP4(
     var bucketIndex = 0
     var lastEmittedBucket = -1
 
-    for (pts, size) in allSamples {
+    for (pts, _) in allSamples {
         if Task.isCancelled { break }
         
         let currentBucket = Int(floor((pts - startTime) / bucketSize))

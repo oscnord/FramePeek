@@ -38,7 +38,7 @@ struct ChartHeaderRow: View {
     var body: some View {
         HStack {
             HStack(spacing: DesignSystem.Spacing.md) {
-                Text("Chart")
+                Text("Bitrate")
                     .font(.subheadline)
                     .fontWeight(.semibold)
             }

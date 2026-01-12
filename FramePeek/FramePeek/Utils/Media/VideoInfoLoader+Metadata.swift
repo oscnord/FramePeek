@@ -12,7 +12,7 @@ struct MetadataInfo {
 func formatCreationDate(from asset: AVAsset) async -> String? {
     guard
         let creationItem = try? await asset.load(.creationDate),
-        let date = creationItem.dateValue
+        let date = try? await creationItem.load(.dateValue)
     else {
         return nil
     }
@@ -23,7 +23,7 @@ func formatCreationDate(from asset: AVAsset) async -> String? {
     return formatter.string(from: date)
 }
 
-func extractCommonMetadata(from asset: AVAsset) -> (
+func extractCommonMetadata(from asset: AVAsset) async -> (
     title: String?,
     artist: String?,
     encoder: String?,
@@ -34,9 +34,13 @@ func extractCommonMetadata(from asset: AVAsset) -> (
     var encoder: String?
     var description: String?
     
-    for item in asset.commonMetadata {
+    guard let commonMetadata = try? await asset.load(.commonMetadata) else {
+        return (nil, nil, nil, nil)
+    }
+    
+    for item in commonMetadata {
         guard let commonKey = item.commonKey?.rawValue,
-              let value = item.stringValue else { continue }
+              let value = try? await item.load(.stringValue) else { continue }
         
         switch commonKey {
         case "title":
@@ -57,7 +61,7 @@ func extractCommonMetadata(from asset: AVAsset) -> (
 
 func extractMetadataInfo(asset: AVAsset) async -> MetadataInfo {
     async let creationDate = formatCreationDate(from: asset)
-    let commonMetadata = extractCommonMetadata(from: asset)
+    let commonMetadata = await extractCommonMetadata(from: asset)
     
     return MetadataInfo(
         creationDate: await creationDate,
