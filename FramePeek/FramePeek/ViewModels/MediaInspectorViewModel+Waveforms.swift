@@ -11,9 +11,7 @@ extension FramePeekViewModel {
         
         isExtractingWaveforms = true
         
-        // Extract waveforms for all expanded tracks in parallel (limit to 4 concurrent)
-        let semaphore = DispatchSemaphore(value: 4) // Limit concurrent extractions
-        
+        // Extract waveforms for all expanded tracks in parallel
         for trackInfo in expandedTracks {
             // Skip if already extracted or already extracting
             if waveformData[trackInfo.index] != nil || waveformTasks[trackInfo.index] != nil {
@@ -26,9 +24,6 @@ extension FramePeekViewModel {
             // Create extraction task
             let task = Task.detached(priority: .userInitiated) { [weak self] in
                 guard let self else { return }
-                
-                semaphore.wait()
-                defer { semaphore.signal() }
                 
                 if Task.isCancelled { return }
                 

@@ -271,7 +271,9 @@ struct VideoPlayerView: View {
             if seconds.isFinite {
                 currentTime = seconds
                 // Update PlayerViewModelManager with current playback time
-                PlayerViewModelManager.shared.updatePlaybackTime(seconds)
+                Task { @MainActor in
+                    PlayerViewModelManager.shared.updatePlaybackTime(seconds)
+                }
             }
             isPlaying = player.rate > 0
         }

@@ -69,96 +69,15 @@ struct ColorAnalysisView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
-            HStack {
-                Text("Color Analysis")
-                    .font(.headline)
-                Spacer()
-                
-                Group {
-                    if viewModel.colorSamples.isEmpty {
-                        Button {
-                            if let url = viewModel.currentVideoURL {
-                                let asset = AVURLAsset(url: url)
-                                viewModel.startColorAnalysis(asset: asset)
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "play.circle")
-                                Text("Analyze")
-                            }
-                        }
-                        .disabled(viewModel.isAnalyzingColor)
-                        .opacity(viewModel.isAnalyzingColor ? 0.5 : 1.0)
-                    } else {
-                        Color.clear
-                            .frame(width: 90, height: 24)
-                    }
-                }
-                .frame(width: 90, alignment: .trailing)
-            }
-            .padding(.horizontal, DesignSystem.Padding.lg)
-            .padding(.top, DesignSystem.Padding.lg)
-            .padding(.bottom, DesignSystem.Padding.md)
+            headerSection
             
-            // Charts
-            Group {
-                if viewModel.isAnalyzingColor {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("Analyzing color…")
-                            .font(.caption)
-                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 60)
-                } else if viewModel.colorSamples.isEmpty {
-                    HStack {
-                        Spacer()
-                        Text("Click Analyze to start color analysis")
-                            .font(.caption)
-                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 60)
-                } else {
-                    VStack(spacing: DesignSystem.Spacing.lg) {
-                        // Statistics Summary
-                        if isHDRContent {
-                            hdrWarningBanner
-                        } else if let brightnessStats = brightnessStats {
-                            statisticsSummary(brightnessStats: brightnessStats)
-                        }
-                        
-                        // Charts
-                        VStack(spacing: DesignSystem.Spacing.md) {
-                            BrightnessChartView(samples: displaySamples, frameRate: viewModel.effectiveFPS)
-                                .overlay(alignment: .topTrailing) {
-                                    if isHDRContent {
-                                        hdrChartWarning
-                                    }
-                                }
-                            ColorTemperatureChartView(samples: displaySamples, frameRate: viewModel.effectiveFPS)
-                                .overlay(alignment: .topTrailing) {
-                                    if isHDRContent {
-                                        hdrChartWarning
-                                    }
-                                }
-                            
-                            // RGB Histogram
-                            if let histogram = aggregatedHistogram {
-                                RGBHistogramView(histogram: histogram, isHDRContent: isHDRContent, isDolbyVision: isDolbyVision)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, DesignSystem.Padding.lg)
-                    .padding(.top, DesignSystem.Padding.sm)
-                    .padding(.bottom, DesignSystem.Padding.lg)
-                }
+            if viewModel.isAnalyzingColor {
+                loadingSection
+            } else if viewModel.colorSamples.isEmpty {
+                emptySection
+            } else {
+                contentSection
             }
-            .frame(maxWidth: .infinity, minHeight: 60)
         }
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
@@ -169,6 +88,96 @@ struct ColorAnalysisView: View {
                 )
         )
         .padding(DesignSystem.Padding.lg)
+    }
+    
+    private var headerSection: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("Color Analysis")
+                    .font(.headline)
+                if !viewModel.colorSamples.isEmpty {
+                    Text("Analyzes brightness, color temperature, and RGB distribution")
+                        .font(.caption2)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                }
+            }
+            Spacer()
+            
+            if viewModel.colorSamples.isEmpty {
+                Button {
+                    if let url = viewModel.currentVideoURL {
+                        let asset = AVURLAsset(url: url)
+                        viewModel.startColorAnalysis(asset: asset)
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "play.circle")
+                        Text("Analyze")
+                    }
+                }
+                .disabled(viewModel.isAnalyzingColor)
+                .opacity(viewModel.isAnalyzingColor ? 0.5 : 1.0)
+            }
+        }
+        .padding(.horizontal, DesignSystem.Padding.lg)
+        .padding(.top, DesignSystem.Padding.lg)
+        .padding(.bottom, DesignSystem.Padding.md)
+    }
+    
+    private var loadingSection: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            ProgressView()
+                .controlSize(.regular)
+            Text("Analyzing color…")
+                .font(.subheadline)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DesignSystem.Padding.xxl)
+    }
+    
+    private var emptySection: some View {
+        Text("Click Analyze to start color analysis")
+            .font(.subheadline)
+            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DesignSystem.Padding.xxl)
+    }
+    
+    @ViewBuilder
+    private var contentSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
+            if isHDRContent {
+                hdrWarningBanner
+            } else if let brightnessStats = brightnessStats {
+                statisticsSummarySection(brightnessStats: brightnessStats)
+            }
+            
+            chartsSection
+        }
+        .padding(.horizontal, DesignSystem.Padding.lg)
+        .padding(.bottom, DesignSystem.Padding.lg)
+    }
+    
+    private var chartsSection: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            BrightnessChartView(samples: displaySamples, frameRate: viewModel.effectiveFPS)
+                .overlay(alignment: .topTrailing) {
+                    if isHDRContent {
+                        hdrChartWarning
+                    }
+                }
+            ColorTemperatureChartView(samples: displaySamples, frameRate: viewModel.effectiveFPS)
+                .overlay(alignment: .topTrailing) {
+                    if isHDRContent {
+                        hdrChartWarning
+                    }
+                }
+            
+            if let histogram = aggregatedHistogram {
+                RGBHistogramView(histogram: histogram, isHDRContent: isHDRContent, isDolbyVision: isDolbyVision)
+            }
+        }
     }
     
     // MARK: - Subviews
@@ -206,39 +215,42 @@ struct ColorAnalysisView: View {
             .help(String(localized: "Color data may be inaccurate for HDR content"))
     }
     
-    private func statisticsSummary(brightnessStats: (min: Double, max: Double, avg: Double)) -> some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 10),
-            GridItem(.flexible(), spacing: 10),
-            GridItem(.flexible(), spacing: 10)
-        ], spacing: 10) {
-            if let tempStats = temperatureStats {
-                ColorSummaryItem(
-                    label: String(localized: "Brightness"),
-                    value: String(format: "%.1f%%", brightnessStats.avg * 100),
-                    icon: "sun.max",
-                    detail: String(format: String(localized: "Min: %.1f%% • Max: %.1f%%"), brightnessStats.min * 100, brightnessStats.max * 100)
-                )
-                ColorSummaryItem(
-                    label: String(localized: "Temperature"),
-                    value: String(format: "%.0f K", tempStats.avg),
-                    icon: "thermometer",
-                    detail: String(format: String(localized: "Min: %.0f K • Max: %.0f K"), tempStats.min, tempStats.max)
-                )
-            } else {
-                ColorSummaryItem(
-                    label: String(localized: "Brightness"),
-                    value: String(format: "%.1f%%", brightnessStats.avg * 100),
-                    icon: "sun.max",
-                    detail: String(format: String(localized: "Min: %.1f%% • Max: %.1f%%"), brightnessStats.min * 100, brightnessStats.max * 100)
-                )
+    @ViewBuilder
+    private func statisticsSummarySection(brightnessStats: (min: Double, max: Double, avg: Double)) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Text("Color Metrics")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.primary)
+            
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: DesignSystem.Spacing.md) {
+                if let tempStats = temperatureStats {
+                    ColorSummaryItem(
+                        label: String(localized: "Brightness"),
+                        value: String(format: "%.1f%%", brightnessStats.avg * 100),
+                        icon: "sun.max",
+                        detail: String(format: String(localized: "Min: %.1f%% • Max: %.1f%%"), brightnessStats.min * 100, brightnessStats.max * 100)
+                    )
+                    ColorSummaryItem(
+                        label: String(localized: "Temperature"),
+                        value: String(format: "%.0f K", tempStats.avg),
+                        icon: "thermometer",
+                        detail: String(format: String(localized: "Min: %.0f K • Max: %.0f K"), tempStats.min, tempStats.max)
+                    )
+                } else {
+                    ColorSummaryItem(
+                        label: String(localized: "Brightness"),
+                        value: String(format: "%.1f%%", brightnessStats.avg * 100),
+                        icon: "sun.max",
+                        detail: String(format: String(localized: "Min: %.1f%% • Max: %.1f%%"), brightnessStats.min * 100, brightnessStats.max * 100)
+                    )
+                }
             }
         }
-        .padding(DesignSystem.Padding.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
-                .fill(DesignSystem.Materials.thin)
-        )
     }
 }
 
@@ -259,33 +271,29 @@ struct ColorSummaryItem: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
                 Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 14)
-                
+                    .font(.caption2)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 Text(label)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                
-                Spacer(minLength: 0)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
             }
             
-            Text(value)
-                .font(.caption)
-                .fontWeight(.medium)
-                .lineLimit(1)
-            
-            if let detail = detail {
-                Text(detail)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.system(.body, design: .monospaced))
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+                if let detail = detail {
+                    Text(detail)
+                        .font(.caption2)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                }
             }
         }
-        .padding(DesignSystem.Padding.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Padding.sm)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
                 .fill(DesignSystem.Materials.ultraThin)

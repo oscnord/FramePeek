@@ -157,9 +157,6 @@ func analyzeFrameTimingStream(
                 return
             }
             
-            let timeRange = try? await videoTrack.load(.timeRange)
-            let duration = timeRange?.duration.seconds ?? 0
-            
             guard let reader = try? AVAssetReader(asset: asset) else {
                 continuation.finish()
                 return

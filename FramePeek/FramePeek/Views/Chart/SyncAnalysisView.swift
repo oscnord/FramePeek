@@ -73,7 +73,7 @@ struct SyncAnalysisView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 Text("Audio/Video Sync")
                     .font(.headline)
-                if let result = viewModel.syncAnalysisResult {
+                if viewModel.syncAnalysisResult != nil {
                     Text("Measures timing alignment between audio and video tracks")
                         .font(.caption2)
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)

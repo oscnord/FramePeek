@@ -12,10 +12,6 @@ extension FramePeekViewModel {
         // Reload settings from UserDefaults in case they changed
         loadSettingsFromUserDefaults()
         
-        // Update tab name immediately with filename
-        // This will be updated again when extendedInfo loads, but gives immediate feedback
-        let fileName = url.lastPathComponent
-        
         // Check if a file is already loaded in this tab
         if extendedInfo != nil {
             // File is loaded, check user's preference for file opening behavior

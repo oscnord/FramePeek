@@ -293,7 +293,7 @@ final class PurchaseManager: ObservableObject {
                                 
                                 if !alreadyFinished {
                                     await transaction.finish()
-                                    await MainActor.run {
+                                    _ = await MainActor.run {
                                         self.finishedTransactionIDs.insert(transactionID)
                                     }
                                 }

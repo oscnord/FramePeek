@@ -22,7 +22,7 @@ extension FramePeekViewModel {
     /// Updates maxBitrate and minBitrate in extendedInfo with peak and minimum bitrate calculated from raw frames
     /// Uses rawFrames instead of aggregated samples to avoid missing peaks due to downsampling
     private func updateMaxBitrateFromSamples() {
-        guard var info = extendedInfo else { return }
+        guard let info = extendedInfo else { return }
         
         // Calculate from rawFrames if available (more accurate, no downsampling)
         // Otherwise fall back to samples

@@ -320,7 +320,6 @@ extension TimelineView {
         if let range = visibleTimeRange {
             let windowStartX = CGFloat(range.lowerBound / duration) * totalWidth + 10
             let windowEndX = CGFloat(range.upperBound / duration) * totalWidth + 10
-            let handleWidth: CGFloat = 8
             let handleTolerance: CGFloat = 6
             
             if startX >= windowStartX - handleTolerance && startX <= windowStartX + handleTolerance {
