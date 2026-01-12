@@ -187,6 +187,8 @@ struct DesignSystem {
         
         struct Status {
             static var success: Color { .green }
+            static var warning: Color { .orange }
+            static var error: Color { .red }
         }
     }
     

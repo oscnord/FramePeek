@@ -17,6 +17,11 @@ final class FramePeekViewModel: ObservableObject {
     @Published var hoveredKeyframeTime: Double? = nil  // Shared hover state for syncing thumbnails and chart
     @Published var visibleTimeRange: ClosedRange<Double>? = nil // Zoom state
     @Published var isGeneratingThumbnails: Bool = false
+    
+    // GOP analysis
+    @Published var gopAnalysis: GOPAnalysisResult? = nil
+    @Published var isAnalyzingGOP: Bool = false
+    @Published var selectedGOPIndex: Int? = nil // Selected GOP for details view
 
     // UI
     @Published var showAboutView: Bool = false
@@ -133,6 +138,7 @@ final class FramePeekViewModel: ObservableObject {
     var infoTask: Task<Void, Never>?
     var thumbnailTask: Task<Void, Never>?
     var framesTask: Task<Void, Never>?
+    var gopTask: Task<Void, Never>?
     var waveformTasks: [Int: Task<Void, Never>] = [:] // Dictionary of extraction tasks per track
     var syncTask: Task<Void, Never>?
     var colorAnalysisTask: Task<Void, Never>?

@@ -25,12 +25,13 @@ func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
         var channels = 0
         var sampleRateHz: Double = 0
         
-        let formatDescs = (try? await track.load(.formatDescriptions)) as? [CMAudioFormatDescription] ?? []
-        if let audioDesc = formatDescs.first {
-            let codecFourCC = CMFormatDescriptionGetMediaSubType(audioDesc)
+        let formatDescs = (try? await track.load(.formatDescriptions)) ?? []
+        if let formatDesc = formatDescs.first {
+            let codecFourCC = CMFormatDescriptionGetMediaSubType(formatDesc)
             codec = fourCCToString(codecFourCC)
             
-            if let asbdPtr = CMAudioFormatDescriptionGetStreamBasicDescription(audioDesc) {
+            // Check if it's an audio format description by trying to get the stream basic description
+            if let asbdPtr = CMAudioFormatDescriptionGetStreamBasicDescription(formatDesc as CMAudioFormatDescription) {
                 let asbd = asbdPtr.pointee
                 channels = Int(asbd.mChannelsPerFrame)
                 sampleRateHz = asbd.mSampleRate

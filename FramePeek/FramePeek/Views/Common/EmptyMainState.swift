@@ -25,6 +25,14 @@ struct EmptyMainState: View {
                 Text("Inspect and analyze your video files")
                     .font(.system(size: DesignSystem.Typography.callout))
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                
+                // Supported file types badges
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    ForEach(supportedFileTypes, id: \.self) { fileType in
+                        FileTypeBadge(fileType: fileType)
+                    }
+                }
+                .padding(.top, DesignSystem.Padding.sm)
             }
             .opacity(contentOpacity)
             .offset(y: contentOffset)
@@ -90,6 +98,28 @@ struct EmptyMainState: View {
                 contentOffset = 0
             }
         }
+    }
+}
+
+private let supportedFileTypes = ["MP4", "MOV", "AVI", "MPEG", "M4V"]
+
+private struct FileTypeBadge: View {
+    let fileType: String
+    
+    var body: some View {
+        Text(fileType)
+            .font(.system(size: DesignSystem.Typography.caption2, weight: .medium))
+            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+            .padding(.horizontal, DesignSystem.Padding.sm)
+            .padding(.vertical, DesignSystem.Padding.xs)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(DesignSystem.Materials.ultraThin)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(.separator.opacity(0.5), lineWidth: DesignSystem.Borders.thin)
+                    )
+            }
     }
 }
 

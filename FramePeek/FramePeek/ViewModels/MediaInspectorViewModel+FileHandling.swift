@@ -103,6 +103,7 @@ extension FramePeekViewModel {
         let assetForInfo = AVURLAsset(url: url)
         let assetForThumbnails = AVURLAsset(url: url)
         let assetForFrames = AVURLAsset(url: url)
+        let assetForGOP = AVURLAsset(url: url)
 
         // cancel in-flight work
         cancelAllTasks()
@@ -152,12 +153,16 @@ extension FramePeekViewModel {
         
         // Start frame analysis
         startFrameAnalysis(asset: assetForFrames)
+        
+        // Start fast GOP preview analysis
+        startGOPPreview(asset: assetForGOP)
     }
     
     private func cancelAllTasks() {
         infoTask?.cancel()
         framesTask?.cancel()
         thumbnailTask?.cancel()
+        gopTask?.cancel()
         syncTask?.cancel()
         colorAnalysisTask?.cancel()
         // Cancel all waveform extraction tasks
@@ -168,6 +173,7 @@ extension FramePeekViewModel {
         infoTask = nil
         thumbnailTask = nil
         framesTask = nil
+        gopTask = nil
         syncTask = nil
         colorAnalysisTask = nil
     }
@@ -183,6 +189,8 @@ extension FramePeekViewModel {
         isAnalyzing = true
         keyframeThumbs = []
         isGeneratingThumbnails = false
+        gopAnalysis = nil
+        isAnalyzingGOP = false
         currentVideoURL = nil
         waveformData = [:]
         isExtractingWaveforms = false
@@ -214,6 +222,8 @@ extension FramePeekViewModel {
         visibleTimeRange = nil
         durationSeconds = 0
         isGeneratingThumbnails = false
+        gopAnalysis = nil
+        isAnalyzingGOP = false
         currentVideoURL = nil
         waveformData = [:]
         isExtractingWaveforms = false

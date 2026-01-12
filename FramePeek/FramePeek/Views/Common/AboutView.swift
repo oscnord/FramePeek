@@ -44,6 +44,10 @@ struct AboutView: View {
                         .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                 }
                 
+                Text(copyrightYear)
+                    .font(.system(size: DesignSystem.Typography.caption2))
+                    .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
+                
                 Button("Close") {
                     dismiss()
                 }
@@ -66,6 +70,11 @@ struct AboutView: View {
     
     private var copyrightText: String? {
         Bundle.main.infoDictionary?["NSHumanReadableCopyright"] as? String
+    }
+    
+    private var copyrightYear: String {
+        let year = Calendar.current.component(.year, from: Date())
+        return String(format: "© %d", year)
     }
 }
 

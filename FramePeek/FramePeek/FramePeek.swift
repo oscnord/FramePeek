@@ -154,6 +154,13 @@ struct FramePeek: View {
                                     .contentShape(Rectangle())
                             }
                             
+                            // GOP Structure visualization
+                            AnimatedContentWrapper(delay: 0.15) {
+                                GOPStructureView(viewModel: viewModel)
+                                    .frame(maxWidth: .infinity)
+                                    .layoutPriority(0)
+                            }
+                            
                             // Waveform container (if audio tracks exist)
                             if let info = viewModel.extendedInfo, !info.audioTracks.isEmpty {
                                 AnimatedContentWrapper(delay: 0.2) {
