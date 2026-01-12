@@ -6,6 +6,7 @@ struct FramePeek: View {
     @EnvironmentObject var appViewModel: FramePeekViewModel
     @Environment(\.openWindow) private var openWindow
     @StateObject private var tabManager = TabManager()
+    @StateObject private var fileHistory = FileHistoryManager.shared
     
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
@@ -214,12 +215,36 @@ struct FramePeek: View {
         }
         
         ToolbarItem(placement: .confirmationAction) {
-            Button {
-                // Check for untitled tab first, then open file picker
-                if let untitledTab = tabManager.findUntitledTab() {
-                    tabManager.switchToTab(id: untitledTab.id)
+            Menu {
+                Button {
+                    if let untitledTab = tabManager.findUntitledTab() {
+                        tabManager.switchToTab(id: untitledTab.id)
+                    }
+                    currentViewModel?.pickFile()
+                } label: {
+                    Label("Open…", systemImage: "folder")
                 }
-                currentViewModel?.pickFile()
+                .keyboardShortcut("o", modifiers: [.command])
+                
+                if !fileHistory.validFiles.isEmpty {
+                    Divider()
+                    
+                    ForEach(fileHistory.validFiles, id: \.self) { url in
+                        Button {
+                            openFileFromHistory(url: url)
+                        } label: {
+                            Text(url.lastPathComponent)
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    Button(role: .destructive) {
+                        fileHistory.clearHistory()
+                    } label: {
+                        Label("Clear History", systemImage: "trash")
+                    }
+                }
             } label: {
                 Label("Open…", systemImage: "folder")
             }
@@ -421,8 +446,20 @@ struct FramePeek: View {
         return true
     }
     
+    /// Opens a file from history
+    private func openFileFromHistory(url: URL) {
+        // Check for untitled tab first, then open file picker
+        if let untitledTab = tabManager.findUntitledTab() {
+            tabManager.switchToTab(id: untitledTab.id)
+        }
+        openFileInAppropriateTab(url: url)
+    }
+    
     /// Opens a file in the appropriate tab - checks for untitled tabs first
     private func openFileInAppropriateTab(url: URL) {
+        // Add to file history
+        fileHistory.addFile(url)
+        
         // First, check if there's an untitled tab we can use
         if let untitledTab = tabManager.findUntitledTab() {
             // Switch to the untitled tab and load the file there

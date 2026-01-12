@@ -75,7 +75,9 @@ extension FramePeekViewModel {
             guard let self, let path else { return }
             // Ensure we're on MainActor for @Published property updates
             Task { @MainActor in
-                self.handleIncomingFile(url: URL(fileURLWithPath: path))
+                let url = URL(fileURLWithPath: path)
+                FileHistoryManager.shared.addFile(url)
+                self.handleIncomingFile(url: url)
             }
         }
     }

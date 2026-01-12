@@ -182,6 +182,17 @@ struct VideoPlayerView: View {
                             .monospacedDigit()
                     }
                 }
+                
+                // Effective FPS (from frame analysis)
+                if let effectiveFPS = viewModel.effectiveFPS {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.caption)
+                        Text(String(format: "%.2f fps", effectiveFPS))
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
+                }
             }
             
             // Current time
@@ -207,6 +218,29 @@ struct VideoPlayerView: View {
                     Text(formatBitrate(bitrate))
                         .font(.caption)
                         .monospacedDigit()
+                }
+            }
+            
+            // Color analysis stats
+            if let viewModel = viewModel, let colorSample = getColorSampleAtTime(currentTime, samples: viewModel.colorSamples) {
+                // Brightness
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "sun.max")
+                        .font(.caption)
+                    Text(String(format: "%.1f%%", colorSample.brightness * 100))
+                        .font(.caption)
+                        .monospacedDigit()
+                }
+                
+                // Color temperature
+                if let temperature = colorSample.colorTemperature {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: "thermometer")
+                            .font(.caption)
+                        Text(String(format: "%.0f K", temperature))
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
                 }
             }
         }
@@ -356,6 +390,52 @@ struct VideoPlayerView: View {
                 // Linear interpolation
                 let t = (time - sample1.time) / (sample2.time - sample1.time)
                 return sample1.bitrate + (sample2.bitrate - sample1.bitrate) * t
+            }
+        }
+        
+        return nil
+    }
+    
+    /// Finds the color sample at a given time by finding the nearest sample or interpolating
+    private func getColorSampleAtTime(_ time: Double, samples: [ColorSample]) -> ColorSample? {
+        guard !samples.isEmpty else { return nil }
+        
+        let sortedSamples = samples.sorted { $0.time < $1.time }
+        
+        // Before first sample
+        if time <= sortedSamples.first?.time ?? 0 {
+            return sortedSamples.first
+        }
+        
+        // After last sample
+        if time >= sortedSamples.last?.time ?? 0 {
+            return sortedSamples.last
+        }
+        
+        // Find two samples to interpolate between
+        for i in 0..<sortedSamples.count - 1 {
+            let sample1 = sortedSamples[i]
+            let sample2 = sortedSamples[i + 1]
+            
+            if time >= sample1.time && time <= sample2.time {
+                // Linear interpolation for brightness
+                let t = (time - sample1.time) / (sample2.time - sample1.time)
+                let interpolatedBrightness = sample1.brightness + (sample2.brightness - sample1.brightness) * t
+                
+                // Interpolate color temperature if both samples have it
+                let interpolatedTemperature: Double?
+                if let temp1 = sample1.colorTemperature, let temp2 = sample2.colorTemperature {
+                    interpolatedTemperature = temp1 + (temp2 - temp1) * t
+                } else {
+                    interpolatedTemperature = sample1.colorTemperature ?? sample2.colorTemperature
+                }
+                
+                return ColorSample(
+                    time: time,
+                    brightness: interpolatedBrightness,
+                    colorTemperature: interpolatedTemperature,
+                    histogram: nil
+                )
             }
         }
         

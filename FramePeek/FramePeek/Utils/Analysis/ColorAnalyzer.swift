@@ -8,11 +8,13 @@ import AppKit
 ///   - asset: The AVAsset to analyze
 ///   - sampleInterval: Interval in seconds between frame samples (default: 1.0)
 ///   - maxSamples: Maximum number of samples to return
+///   - smoothingFactor: Smoothing factor for brightness and temperature (default: 0.3)
 /// - Returns: AsyncStream of color samples
 func analyzeColor(
     asset: AVAsset,
     sampleInterval: Double = 1.0,
-    maxSamples: Int = 1000
+    maxSamples: Int = 1000,
+    smoothingFactor: Double = 0.3
 ) -> AsyncStream<[ColorSample]> {
     AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
@@ -41,7 +43,7 @@ func analyzeColor(
             
             var previousBrightness: Double?
             var previousTemperature: Double?
-            let smoothingFactor = 0.3
+            let effectiveSmoothingFactor = max(0.0, min(1.0, smoothingFactor))
             
             while currentTime < duration && sampleCount < maxSamples {
                 if Task.isCancelled { break }
@@ -59,7 +61,7 @@ func analyzeColor(
                 
                 let smoothedBrightness: Double
                 if let prev = previousBrightness {
-                    smoothedBrightness = prev * (1 - smoothingFactor) + rawBrightness * smoothingFactor
+                    smoothedBrightness = prev * (1 - effectiveSmoothingFactor) + rawBrightness * effectiveSmoothingFactor
                 } else {
                     smoothedBrightness = rawBrightness
                 }
@@ -68,7 +70,7 @@ func analyzeColor(
                 let smoothedTemperature: Double?
                 if let rawTemp = rawTemperature {
                     if let prev = previousTemperature {
-                        smoothedTemperature = prev * (1 - smoothingFactor) + rawTemp * smoothingFactor
+                        smoothedTemperature = prev * (1 - effectiveSmoothingFactor) + rawTemp * effectiveSmoothingFactor
                     } else {
                         smoothedTemperature = rawTemp
                     }
