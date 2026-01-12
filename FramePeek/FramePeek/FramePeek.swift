@@ -13,6 +13,7 @@ struct FramePeek: View {
     @State private var isProcessing: Bool = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var isInspectorVisible: Bool = true
+    @State private var isTimelineVisible: Bool = true
     
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
@@ -166,7 +167,7 @@ struct FramePeek: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.bottom, DesignSystem.Padding.lg)
+                        .padding(.bottom, isTimelineVisible ? DesignSystem.Padding.xxl2 + 80 : DesignSystem.Padding.lg) // Extra padding when timeline is visible
                     }
                     .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
                     .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
@@ -174,6 +175,56 @@ struct FramePeek: View {
                         insertion: .opacity.combined(with: .move(edge: .bottom)),
                         removal: .opacity.combined(with: .move(edge: .top))
                     ))
+                    .overlay(alignment: .bottom) {
+                        if let viewModel = currentViewModel {
+                            if isTimelineVisible {
+                                // Floating timeline popup at bottom
+                                TimelineView(
+                                    duration: viewModel.durationSeconds,
+                                    visibleTimeRange: Binding(
+                                        get: { viewModel.visibleTimeRange },
+                                        set: { viewModel.visibleTimeRange = $0 }
+                                    ),
+                                    frameRate: viewModel.effectiveFPS,
+                                    currentPlaybackTime: viewModel.currentPlaybackTime,
+                                    isVisible: $isTimelineVisible
+                                )
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, DesignSystem.Padding.xl)
+                                .padding(.bottom, DesignSystem.Padding.xl)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            } else {
+                                // Show timeline button when hidden
+                                Button {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        isTimelineVisible = true
+                                    }
+                                } label: {
+                                    HStack(spacing: DesignSystem.Spacing.xs) {
+                                        Image(systemName: "timeline.selection")
+                                            .font(.caption)
+                                        Text("Show Timeline")
+                                            .font(.caption)
+                                    }
+                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                                    .padding(.horizontal, DesignSystem.Padding.md)
+                                    .padding(.vertical, DesignSystem.Padding.sm)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                                            .fill(DesignSystem.Materials.thin)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                                                    .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
+                                            )
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.horizontal, DesignSystem.Padding.xl)
+                                .padding(.bottom, DesignSystem.Padding.lg)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            }
+                        }
+                    }
                 } else {
                     // Empty state when no tabs or no file loaded
                     EmptyMainState()

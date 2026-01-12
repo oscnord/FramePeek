@@ -152,20 +152,9 @@ struct BitrateChartView: View {
                 .padding(.horizontal, DesignSystem.Padding.lg)
                 .padding(.top, DesignSystem.Padding.lg)
 
-                VStack(spacing: 0) {
-                    chart
-                        .padding(.horizontal, DesignSystem.Padding.lg)
-                        .padding(.bottom, DesignSystem.Padding.sm)
-                    
-                TimelineView(
-                    duration: statistics.maxTime == 0 ? viewModel.durationSeconds : statistics.maxTime,
-                    visibleTimeRange: $viewModel.visibleTimeRange,
-                    frameRate: viewModel.effectiveFPS,
-                    currentPlaybackTime: viewModel.currentPlaybackTime
-                )
+                chart
                     .padding(.horizontal, DesignSystem.Padding.lg)
-                }
-                .padding(.bottom, DesignSystem.Padding.md)
+                    .padding(.bottom, DesignSystem.Padding.md)
                 
                 if viewModel.isGeneratingThumbnails {
                     KeyframeLoadingView(
