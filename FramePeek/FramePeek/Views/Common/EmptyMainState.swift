@@ -57,10 +57,10 @@ struct EmptyMainState: View {
                     .frame(maxHeight: 200)
                 }
                 .background {
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
                         .fill(DesignSystem.Materials.thin)
                         .overlay(
-                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
                                 .strokeBorder(.separator, lineWidth: DesignSystem.Borders.thin)
                         )
                 }

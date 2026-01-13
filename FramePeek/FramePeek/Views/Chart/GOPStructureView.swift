@@ -71,40 +71,18 @@ struct GOPStructureView: View {
             initializeRangeValues()
         }
         .sheet(isPresented: $showRangePicker) {
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Analyze GOP Range")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Button {
-                        showRangePicker = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
+            GOPRangePickerSheet(
+                startTime: $selectedRangeStart,
+                endTime: $selectedRangeEnd,
+                duration: duration,
+                onAnalyze: {
+                    viewModel.analyzeGOPTimeRange(selectedRangeStart...selectedRangeEnd, detectFrameTypes: true)
+                    showRangePicker = false
+                },
+                onCancel: {
+                    showRangePicker = false
                 }
-                .padding(.horizontal, DesignSystem.Padding.lg)
-                .padding(.top, DesignSystem.Padding.lg)
-                .padding(.bottom, DesignSystem.Padding.md)
-                
-                Divider()
-                
-                ScrollView {
-                    GOPRangePicker(
-                        startTime: $selectedRangeStart,
-                        endTime: $selectedRangeEnd,
-                        duration: duration,
-                        detectFrameTypes: .constant(true)
-                    ) {
-                        viewModel.analyzeGOPTimeRange(selectedRangeStart...selectedRangeEnd, detectFrameTypes: true)
-                        showRangePicker = false
-                    }
-                    .padding(DesignSystem.Padding.lg)
-                }
-            }
-            .frame(width: 640, height: 560)
+            )
         }
     }
     
@@ -345,6 +323,8 @@ struct GOPStructureView: View {
     @ViewBuilder
     private func actionBar(analysis: GOPAnalysisResult) -> some View {
         HStack {
+            Spacer()
+            
             if analysis.isPreview {
                 Button {
                     viewModel.analyzeGOPFullFile(detectFrameTypes: true)
@@ -354,9 +334,7 @@ struct GOPStructureView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
             }
-            
-            Spacer()
-            
+
             Button {
                 showRangePicker = true
             } label: {

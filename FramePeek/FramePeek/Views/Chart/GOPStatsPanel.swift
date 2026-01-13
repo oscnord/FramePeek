@@ -3,7 +3,6 @@ import SwiftUI
 struct GOPStatsPanel: View {
     let stats: GOPAnalysisStats
     let frameTypeStats: (iCount: Int, pCount: Int, bCount: Int, unknownCount: Int, total: Int)?
-    @State private var isExpanded = false
     
     private var patternInfo: (label: String, color: Color)? {
         // Need at least 3 GOPs to reliably determine pattern
@@ -73,32 +72,6 @@ struct GOPStatsPanel: View {
             if let frameStats = frameTypeStats, frameStats.total > 0 {
                 frameDistributionView(stats: frameStats)
                     .padding(.top, DesignSystem.Padding.xs)
-            }
-            
-            // Expandable detailed metrics
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text("Detailed Metrics")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                    Spacer()
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(.top, DesignSystem.Padding.sm)
-            
-            if isExpanded {
-                detailedMetricsView
-                    .padding(.top, DesignSystem.Padding.sm)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
     }
@@ -207,75 +180,6 @@ struct GOPStatsPanel: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
-    }
-    
-    @ViewBuilder
-    private var detailedMetricsView: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            // Duration statistics
-            if let min = stats.minDuration, let max = stats.maxDuration, let avg = stats.avgDuration {
-                metricsSection(title: "Duration", icon: "clock") {
-                    metricRow(label: "Min", value: String(format: "%.3f s", min))
-                    metricRow(label: "Max", value: String(format: "%.3f s", max))
-                    metricRow(label: "Avg", value: String(format: "%.3f s", avg))
-                    
-                    let durations = [min, max, avg]
-                    if let stdDev = calculateStdDev(values: durations) {
-                        metricRow(label: "Std Dev", value: String(format: "%.3f s", stdDev))
-                    }
-                }
-            }
-            
-            // Frame count statistics
-            if let min = stats.minFrameCount, let max = stats.maxFrameCount, let avg = stats.avgFrameCount {
-                metricsSection(title: "Frame Count", icon: "photo.stack") {
-                    metricRow(label: "Min", value: "\(min)")
-                    metricRow(label: "Max", value: "\(max)")
-                    metricRow(label: "Avg", value: String(format: "%.1f", avg))
-                }
-            }
-        }
-        .padding(DesignSystem.Padding.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                .fill(DesignSystem.Materials.ultraThin)
-        )
-    }
-    
-    @ViewBuilder
-    private func metricsSection<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-            }
-            
-            content()
-        }
-    }
-    
-    @ViewBuilder
-    private func metricRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .font(.system(.caption, design: .monospaced))
-                .fontWeight(.medium)
-        }
-    }
-    
-    private func calculateStdDev(values: [Double]) -> Double? {
-        guard values.count > 1 else { return nil }
-        let mean = values.reduce(0, +) / Double(values.count)
-        let variance = values.map { pow($0 - mean, 2) }.reduce(0, +) / Double(values.count)
-        return sqrt(variance)
     }
 }
 

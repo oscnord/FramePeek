@@ -68,7 +68,7 @@ struct GOPBlockView: View {
                             Text("\(frameCount)")
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .foregroundStyle(.primary)
-                            Text("frames")
+                            Text("FRAMES")
                                 .font(.system(size: 7, weight: .regular))
                                 .foregroundStyle(.secondary)
                         }

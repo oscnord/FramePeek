@@ -1,29 +1,74 @@
 import SwiftUI
 
+struct GOPRangePickerSheet: View {
+    @Binding var startTime: Double
+    @Binding var endTime: Double
+    let duration: Double
+    let onAnalyze: () -> Void
+    let onCancel: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: DesignSystem.Spacing.xl) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    Text(String(localized: "Analyze GOP Range"))
+                        .font(.system(size: DesignSystem.Typography.title3, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    
+                    Text("Select a time range to analyze the GOP structure")
+                        .font(.system(size: DesignSystem.Typography.subheadline))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                GOPRangePicker(
+                    startTime: $startTime,
+                    endTime: $endTime,
+                    duration: duration,
+                    onAnalyze: onAnalyze
+                )
+            }
+            .padding(DesignSystem.Padding.xl2)
+            
+            Divider()
+            
+            HStack {
+                Button("Cancel", action: onCancel)
+                    .buttonStyle(.bordered)
+                    .keyboardShortcut(.escape)
+                
+                Spacer()
+                
+                Button {
+                    onAnalyze()
+                } label: {
+                    Label("Analyze Range", systemImage: "play.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.return)
+            }
+            .padding(DesignSystem.Padding.lg)
+        }
+        .frame(width: 560, height: 520)
+        .background(.background)
+    }
+}
+
 struct GOPRangePicker: View {
     @Binding var startTime: Double
     @Binding var endTime: Double
     let duration: Double
-    @Binding var detectFrameTypes: Bool
     let onAnalyze: () -> Void
     
     @State private var startText: String = ""
     @State private var endText: String = ""
-    @State private var isDraggingStart = false
-    @State private var isDraggingEnd = false
-    @State private var isDraggingRange = false
-    @State private var dragStartOffset: Double = 0
-    
-    private let handleWidth: CGFloat = 12
-    private let trackHeight: CGFloat = 8
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
-            // Quick presets section
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 Text("Quick Presets")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: DesignSystem.Typography.subheadline, weight: .medium))
+                    .foregroundStyle(.secondary)
                 
                 LazyVGrid(columns: [
                     GridItem(.flexible()),
@@ -46,15 +91,12 @@ struct GOPRangePicker: View {
             }
             
             Divider()
-                .padding(.vertical, DesignSystem.Padding.xs)
             
-            // Custom range section
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 Text("Custom Range")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: DesignSystem.Typography.subheadline, weight: .medium))
+                    .foregroundStyle(.secondary)
                 
-                // Visual range slider
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                     RangeSliderView(
                         start: $startTime,
@@ -67,104 +109,68 @@ struct GOPRangePicker: View {
                     )
                     .frame(height: 32)
                     
-                    // Time labels below slider
                     HStack {
                         Text(formatTimeInput(startTime))
-                            .font(.caption2)
-                            .monospacedDigit()
+                            .font(.system(size: DesignSystem.Typography.caption, design: .monospaced))
                             .foregroundStyle(.secondary)
                         Spacer()
                         Text(formatTimeInput(endTime))
-                            .font(.caption2)
-                            .monospacedDigit()
+                            .font(.system(size: DesignSystem.Typography.caption, design: .monospaced))
                             .foregroundStyle(.secondary)
                     }
                 }
-                .padding(DesignSystem.Padding.md)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                        .fill(DesignSystem.Materials.ultraThin)
-                )
                 
-                // Time inputs and controls
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                    HStack(spacing: DesignSystem.Spacing.lg) {
-                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                            Text("Start Time")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            TextField("0:00", text: $startText)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 90)
-                                .font(.system(.body, design: .monospaced))
-                                .onSubmit {
-                                    if let seconds = parseTimeInput(startText) {
-                                        startTime = max(0, min(seconds, endTime - 1))
-                                        startText = formatTimeInput(startTime)
-                                    }
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.lg) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("Start Time")
+                            .font(.system(size: DesignSystem.Typography.caption))
+                            .foregroundStyle(.secondary)
+                        TextField("0:00", text: $startText)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 100)
+                            .font(.system(size: DesignSystem.Typography.body, design: .monospaced))
+                            .onSubmit {
+                                if let seconds = parseTimeInput(startText) {
+                                    startTime = max(0, min(seconds, endTime - 1))
+                                    startText = formatTimeInput(startTime)
                                 }
-                        }
-                        
-                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                            Text("End Time")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            TextField("1:00", text: $endText)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 90)
-                                .font(.system(.body, design: .monospaced))
-                                .onSubmit {
-                                    if let seconds = parseTimeInput(endText) {
-                                        endTime = max(startTime + 1, min(seconds, duration))
-                                        endText = formatTimeInput(endTime)
-                                    }
-                                }
-                        }
-                        
-                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                            Text("Duration")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text(formatDurationLabel(endTime - startTime))
-                                .font(.system(.body, design: .monospaced))
-                                .fontWeight(.medium)
-                                .foregroundStyle(.primary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, DesignSystem.Padding.md)
-                                .padding(.vertical, DesignSystem.Padding.sm)
-                                .background(
-                                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
-                                        .fill(DesignSystem.Materials.ultraThin)
-                                )
-                        }
-                        
-                        Spacer()
+                            }
                     }
                     
-                    // Options
-                    Toggle(isOn: $detectFrameTypes) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Detect Frame Types")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            Text("Identify I, P, and B frames (slower)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("End Time")
+                            .font(.system(size: DesignSystem.Typography.caption))
+                            .foregroundStyle(.secondary)
+                        TextField("1:00", text: $endText)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 100)
+                            .font(.system(size: DesignSystem.Typography.body, design: .monospaced))
+                            .onSubmit {
+                                if let seconds = parseTimeInput(endText) {
+                                    endTime = max(startTime + 1, min(seconds, duration))
+                                    endText = formatTimeInput(endTime)
+                                }
+                            }
                     }
-                    .toggleStyle(.checkbox)
                     
-                    // Action button
-                    HStack {
-                        Spacer()
-                        Button {
-                            onAnalyze()
-                        } label: {
-                            Label("Analyze Range", systemImage: "play.fill")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.regular)
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("Duration")
+                            .font(.system(size: DesignSystem.Typography.caption))
+                            .foregroundStyle(.secondary)
+                        Text(formatDurationLabel(endTime - startTime))
+                            .font(.system(size: DesignSystem.Typography.body, design: .monospaced))
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, DesignSystem.Padding.md)
+                            .padding(.vertical, DesignSystem.Padding.sm)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
+                                    .fill(Color.secondary.opacity(0.1))
+                            )
                     }
+                    
+                    Spacer()
                 }
             }
         }
@@ -192,7 +198,7 @@ struct GOPRangePicker: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
-        .controlSize(.regular)
+        .controlSize(.small)
     }
     
     private func formatTimeInput(_ seconds: Double) -> String {
@@ -385,4 +391,3 @@ private struct FlowLayout: Layout {
         return (positions, CGSize(width: maxX, height: currentY + lineHeight))
     }
 }
-
