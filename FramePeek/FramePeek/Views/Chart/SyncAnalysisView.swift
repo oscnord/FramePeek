@@ -81,7 +81,7 @@ struct SyncAnalysisView: View {
             }
             Spacer()
             if let result = viewModel.syncAnalysisResult {
-                syncStatusBadge(result.syncStatus)
+                syncStatusBadge(result.overallSyncStatus)
             }
         }
         .padding(.horizontal, DesignSystem.Padding.lg)
@@ -166,25 +166,118 @@ struct SyncAnalysisView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
             
+            if result.audioTracks.isEmpty {
+                Text("No audio tracks found")
+                    .font(.caption)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                    .padding(.vertical, DesignSystem.Padding.sm)
+            } else if result.audioTracks.count == 1, let track = result.audioTracks.first {
             HStack(spacing: DesignSystem.Spacing.md) {
                 primaryMetricCard(
                     title: "A/V Sync Offset",
-                    value: String(format: "%.1f ms", result.syncOffsetMs),
-                    subtitle: result.syncOffsetMs > 0 ? "audio ahead" : (result.syncOffsetMs < 0 ? "video ahead" : "in sync"),
-                    isHighlighted: abs(result.syncOffsetMs) > 40,
-                    icon: abs(result.syncOffsetMs) > 40 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+                        value: String(format: "%.1f ms", track.syncOffsetMs),
+                        subtitle: track.syncOffsetMs > 0 ? "audio ahead" : (track.syncOffsetMs < 0 ? "video ahead" : "in sync"),
+                        isHighlighted: abs(track.syncOffsetMs) > 40,
+                        icon: abs(track.syncOffsetMs) > 40 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
                 )
                 
                 primaryMetricCard(
                     title: "Duration Δ",
-                    value: String(format: "%.1f ms", result.durationDifferenceMs),
-                    subtitle: abs(result.durationDifferenceMs) < 1 ? "identical" : nil,
-                    isHighlighted: abs(result.durationDifferenceMs) > 100,
-                    icon: abs(result.durationDifferenceMs) > 100 ? "clock.badge.exclamationmark.fill" : "checkmark.circle.fill"
-                )
+                        value: String(format: "%.1f ms", track.durationDifferenceMs),
+                        subtitle: abs(track.durationDifferenceMs) < 1 ? "identical" : nil,
+                        isHighlighted: abs(track.durationDifferenceMs) > 100,
+                        icon: abs(track.durationDifferenceMs) > 100 ? "clock.badge.exclamationmark.fill" : "checkmark.circle.fill"
+                    )
+                }
+            } else {
+                compactTracksView(result)
             }
         }
     }
+    
+    @ViewBuilder
+    private func compactTracksView(_ result: SyncAnalysisResult) -> some View {
+        VStack(spacing: DesignSystem.Spacing.xs) {
+            ForEach(Array(result.audioTracks.enumerated()), id: \.element.trackIndex) { _, track in
+                compactTrackRow(track: track, trackInfo: getAudioTrackInfo(for: track.trackIndex))
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func compactTrackRow(track: AudioTrackSyncInfo, trackInfo: AudioTrackInfo?) -> some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                Image(systemName: "waveform")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(trackInfo != nil ? "Track \(trackInfo!.index)" : "Track \(track.trackIndex + 1)")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                if let info = trackInfo {
+                    Text("• \(info.codecDisplayName)")
+                        .font(.caption)
+                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            HStack(spacing: DesignSystem.Spacing.md) {
+                compactMetric(
+                    label: "Offset",
+                    value: String(format: "%.1f ms", track.syncOffsetMs),
+                    subtitle: track.syncOffsetMs > 0 ? "audio ahead" : (track.syncOffsetMs < 0 ? "video ahead" : "in sync"),
+                    isHighlighted: abs(track.syncOffsetMs) > 40
+                )
+                
+                compactMetric(
+                    label: "Duration Δ",
+                    value: String(format: "%.1f ms", track.durationDifferenceMs),
+                    isHighlighted: abs(track.durationDifferenceMs) > 100
+                )
+            }
+        }
+        .padding(.horizontal, DesignSystem.Padding.md)
+        .padding(.vertical, DesignSystem.Padding.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                .fill(DesignSystem.Materials.ultraThin)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                        .strokeBorder(.separator.opacity(0.2), lineWidth: DesignSystem.Borders.thin)
+                )
+        )
+    }
+    
+    @ViewBuilder
+    private func compactMetric(label: String, value: String, subtitle: String? = nil, isHighlighted: Bool = false) -> some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.system(.caption, design: .monospaced))
+                    .fontWeight(.medium)
+                    .foregroundStyle(isHighlighted ? .orange : .primary)
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(isHighlighted ? .orange.opacity(0.8) : DesignSystem.Colors.Semantic.secondary)
+                }
+            }
+        }
+    }
+    
+    private func getAudioTrackInfo(for trackIndex: Int) -> AudioTrackInfo? {
+        guard let audioTracks = viewModel.extendedInfo?.audioTracks,
+              trackIndex < audioTracks.count else {
+            return nil
+        }
+        return audioTracks[trackIndex]
+    }
+    
     
     @ViewBuilder
     private func secondaryMetricsSection(_ result: SyncAnalysisResult) -> some View {
@@ -211,10 +304,17 @@ struct SyncAnalysisView: View {
                     value: formatDuration(result.videoDuration)
                 )
                 
+                if result.audioTracks.count == 1, let track = result.audioTracks.first {
                 metricCard(
                     title: "Audio Duration",
-                    value: formatDuration(result.audioDuration)
-                )
+                        value: formatDuration(track.audioDuration)
+                    )
+                } else {
+                    metricCard(
+                        title: "Audio Tracks",
+                        value: "\(result.audioTracks.count)"
+                    )
+                }
                 
                 metricCard(
                     title: "Frames Analyzed",

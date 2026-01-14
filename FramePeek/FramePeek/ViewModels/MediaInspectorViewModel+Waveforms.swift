@@ -43,16 +43,37 @@ extension FramePeekViewModel {
                         return
                     }
                     
-                    let samples = await extractWaveform(
+                    var accumulatedSamples: [WaveformSample] = []
+                    
+                    for await update in extractWaveform(
                         asset: assetForWaveform,
                         audioTrack: audioTrack,
                         durationSeconds: duration,
                         maxSamples: 2000
-                    )
+                    ) {
+                        if Task.isCancelled { break }
+                        
+                        // Accumulate samples progressively
+                        accumulatedSamples.append(contentsOf: update.appendedSamples)
+                        
+                        // Update UI progressively - create a copy to avoid concurrency issues
+                        let samplesCopy = accumulatedSamples
+                        await MainActor.run {
+                            if !Task.isCancelled {
+                                self.waveformData[trackIndex] = samplesCopy
+                            }
+                        }
+                        
+                        if update.isFinished {
+                            break
+                        }
+                    }
                     
+                    // Final update - create a copy to avoid concurrency issues
+                    let finalSamples = accumulatedSamples
                     await MainActor.run {
                         if !Task.isCancelled {
-                            self.waveformData[trackIndex] = samples
+                            self.waveformData[trackIndex] = finalSamples
                         }
                         self.waveformTasks.removeValue(forKey: trackIndex)
                         
@@ -95,16 +116,37 @@ extension FramePeekViewModel {
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             
-            let samples = await extractWaveform(
+            var accumulatedSamples: [WaveformSample] = []
+            
+            for await update in extractWaveform(
                 asset: asset,
                 audioTrack: audioTrack,
                 durationSeconds: duration,
                 maxSamples: 2000
-            )
+            ) {
+                if Task.isCancelled { break }
+                
+                // Accumulate samples progressively
+                accumulatedSamples.append(contentsOf: update.appendedSamples)
+                
+                // Update UI progressively - create a copy to avoid concurrency issues
+                let samplesCopy = accumulatedSamples
+                await MainActor.run {
+                    if !Task.isCancelled {
+                        self.waveformData[trackIndex] = samplesCopy
+                    }
+                }
+                
+                if update.isFinished {
+                    break
+                }
+            }
             
+            // Final update - create a copy to avoid concurrency issues
+            let finalSamples = accumulatedSamples
             await MainActor.run {
                 if !Task.isCancelled {
-                    self.waveformData[trackIndex] = samples
+                    self.waveformData[trackIndex] = finalSamples
                 }
                 self.waveformTasks.removeValue(forKey: trackIndex)
                 

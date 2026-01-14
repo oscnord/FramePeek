@@ -236,28 +236,58 @@ enum WaveformHeight: String, CaseIterable, Identifiable {
 
 // MARK: - Audio/Video Sync Analysis
 
+struct AudioTrackSyncInfo {
+    let trackIndex: Int
+    let audioFirstPTS: Double
+    let audioDuration: Double
+    let syncOffsetMs: Double
+    let durationDifferenceMs: Double
+    let syncStatus: SyncStatus
+}
+
 struct SyncAnalysisResult {
     let videoFirstPTS: Double
-    let audioFirstPTS: Double
     let videoDuration: Double
-    let audioDuration: Double
     let videoFrameCount: Int
     let averageVideoFrameInterval: Double?
     let frameIntervalVariance: Double?
     let hasTimestampGaps: Bool
-    let syncStatus: SyncStatus
+    let audioTracks: [AudioTrackSyncInfo]
     
-    var syncOffsetMs: Double {
-        (audioFirstPTS - videoFirstPTS) * 1000.0
-    }
-    
-    var durationDifferenceMs: Double {
-        (audioDuration - videoDuration) * 1000.0
+    var overallSyncStatus: SyncStatus {
+        if audioTracks.isEmpty {
+            return .noAudio
+        }
+        
+        let statuses = audioTracks.map { $0.syncStatus }
+        
+        if statuses.contains(.durationMismatch) {
+            return .durationMismatch
+        }
+        if statuses.contains(.significantOffset) {
+            return .significantOffset
+        }
+        if statuses.contains(.minorOffset) {
+            return .minorOffset
+        }
+        if statuses.allSatisfy({ $0 == .inSync }) {
+            return .inSync
+        }
+        
+        return .inSync
     }
     
     var isVariableFrameRate: Bool {
         guard let variance = frameIntervalVariance, let avg = averageVideoFrameInterval else { return false }
         return variance > avg * 0.1
+    }
+    
+    var primaryTrackSyncOffsetMs: Double {
+        audioTracks.first?.syncOffsetMs ?? 0
+    }
+    
+    var primaryTrackDurationDifferenceMs: Double {
+        audioTracks.first?.durationDifferenceMs ?? 0
     }
 }
 
@@ -287,6 +317,13 @@ struct FrameTimingSample: Identifiable {
     let id = UUID()
     let time: Double
     let intervalMs: Double
+}
+
+// MARK: - Waveform Extraction
+
+struct WaveformUpdate {
+    let appendedSamples: [WaveformSample]
+    let isFinished: Bool
 }
 
 // MARK: - Color Analysis

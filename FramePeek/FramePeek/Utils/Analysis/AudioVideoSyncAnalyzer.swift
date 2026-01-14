@@ -16,80 +16,70 @@ func analyzeAudioVideoSync(asset: AVAsset) async -> SyncAnalysisResult? {
             }
             return SyncAnalysisResult(
                 videoFirstPTS: 0,
-                audioFirstPTS: 0,
                 videoDuration: 0,
-                audioDuration: 0,
                 videoFrameCount: 0,
                 averageVideoFrameInterval: nil,
                 frameIntervalVariance: nil,
                 hasTimestampGaps: false,
-                syncStatus: .noVideo
-            )
-        }
-        
-        guard let audioTrack = audioTracks.first else {
-            let videoTimeRange = try await videoTrack.load(.timeRange)
-            let videoFirstPTS = await getFirstSamplePTS(asset: asset, track: videoTrack)
-            return SyncAnalysisResult(
-                videoFirstPTS: videoFirstPTS ?? videoTimeRange.start.seconds,
-                audioFirstPTS: 0,
-                videoDuration: videoTimeRange.duration.seconds,
-                audioDuration: 0,
-                videoFrameCount: 0,
-                averageVideoFrameInterval: nil,
-                frameIntervalVariance: nil,
-                hasTimestampGaps: false,
-                syncStatus: .noAudio
+                audioTracks: []
             )
         }
         
         let videoTimeRange = try await videoTrack.load(.timeRange)
-        let audioTimeRange = try await audioTrack.load(.timeRange)
-        
         let videoDuration = videoTimeRange.duration.seconds
-        let audioDuration = audioTimeRange.duration.seconds
-        
         let videoFirstPTS = await getFirstSamplePTS(asset: asset, track: videoTrack) ?? videoTimeRange.start.seconds
-        let audioFirstPTS = await getFirstAudioPTS(asset: asset, track: audioTrack) ?? audioTimeRange.start.seconds
         
         let frameAnalysis = await analyzeFrameTiming(asset: asset, videoTrack: videoTrack)
         
-        let ptsOffsetMs = (audioFirstPTS - videoFirstPTS) * 1000.0
-        let durationDiffMs = abs(audioDuration - videoDuration) * 1000.0
+        var audioTrackSyncInfos: [AudioTrackSyncInfo] = []
         
-        let syncStatus: SyncStatus
-        if durationDiffMs > 1000 {
-            syncStatus = .durationMismatch
-        } else if abs(ptsOffsetMs) > 100 {
-            syncStatus = .significantOffset
-        } else if abs(ptsOffsetMs) > 40 {
-            syncStatus = .minorOffset
-        } else {
-            syncStatus = .inSync
+        for (index, audioTrack) in audioTracks.enumerated() {
+            let audioTimeRange = try await audioTrack.load(.timeRange)
+            let audioDuration = audioTimeRange.duration.seconds
+            let audioFirstPTS = await getFirstAudioPTS(asset: asset, track: audioTrack) ?? audioTimeRange.start.seconds
+            
+            let ptsOffsetMs = (audioFirstPTS - videoFirstPTS) * 1000.0
+            let durationDiffMs = abs(audioDuration - videoDuration) * 1000.0
+            
+            let syncStatus: SyncStatus
+            if durationDiffMs > 1000 {
+                syncStatus = .durationMismatch
+            } else if abs(ptsOffsetMs) > 100 {
+                syncStatus = .significantOffset
+            } else if abs(ptsOffsetMs) > 40 {
+                syncStatus = .minorOffset
+            } else {
+                syncStatus = .inSync
+            }
+            
+            audioTrackSyncInfos.append(AudioTrackSyncInfo(
+                trackIndex: index,
+                audioFirstPTS: audioFirstPTS,
+                audioDuration: audioDuration,
+                syncOffsetMs: ptsOffsetMs,
+                durationDifferenceMs: durationDiffMs,
+                syncStatus: syncStatus
+            ))
         }
         
         return SyncAnalysisResult(
             videoFirstPTS: videoFirstPTS,
-            audioFirstPTS: audioFirstPTS,
             videoDuration: videoDuration,
-            audioDuration: audioDuration,
             videoFrameCount: frameAnalysis.frameCount,
             averageVideoFrameInterval: frameAnalysis.averageInterval,
             frameIntervalVariance: frameAnalysis.intervalVariance,
             hasTimestampGaps: frameAnalysis.hasGaps,
-            syncStatus: syncStatus
+            audioTracks: audioTrackSyncInfos
         )
     } catch {
         return SyncAnalysisResult(
             videoFirstPTS: 0,
-            audioFirstPTS: 0,
             videoDuration: 0,
-            audioDuration: 0,
             videoFrameCount: 0,
             averageVideoFrameInterval: nil,
             frameIntervalVariance: nil,
             hasTimestampGaps: false,
-            syncStatus: .analysisError
+            audioTracks: []
         )
     }
 }
@@ -145,7 +135,7 @@ private func getFirstAudioPTS(asset: AVAsset, track: AVAssetTrack) async -> Doub
 }
 
 /// Analyzes frame timing to detect VFR and gaps
-/// Returns frame timing samples for visualization
+/// Returns frame timing samples for visualization with progressive updates
 func analyzeFrameTimingStream(
     asset: AVAsset,
     maxSamples: Int = 500
@@ -176,25 +166,60 @@ func analyzeFrameTimingStream(
                 return
             }
             
+            // Estimate frame count for sampling strategy
+            let timeRange = (try? await videoTrack.load(.timeRange)) ?? CMTimeRange.zero
+            let duration = timeRange.duration.seconds
+            let nominalFrameRate = (try? await videoTrack.load(.nominalFrameRate)) ?? 30.0
+            let estimatedFrameCount = Int(duration * Double(nominalFrameRate))
+            
+            // Calculate frame skip interval: sample enough to get maxSamples intervals
+            // We need roughly 2x maxSamples frames to get maxSamples intervals
+            let targetFramesToRead = maxSamples * 2
+            let frameSkipInterval = max(1, estimatedFrameCount / max(targetFramesToRead, 1))
+            
             var allFrames: [(time: Double, interval: Double)] = []
+            allFrames.reserveCapacity(targetFramesToRead)
             var previousPTS: Double?
-            var frameCount = 0
+            var frameIndex = 0
+            var lastYieldTime = Date()
+            let yieldInterval: TimeInterval = 0.2 // Yield every 200ms for UI responsiveness
             
             while let sampleBuffer = output.copyNextSampleBuffer() {
                 if Task.isCancelled { break }
                 
                 let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-                guard pts.isFinite else { continue }
+                guard pts.isFinite else {
+                    frameIndex += 1
+                    continue
+                }
                 
+                // Always track previous PTS to calculate true interval between consecutive frames
                 if let prev = previousPTS {
                     let interval = (pts - prev) * 1000.0
                     if interval > 0 && interval < 1000 {
-                        allFrames.append((time: pts, interval: interval))
+                        // Only store intervals for sampled frames, but use true consecutive frame interval
+                        if frameIndex % frameSkipInterval == 0 {
+                            allFrames.append((time: pts, interval: interval))
+                        }
                     }
                 }
                 
                 previousPTS = pts
-                frameCount += 1
+                frameIndex += 1
+                
+                // Early termination: if we have enough samples
+                if allFrames.count >= maxSamples * 2 {
+                    break
+                }
+                
+                // Yield progressive updates periodically
+                let now = Date()
+                if now.timeIntervalSince(lastYieldTime) >= yieldInterval && !allFrames.isEmpty {
+                    // Downsample current frames for progressive display
+                    let currentSamples = downsampleFrameTiming(allFrames, targetCount: min(maxSamples, allFrames.count))
+                    continuation.yield(currentSamples)
+                    lastYieldTime = now
+                }
             }
             
             reader.cancelReading()
@@ -204,21 +229,12 @@ func analyzeFrameTimingStream(
                 return
             }
             
-            var samples: [FrameTimingSample] = []
-            
+            // Final downsampling if needed
+            let samples: [FrameTimingSample]
             if allFrames.count <= maxSamples {
                 samples = allFrames.map { FrameTimingSample(time: $0.time, intervalMs: $0.interval) }
             } else {
-                let step = Double(allFrames.count) / Double(maxSamples)
-                samples.reserveCapacity(maxSamples)
-                
-                for i in 0..<maxSamples {
-                    let index = Int(Double(i) * step)
-                    if index < allFrames.count {
-                        let frame = allFrames[index]
-                        samples.append(FrameTimingSample(time: frame.time, intervalMs: frame.interval))
-                    }
-                }
+                samples = downsampleFrameTiming(allFrames, targetCount: maxSamples)
             }
             
             continuation.yield(samples)
@@ -227,6 +243,31 @@ func analyzeFrameTimingStream(
         
         continuation.onTermination = { _ in task.cancel() }
     }
+}
+
+/// Downsamples frame timing data using uniform sampling
+private func downsampleFrameTiming(
+    _ frames: [(time: Double, interval: Double)],
+    targetCount: Int
+) -> [FrameTimingSample] {
+    guard frames.count > targetCount, targetCount >= 2 else {
+        return frames.map { FrameTimingSample(time: $0.time, intervalMs: $0.interval) }
+    }
+    
+    var samples: [FrameTimingSample] = []
+    samples.reserveCapacity(targetCount)
+    
+    let step = Double(frames.count) / Double(targetCount)
+    
+    for i in 0..<targetCount {
+        let index = Int(Double(i) * step)
+        if index < frames.count {
+            let frame = frames[index]
+            samples.append(FrameTimingSample(time: frame.time, intervalMs: frame.interval))
+        }
+    }
+    
+    return samples
 }
 
 private struct FrameTimingAnalysis {
@@ -253,14 +294,37 @@ private func analyzeFrameTiming(asset: AVAsset, videoTrack: AVAssetTrack) async 
         return FrameTimingAnalysis(frameCount: 0, averageInterval: nil, intervalVariance: nil, hasGaps: false)
     }
     
+    // Estimate frame count for sampling strategy
+    let timeRange = (try? await videoTrack.load(.timeRange)) ?? CMTimeRange.zero
+    let duration = timeRange.duration.seconds
+    let nominalFrameRate = (try? await videoTrack.load(.nominalFrameRate)) ?? 30.0
+    let estimatedFrameCount = Int(duration * Double(nominalFrameRate))
+    
+    // Sample frames strategically: for long videos, we don't need every frame
+    // Target: collect enough intervals for accurate statistics (1000-5000 samples)
+    let targetSamples = min(5000, max(1000, estimatedFrameCount / 10))
+    let frameSkipInterval = max(1, estimatedFrameCount / max(targetSamples, 1))
+    
     var intervals: [Double] = []
-    intervals.reserveCapacity(10000)
+    intervals.reserveCapacity(targetSamples)
     var previousPTS: Double?
     var frameCount = 0
+    var frameIndex = 0
     var hasGaps = false
+    
+    // Early termination: if we've collected enough samples and processed significant portion
+    let earlyTerminationThreshold = max(1000, estimatedFrameCount / 2)
     
     while let sampleBuffer = output.copyNextSampleBuffer() {
         if Task.isCancelled { break }
+        
+        // Sample frames: skip some to speed up processing
+        if frameIndex % frameSkipInterval != 0 {
+            frameIndex += 1
+            frameCount += 1
+            continue
+        }
+        frameIndex += 1
         
         let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         guard pts.isFinite else { continue }
@@ -277,6 +341,11 @@ private func analyzeFrameTiming(asset: AVAsset, videoTrack: AVAssetTrack) async 
         
         previousPTS = pts
         frameCount += 1
+        
+        // Early termination: if we have enough samples and processed enough frames
+        if intervals.count >= targetSamples && frameCount >= earlyTerminationThreshold {
+            break
+        }
     }
     
     reader.cancelReading()
