@@ -9,48 +9,50 @@ struct GOPRangePickerSheet: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: DesignSystem.Spacing.xl) {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                    Text(String(localized: "Analyze GOP Range"))
-                        .font(.system(size: DesignSystem.Typography.title3, weight: .semibold))
-                        .foregroundStyle(.primary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
+                    header
                     
-                    Text("Select a time range to analyze the GOP structure")
-                        .font(.system(size: DesignSystem.Typography.subheadline))
-                        .foregroundStyle(.secondary)
+                    GOPRangePicker(
+                        startTime: $startTime,
+                        endTime: $endTime,
+                        duration: duration
+                    )
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                GOPRangePicker(
-                    startTime: $startTime,
-                    endTime: $endTime,
-                    duration: duration,
-                    onAnalyze: onAnalyze
-                )
+                .padding(DesignSystem.Padding.xxl2)
             }
-            .padding(DesignSystem.Padding.xl2)
             
             Divider()
             
-            HStack {
-                Button("Cancel", action: onCancel)
-                    .buttonStyle(.bordered)
-                    .keyboardShortcut(.escape)
-                
-                Spacer()
-                
-                Button {
-                    onAnalyze()
-                } label: {
-                    Label("Analyze Range", systemImage: "play.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.return)
-            }
-            .padding(DesignSystem.Padding.lg)
+            footerButtons
+                .padding(.horizontal, DesignSystem.Padding.xxl2)
+                .padding(.vertical, DesignSystem.Padding.xl)
         }
-        .frame(width: 560, height: 520)
-        .background(.background)
+        .frame(width: 700, height: 640)
+    }
+    
+    private var header: some View {
+        Text(String(localized: "Analyze GOP Range"))
+            .font(.system(size: DesignSystem.Typography.title2, weight: .semibold))
+            .foregroundStyle(.primary)
+    }
+    
+    private var footerButtons: some View {
+        HStack(spacing: DesignSystem.Spacing.md) {
+            Button("Cancel", action: onCancel)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .keyboardShortcut(.escape)
+            
+            Spacer()
+            
+            Button(action: onAnalyze) {
+                Label("Analyze Range", systemImage: "play.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.return)
+        }
     }
 }
 
@@ -58,122 +60,12 @@ struct GOPRangePicker: View {
     @Binding var startTime: Double
     @Binding var endTime: Double
     let duration: Double
-    let onAnalyze: () -> Void
     
     @State private var startText: String = ""
     @State private var endText: String = ""
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                Text("Quick Presets")
-                    .font(.system(size: DesignSystem.Typography.subheadline, weight: .medium))
-                    .foregroundStyle(.secondary)
-                
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: DesignSystem.Spacing.sm) {
-                    presetButton("First 30s", start: 0, end: min(30, duration))
-                    presetButton("First 60s", start: 0, end: min(60, duration))
-                    if duration > 120 {
-                        presetButton("First 2min", start: 0, end: min(120, duration))
-                    }
-                    if duration > 60 {
-                        presetButton("Middle 60s", start: max(0, duration/2 - 30), end: min(duration, duration/2 + 30))
-                    }
-                    if duration > 30 {
-                        presetButton("Last 30s", start: max(0, duration - 30), end: duration)
-                    }
-                    presetButton("Entire File", start: 0, end: duration)
-                }
-            }
-            
-            Divider()
-            
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                Text("Custom Range")
-                    .font(.system(size: DesignSystem.Typography.subheadline, weight: .medium))
-                    .foregroundStyle(.secondary)
-                
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    RangeSliderView(
-                        start: $startTime,
-                        end: $endTime,
-                        bounds: 0...duration,
-                        onChanged: { start, end in
-                            startText = formatTimeInput(start)
-                            endText = formatTimeInput(end)
-                        }
-                    )
-                    .frame(height: 32)
-                    
-                    HStack {
-                        Text(formatTimeInput(startTime))
-                            .font(.system(size: DesignSystem.Typography.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text(formatTimeInput(endTime))
-                            .font(.system(size: DesignSystem.Typography.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.lg) {
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("Start Time")
-                            .font(.system(size: DesignSystem.Typography.caption))
-                            .foregroundStyle(.secondary)
-                        TextField("0:00", text: $startText)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 100)
-                            .font(.system(size: DesignSystem.Typography.body, design: .monospaced))
-                            .onSubmit {
-                                if let seconds = parseTimeInput(startText) {
-                                    startTime = max(0, min(seconds, endTime - 1))
-                                    startText = formatTimeInput(startTime)
-                                }
-                            }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("End Time")
-                            .font(.system(size: DesignSystem.Typography.caption))
-                            .foregroundStyle(.secondary)
-                        TextField("1:00", text: $endText)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 100)
-                            .font(.system(size: DesignSystem.Typography.body, design: .monospaced))
-                            .onSubmit {
-                                if let seconds = parseTimeInput(endText) {
-                                    endTime = max(startTime + 1, min(seconds, duration))
-                                    endText = formatTimeInput(endTime)
-                                }
-                            }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("Duration")
-                            .font(.system(size: DesignSystem.Typography.caption))
-                            .foregroundStyle(.secondary)
-                        Text(formatDurationLabel(endTime - startTime))
-                            .font(.system(size: DesignSystem.Typography.body, design: .monospaced))
-                            .fontWeight(.medium)
-                            .foregroundStyle(.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, DesignSystem.Padding.md)
-                            .padding(.vertical, DesignSystem.Padding.sm)
-                            .background(
-                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous)
-                                    .fill(Color.secondary.opacity(0.1))
-                            )
-                    }
-                    
-                    Spacer()
-                }
-            }
-        }
+        customRangeCard
         .onAppear {
             startText = formatTimeInput(startTime)
             endText = formatTimeInput(endTime)
@@ -186,6 +78,99 @@ struct GOPRangePicker: View {
         }
     }
     
+    private var customRangeCard: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
+            Text("Custom Range")
+                .font(.system(size: DesignSystem.Typography.headline, weight: .semibold))
+                .foregroundStyle(.primary)
+            
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    RangeSliderView(
+                        start: $startTime,
+                        end: $endTime,
+                        bounds: 0...duration,
+                        onChanged: { start, end in
+                            startText = formatTimeInput(start)
+                            endText = formatTimeInput(end)
+                        }
+                    )
+                    .frame(height: 40)
+                    
+                    HStack {
+                        Text(formatTimeInput(startTime))
+                            .font(.system(size: DesignSystem.Typography.footnote, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(formatTimeInput(endTime))
+                            .font(.system(size: DesignSystem.Typography.footnote, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                Divider()
+                
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                    HStack(spacing: DesignSystem.Spacing.xl) {
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            Text("Start Time")
+                                .font(.system(size: DesignSystem.Typography.subheadline, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            TextField("0:00", text: $startText)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 140)
+                                .font(.system(size: DesignSystem.Typography.body, design: .monospaced))
+                                .onSubmit {
+                                    guard let seconds = parseTimeInput(startText) else { return }
+                                    startTime = max(0, min(seconds, endTime - 1))
+                                    startText = formatTimeInput(startTime)
+                                }
+                        }
+                        
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            Text("End Time")
+                                .font(.system(size: DesignSystem.Typography.subheadline, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            TextField("1:00", text: $endText)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 140)
+                                .font(.system(size: DesignSystem.Typography.body, design: .monospaced))
+                                .onSubmit {
+                                    guard let seconds = parseTimeInput(endText) else { return }
+                                    endTime = max(startTime + 1, min(seconds, duration))
+                                    endText = formatTimeInput(endTime)
+                                }
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            Text("Duration")
+                                .font(.system(size: DesignSystem.Typography.subheadline, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            Text(formatDurationLabel(endTime - startTime))
+                                .font(.system(size: DesignSystem.Typography.title3, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(.primary)
+                                .frame(minWidth: 120, alignment: .leading)
+                                .padding(.horizontal, DesignSystem.Padding.lg)
+                                .padding(.vertical, DesignSystem.Padding.md)
+                                .background(
+                                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                                        .fill(.quaternary.opacity(0.5))
+                                )
+                        }
+                    }
+                }
+            }
+        }
+        .padding(DesignSystem.Padding.xl2)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+    
     @ViewBuilder
     private func presetButton(_ title: String, start: Double, end: Double) -> some View {
         Button {
@@ -196,9 +181,10 @@ struct GOPRangePicker: View {
         } label: {
             Text(title)
                 .frame(maxWidth: .infinity)
+                .padding(.vertical, DesignSystem.Padding.md)
         }
         .buttonStyle(.bordered)
-        .controlSize(.small)
+        .controlSize(.regular)
     }
     
     private func formatTimeInput(_ seconds: Double) -> String {

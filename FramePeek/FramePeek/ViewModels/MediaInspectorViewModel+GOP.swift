@@ -9,7 +9,7 @@ extension FramePeekViewModel {
     func analyzeGOPFullFile(detectFrameTypes: Bool = true) {
         guard let url = currentVideoURL else { return }
         let asset = AVURLAsset(url: url)
-        startGOPAnalysis(asset: asset, options: .fullFile(detectFrameTypes: detectFrameTypes, detectFixedStructure: true))
+        startGOPAnalysis(asset: asset, options: .fullFile(detectFrameTypes: detectFrameTypes, detectFixedStructure: false))
     }
     
     func analyzeGOPFullFileOverride(detectFrameTypes: Bool = true) {
