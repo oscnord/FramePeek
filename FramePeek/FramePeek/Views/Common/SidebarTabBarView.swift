@@ -14,7 +14,9 @@ struct SidebarTabBarView: View {
                 set: { newValue in
                     if let newValue = newValue {
                         DispatchQueue.main.async {
-                            tabManager.switchToTab(id: newValue)
+                            withAnimation(.none) {
+                                tabManager.switchToTab(id: newValue)
+                            }
                         }
                     }
                 }
@@ -26,7 +28,9 @@ struct SidebarTabBarView: View {
                         isSelected: tab.id == tabManager.selectedTabId,
                         onSelect: {
                             DispatchQueue.main.async {
-                                tabManager.switchToTab(id: tab.id)
+                                withAnimation(.none) {
+                                    tabManager.switchToTab(id: tab.id)
+                                }
                             }
                         },
                         onClose: {

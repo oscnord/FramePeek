@@ -68,25 +68,14 @@ struct EmptyMainState: View {
                 .opacity(contentOpacity)
                 .offset(y: contentOffset)
             }
-            
-            // Open File button
+
             Button(action: onOpenFile) {
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    Image(systemName: "folder")
-                        .font(.system(size: 14))
-                    Text("Open File…")
-                        .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                }
-                .padding(.horizontal, DesignSystem.Padding.lg)
-                .padding(.vertical, DesignSystem.Padding.md)
-                .background {
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                        .fill(.blue)
-                }
-                .foregroundStyle(.white)
+                Text(String(localized: "Open File…"))
+                    .font(.system(size: DesignSystem.Typography.callout, weight: .semibold))
             }
-            .buttonStyle(.plain)
-            .opacity(contentOpacity)
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.regular)
             .offset(y: contentOffset)
             
             Spacer()

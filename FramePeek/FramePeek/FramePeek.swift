@@ -153,10 +153,7 @@ struct FramePeek: View {
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .bottom)),
-                            removal: .opacity.combined(with: .move(edge: .top))
-                        ))
+                        .transition(.opacity)
                     } else {
                         ScrollView(.vertical, showsIndicators: true) {
                             VStack(spacing: DesignSystem.Spacing.sm) {
@@ -203,10 +200,7 @@ struct FramePeek: View {
                         }
                         .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
                         .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .bottom)),
-                            removal: .opacity.combined(with: .move(edge: .top))
-                        ))
+                        .transition(.opacity)
                         .overlay(alignment: .bottom) {
                             if let viewModel = currentViewModel {
                                 if isTimelineVisible {
@@ -278,13 +272,11 @@ struct FramePeek: View {
                     )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .top)),
-                            removal: .opacity.combined(with: .move(edge: .bottom))
-                        ))
+                        .transition(.opacity)
                 }
             }
             .animation(.spring(response: 0.6, dampingFraction: 0.85), value: currentViewModel?.extendedInfo != nil)
+            .animation(.easeInOut(duration: 0.12), value: tabManager.selectedTabId)
             .inspector(isPresented: $isInspectorVisible) {
                 if let viewModel = currentViewModel {
                     InfoInspectorView(viewModel: viewModel)
