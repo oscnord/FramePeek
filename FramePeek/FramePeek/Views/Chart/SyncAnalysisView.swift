@@ -90,9 +90,9 @@ struct SyncAnalysisView: View {
     }
     
     private var loadingSection: some View {
-        LoadingView(message: "Analyzing sync…")
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, DesignSystem.Padding.xxl)
+        SyncAnalysisSkeletonView()
+            .padding(.horizontal, DesignSystem.Padding.lg)
+            .padding(.bottom, DesignSystem.Padding.lg)
     }
     
     private var emptySection: some View {
@@ -629,4 +629,52 @@ private func downsampleFrameTiming(_ samples: [FrameTimingSample], targetCount: 
     result.append(samples[samples.count - 1])
     
     return result
+}
+
+// MARK: - Skeleton View
+
+private struct SyncAnalysisSkeletonView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
+            // Primary metrics skeleton
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                SkeletonText(width: 120, height: 16)
+                
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    SkeletonCard(width: nil, height: 100)
+                    SkeletonCard(width: nil, height: 100)
+                }
+            }
+            
+            // Secondary metrics skeleton
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                SkeletonText(width: 140, height: 16)
+                
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: DesignSystem.Spacing.md) {
+                    SkeletonCard(width: nil, height: 70)
+                    SkeletonCard(width: nil, height: 70)
+                    SkeletonCard(width: nil, height: 70)
+                }
+            }
+            
+            // Chart skeleton
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                HStack {
+                    SkeletonText(width: 150, height: 16)
+                    Spacer()
+                    HStack(spacing: DesignSystem.Spacing.md) {
+                        SkeletonText(width: 50, height: 20)
+                        SkeletonText(width: 50, height: 20)
+                        SkeletonText(width: 50, height: 20)
+                    }
+                }
+                
+                SkeletonChart(height: 200)
+            }
+        }
+    }
 }

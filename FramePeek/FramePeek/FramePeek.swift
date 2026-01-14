@@ -144,102 +144,117 @@ struct FramePeek: View {
             // Main content area
             ZStack {
                 if let viewModel = currentViewModel, viewModel.extendedInfo != nil {
-                    ScrollView(.vertical, showsIndicators: true) {
-                        VStack(spacing: DesignSystem.Spacing.sm) {
-                            // Bitrate chart
-                            AnimatedContentWrapper(delay: 0.1) {
-                                BitrateChartView(viewModel: viewModel)
-                                    .frame(maxWidth: .infinity)
-                                    .layoutPriority(1)
-                                    .contentShape(Rectangle())
-                            }
-                            
-                            // GOP Structure visualization
-                            AnimatedContentWrapper(delay: 0.15) {
-                                GOPStructureView(viewModel: viewModel)
-                                    .frame(maxWidth: .infinity)
-                                    .layoutPriority(0)
-                            }
-                            
-                            // Waveform container (if audio tracks exist)
-                            if let info = viewModel.extendedInfo, !info.audioTracks.isEmpty {
-                                AnimatedContentWrapper(delay: 0.2) {
-                                    WaveformContainerView(viewModel: viewModel)
+                    if viewModel.isFileUnanalyzable {
+                        // File loaded but cannot be analyzed
+                        UnanalyzableFileView(
+                            fileName: viewModel.extendedInfo?.fileName ?? "Unknown",
+                            hasVideoTrack: viewModel.extendedInfo?.resolution != "N/A" && viewModel.extendedInfo?.codec != "Unknown",
+                            hasValidDuration: viewModel.durationSeconds > 0 && viewModel.durationSeconds.isFinite
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .bottom)),
+                            removal: .opacity.combined(with: .move(edge: .top))
+                        ))
+                    } else {
+                        ScrollView(.vertical, showsIndicators: true) {
+                            VStack(spacing: DesignSystem.Spacing.sm) {
+                                // Bitrate chart
+                                AnimatedContentWrapper(delay: 0.1) {
+                                    BitrateChartView(viewModel: viewModel)
+                                        .frame(maxWidth: .infinity)
+                                        .layoutPriority(1)
+                                        .contentShape(Rectangle())
+                                }
+                                
+                                // GOP Structure visualization
+                                AnimatedContentWrapper(delay: 0.15) {
+                                    GOPStructureView(viewModel: viewModel)
                                         .frame(maxWidth: .infinity)
                                         .layoutPriority(0)
                                 }
                                 
-                                // Sync analysis (if audio tracks exist)
-                                AnimatedContentWrapper(delay: 0.3) {
-                                    SyncAnalysisView(viewModel: viewModel)
+                                // Waveform container (if audio tracks exist)
+                                if let info = viewModel.extendedInfo, !info.audioTracks.isEmpty {
+                                    AnimatedContentWrapper(delay: 0.2) {
+                                        WaveformContainerView(viewModel: viewModel)
+                                            .frame(maxWidth: .infinity)
+                                            .layoutPriority(0)
+                                    }
+                                    
+                                    // Sync analysis (if audio tracks exist)
+                                    AnimatedContentWrapper(delay: 0.3) {
+                                        SyncAnalysisView(viewModel: viewModel)
+                                            .frame(maxWidth: .infinity)
+                                            .layoutPriority(0)
+                                    }
+                                }
+                                
+                                // Color analysis (if file is loaded)
+                                AnimatedContentWrapper(delay: viewModel.extendedInfo?.audioTracks.isEmpty ?? true ? 0.2 : 0.4) {
+                                    ColorAnalysisView(viewModel: viewModel)
                                         .frame(maxWidth: .infinity)
                                         .layoutPriority(0)
                                 }
                             }
-                            
-                            // Color analysis (if file is loaded)
-                            AnimatedContentWrapper(delay: viewModel.extendedInfo?.audioTracks.isEmpty ?? true ? 0.2 : 0.4) {
-                                ColorAnalysisView(viewModel: viewModel)
-                                    .frame(maxWidth: .infinity)
-                                    .layoutPriority(0)
-                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.bottom, isTimelineVisible ? DesignSystem.Padding.xxl2 + 80 : DesignSystem.Padding.lg) // Extra padding when timeline is visible
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.bottom, isTimelineVisible ? DesignSystem.Padding.xxl2 + 80 : DesignSystem.Padding.lg) // Extra padding when timeline is visible
-                    }
-                    .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
-                    .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .move(edge: .bottom)),
-                        removal: .opacity.combined(with: .move(edge: .top))
-                    ))
-                    .overlay(alignment: .bottom) {
-                        if let viewModel = currentViewModel {
-                            if isTimelineVisible {
-                                // Floating timeline popup at bottom
-                                TimelineView(
-                                    duration: viewModel.durationSeconds,
-                                    visibleTimeRange: Binding(
-                                        get: { viewModel.visibleTimeRange },
-                                        set: { viewModel.visibleTimeRange = $0 }
-                                    ),
-                                    frameRate: viewModel.effectiveFPS,
-                                    currentPlaybackTime: viewModel.currentPlaybackTime,
-                                    isVisible: $isTimelineVisible
-                                )
-                                .frame(maxWidth: .infinity)
-                                .padding(.horizontal, DesignSystem.Padding.xl)
-                                .padding(.bottom, DesignSystem.Padding.xl)
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
-                            } else {
-                                // Show timeline button when hidden
-                                Button {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                        isTimelineVisible = true
-                                    }
-                                } label: {
-                                    HStack(spacing: DesignSystem.Spacing.xs) {
-                                        Image(systemName: "timeline.selection")
-                                            .font(.caption)
-                                        Text("Show Timeline")
-                                            .font(.caption)
-                                    }
-                                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                                    .padding(.horizontal, DesignSystem.Padding.md)
-                                    .padding(.vertical, DesignSystem.Padding.sm)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                                            .fill(DesignSystem.Materials.thin)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                                                    .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
-                                            )
+                        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+                        .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .bottom)),
+                            removal: .opacity.combined(with: .move(edge: .top))
+                        ))
+                        .overlay(alignment: .bottom) {
+                            if let viewModel = currentViewModel {
+                                if isTimelineVisible {
+                                    // Floating timeline popup at bottom
+                                    TimelineView(
+                                        duration: viewModel.durationSeconds,
+                                        visibleTimeRange: Binding(
+                                            get: { viewModel.visibleTimeRange },
+                                            set: { viewModel.visibleTimeRange = $0 }
+                                        ),
+                                        frameRate: viewModel.effectiveFPS,
+                                        currentPlaybackTime: viewModel.currentPlaybackTime,
+                                        isVisible: $isTimelineVisible
                                     )
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, DesignSystem.Padding.xl)
+                                    .padding(.bottom, DesignSystem.Padding.xl)
+                                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                                } else {
+                                    // Show timeline button when hidden
+                                    Button {
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                            isTimelineVisible = true
+                                        }
+                                    } label: {
+                                        HStack(spacing: DesignSystem.Spacing.xs) {
+                                            Image(systemName: "timeline.selection")
+                                                .font(.caption)
+                                            Text("Show Timeline")
+                                                .font(.caption)
+                                        }
+                                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                                        .padding(.horizontal, DesignSystem.Padding.md)
+                                        .padding(.vertical, DesignSystem.Padding.sm)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                                                .fill(DesignSystem.Materials.thin)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                                                        .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
+                                                )
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.horizontal, DesignSystem.Padding.xl)
+                                    .padding(.bottom, DesignSystem.Padding.lg)
+                                    .transition(.move(edge: .bottom).combined(with: .opacity))
                                 }
-                                .buttonStyle(.plain)
-                                .padding(.horizontal, DesignSystem.Padding.xl)
-                                .padding(.bottom, DesignSystem.Padding.lg)
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
                             }
                         }
                     }

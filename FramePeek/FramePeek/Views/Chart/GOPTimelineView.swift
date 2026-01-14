@@ -121,6 +121,7 @@ struct GOPTimelineView: View {
                     .padding(.top, DesignSystem.Padding.xs)
                     .padding(.bottom, DesignSystem.Padding.sm)
             }
+            .clipped()
         }
         .gesture(
             MagnifyGesture()

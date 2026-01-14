@@ -45,12 +45,14 @@ struct GOPBlocksStripView: View {
                         .frame(width: segmentWidth)
                     }
                 }
+                .frame(maxWidth: width)
                 
                 // Selection overlay
                 if let start = selectionStartTime, let end = selectionEndTime {
                     selectionOverlay(start: start, end: end, width: width, domain: (domainStart, domainEnd), domainDuration: domainDuration)
                 }
             }
+            .clipped()
         }
     }
     

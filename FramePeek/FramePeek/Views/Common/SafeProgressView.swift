@@ -32,7 +32,7 @@ struct SafeProgressView: NSViewRepresentable {
         case .large:
             return .large
         @unknown default:
-            return .small
+            return .regular
         }
     }
 }

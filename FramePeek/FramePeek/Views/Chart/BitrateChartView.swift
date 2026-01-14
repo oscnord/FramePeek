@@ -122,12 +122,22 @@ struct BitrateChartView: View {
                 }
                 .padding()
             } else {
-                ContentUnavailableView(
-                    "No file loaded",
-                    systemImage: "waveform.path.ecg",
-                    description: Text("Open or drop a video file to inspect bitrate.")
-                )
-                .padding()
+                // Check if file is loaded but can't be analyzed
+                if viewModel.extendedInfo != nil {
+                    ContentUnavailableView(
+                        "Unable to Analyze",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text("This file was loaded but FramePeek cannot extract bitrate data. The file may be missing video information or use an unsupported format.")
+                    )
+                    .padding()
+                } else {
+                    ContentUnavailableView(
+                        "No file loaded",
+                        systemImage: "waveform.path.ecg",
+                        description: Text("Open or drop a video file to inspect bitrate.")
+                    )
+                    .padding()
+                }
             }
         }
     }

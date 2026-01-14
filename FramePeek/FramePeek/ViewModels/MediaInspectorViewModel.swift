@@ -71,6 +71,19 @@ final class FramePeekViewModel: ObservableObject {
     // Always use second-based visualization mode
     var visualizationMode: BitrateVisualizationMode { .second }
     
+    /// Returns true if a file is loaded but cannot be analyzed for bitrate/frame data
+    var isFileUnanalyzable: Bool {
+        guard let info = extendedInfo else { return false }
+        // File is loaded, analysis is complete, but no samples were extracted
+        let hasNoSamples = samples.isEmpty && !isAnalyzing
+        // Check if there's no video track (resolution is N/A or codec is Unknown)
+        let hasNoVideoTrack = info.resolution == "N/A" || info.codec == "Unknown"
+        // Check if duration is invalid
+        let hasInvalidDuration = durationSeconds <= 0 || !durationSeconds.isFinite
+        
+        return hasNoSamples && (hasNoVideoTrack || hasInvalidDuration)
+    }
+    
     init() {
         loadSettingsFromUserDefaults()
     }

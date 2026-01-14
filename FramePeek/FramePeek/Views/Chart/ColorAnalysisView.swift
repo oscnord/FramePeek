@@ -68,26 +68,30 @@ struct ColorAnalysisView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            headerSection
-            
-            if viewModel.isAnalyzingColor {
-                loadingSection
-            } else if viewModel.colorSamples.isEmpty {
-                emptySection
-            } else {
-                contentSection
+        if viewModel.isFileUnanalyzable {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                headerSection
+                
+                if viewModel.isAnalyzingColor {
+                    loadingSection
+                } else if viewModel.colorSamples.isEmpty {
+                    emptySection
+                } else {
+                    contentSection
+                }
             }
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
+                    .fill(DesignSystem.Materials.thin)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
+                            .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
+                    )
+            )
+            .padding(DesignSystem.Padding.lg)
         }
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
-                .fill(DesignSystem.Materials.thin)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
-                        .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
-                )
-        )
-        .padding(DesignSystem.Padding.lg)
     }
     
     private var headerSection: some View {
@@ -125,9 +129,9 @@ struct ColorAnalysisView: View {
     }
     
     private var loadingSection: some View {
-        LoadingView(message: "Analyzing color…")
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, DesignSystem.Padding.xxl)
+        ColorAnalysisSkeletonView()
+            .padding(.horizontal, DesignSystem.Padding.lg)
+            .padding(.bottom, DesignSystem.Padding.lg)
     }
     
     private var emptySection: some View {
@@ -292,5 +296,35 @@ struct ColorSummaryItem: View {
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
                 .fill(DesignSystem.Materials.ultraThin)
         )
+    }
+}
+
+// MARK: - Skeleton View
+
+private struct ColorAnalysisSkeletonView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
+            // Statistics summary skeleton
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                SkeletonText(width: 120, height: 16)
+                
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: DesignSystem.Spacing.md) {
+                    SkeletonCard(width: nil, height: 70)
+                    SkeletonCard(width: nil, height: 70)
+                    SkeletonCard(width: nil, height: 70)
+                }
+            }
+            
+            // Charts skeleton
+            VStack(spacing: DesignSystem.Spacing.md) {
+                SkeletonChart(height: 200)
+                SkeletonChart(height: 200)
+                SkeletonChart(height: 200)
+            }
+        }
     }
 }

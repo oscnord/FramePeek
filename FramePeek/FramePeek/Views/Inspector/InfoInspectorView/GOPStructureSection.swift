@@ -92,6 +92,7 @@ struct GOPStructureSection: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 4))
+            .clipped()
             
             HStack(spacing: DesignSystem.Spacing.md) {
                 frameLegend

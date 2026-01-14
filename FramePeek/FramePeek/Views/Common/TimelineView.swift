@@ -47,20 +47,6 @@ struct TimelineView: View {
                 
                 Spacer()
                 
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        isVisible = false
-                    }
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                .padding(.horizontal, DesignSystem.Padding.sm)
-                .padding(.vertical, 3)
-                .help(String(localized: "Hide Timeline"))
-                
                 if let range = normalizedVisibleTimeRange {
                     let startTime = formatTimeForDisplay(range.lowerBound)
                     let endTime = formatTimeForDisplay(range.upperBound)
@@ -112,6 +98,23 @@ struct TimelineView: View {
                         }
                     }
                 }
+                
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        isVisible = false
+                    }
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .frame(minWidth: 24, minHeight: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                .padding(.horizontal, DesignSystem.Padding.md)
+                .padding(.vertical, DesignSystem.Padding.sm)
+                .contentShape(Rectangle())
+                .help(String(localized: "Hide Timeline"))
             }
             .padding(.horizontal, DesignSystem.Padding.lg)
             .padding(.top, DesignSystem.Padding.lg)

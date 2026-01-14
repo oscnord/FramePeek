@@ -81,16 +81,9 @@ struct CollapsibleWaveformTrack: View {
                 VStack(spacing: 0) {
                     if isExtracting {
                         // Loading state
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                                .controlSize(.small)
-                            Text("Extracting waveform…")
-                                .font(.caption)
-                                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                            Spacer()
-                        }
-                        .padding(.vertical, DesignSystem.Padding.xl)
+                        WaveformSkeletonView()
+                            .padding(.horizontal, DesignSystem.Padding.lg)
+                            .padding(.vertical, DesignSystem.Padding.md)
                     } else if let samples = viewModel.waveformData[trackInfo.index] {
                         // Waveform view
                         AudioWaveformView(
@@ -146,6 +139,14 @@ struct CollapsibleWaveformTrack: View {
                 // Handle error silently
             }
         }
+    }
+}
+
+// MARK: - Skeleton View
+
+private struct WaveformSkeletonView: View {
+    var body: some View {
+        SkeletonChart(height: 80)
     }
 }
 

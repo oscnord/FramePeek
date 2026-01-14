@@ -44,45 +44,49 @@ struct GOPStructureView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            headerSection
-            
-            if viewModel.isAnalyzingGOP {
-                loadingSection
-            } else if analysis == nil {
-                emptySection
-            } else {
-                contentSection
-            }
-        }
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
-                .fill(DesignSystem.Materials.thin)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
-                        .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
-                )
-        )
-        .padding(DesignSystem.Padding.lg)
-        .onAppear {
-            initializeRangeValues()
-        }
-        .onChange(of: duration) { _, _ in
-            initializeRangeValues()
-        }
-        .sheet(isPresented: $showRangePicker) {
-            GOPRangePickerSheet(
-                startTime: $selectedRangeStart,
-                endTime: $selectedRangeEnd,
-                duration: duration,
-                onAnalyze: {
-                    viewModel.analyzeGOPTimeRange(selectedRangeStart...selectedRangeEnd, detectFrameTypes: true)
-                    showRangePicker = false
-                },
-                onCancel: {
-                    showRangePicker = false
+        if viewModel.isFileUnanalyzable {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                headerSection
+                
+                if viewModel.isAnalyzingGOP {
+                    loadingSection
+                } else if analysis == nil {
+                    emptySection
+                } else {
+                    contentSection
                 }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
+                    .fill(DesignSystem.Materials.thin)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
+                            .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
+                    )
             )
+            .padding(DesignSystem.Padding.lg)
+            .onAppear {
+                initializeRangeValues()
+            }
+            .onChange(of: duration) { _, _ in
+                initializeRangeValues()
+            }
+            .sheet(isPresented: $showRangePicker) {
+                GOPRangePickerSheet(
+                    startTime: $selectedRangeStart,
+                    endTime: $selectedRangeEnd,
+                    duration: duration,
+                    onAnalyze: {
+                        viewModel.analyzeGOPTimeRange(selectedRangeStart...selectedRangeEnd, detectFrameTypes: true)
+                        showRangePicker = false
+                    },
+                    onCancel: {
+                        showRangePicker = false
+                    }
+                )
+            }
         }
     }
     
@@ -210,11 +214,9 @@ struct GOPStructureView: View {
     // MARK: - Loading Section
     
     private var loadingSection: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-        LoadingView(message: "Analyzing GOP…")
-        }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, DesignSystem.Padding.xxl)
+        GOPStructureSkeletonView()
+            .padding(.horizontal, DesignSystem.Padding.lg)
+            .padding(.bottom, DesignSystem.Padding.lg)
     }
     
     // MARK: - Empty Section
@@ -419,6 +421,58 @@ struct GOPStructureView: View {
                     .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.leading, 18)
+    }
+}
+
+// MARK: - Skeleton View
+
+private struct GOPStructureSkeletonView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
+            // Visual guide skeleton
+            SkeletonView(width: nil, height: 40, cornerRadius: DesignSystem.CornerRadius.small)
+            
+            // Timeline visualization skeleton
+            SkeletonChart(height: 180)
+            
+            // Stats panel skeleton
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: DesignSystem.Spacing.md) {
+                    SkeletonCard(width: nil, height: 80)
+                    SkeletonCard(width: nil, height: 80)
+                    SkeletonCard(width: nil, height: 80)
+                    SkeletonCard(width: nil, height: 80)
+                }
+                
+                // Frame distribution skeleton
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    SkeletonText(width: 140, height: 16)
+                    SkeletonView(width: nil, height: 16, cornerRadius: 4)
+                    HStack(spacing: DesignSystem.Spacing.lg) {
+                        SkeletonText(width: 60, height: 14)
+                        SkeletonText(width: 60, height: 14)
+                        SkeletonText(width: 60, height: 14)
+                    }
+                }
+                .padding(DesignSystem.Padding.md)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                        .fill(DesignSystem.Materials.ultraThin)
+                )
+            }
+            
+            // Action bar skeleton
+            HStack {
+                Spacer()
+                SkeletonText(width: 120, height: 28)
+                SkeletonText(width: 120, height: 28)
+            }
+        }
     }
 }
 
