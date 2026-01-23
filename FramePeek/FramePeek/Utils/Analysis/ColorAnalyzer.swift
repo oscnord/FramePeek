@@ -6,7 +6,7 @@ import AppKit
 /// Analyzes color properties of video frames over time
 /// - Parameters:
 ///   - asset: The AVAsset to analyze
-///   - sampleInterval: Interval in seconds between frame samples (default: 1.0)
+///   - sampleInterval: Interval in seconds between frame samples (default: 1.0, must be > 0)
 ///   - maxSamples: Maximum number of samples to return
 ///   - smoothingFactor: Smoothing factor for brightness and temperature (default: 0.3)
 /// - Returns: AsyncStream of color samples
@@ -29,6 +29,9 @@ func analyzeColor(
                 return
             }
 
+            // Validate sampleInterval to prevent infinite loop or division issues
+            let effectiveSampleInterval = sampleInterval > 0 ? sampleInterval : 1.0
+
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
             generator.requestedTimeToleranceBefore = CMTime(seconds: 0.01, preferredTimescale: 600)
@@ -36,7 +39,7 @@ func analyzeColor(
             generator.apertureMode = .productionAperture
 
             var colorSamples: [ColorSample] = []
-            colorSamples.reserveCapacity(min(maxSamples, Int(duration / sampleInterval) + 1))
+            colorSamples.reserveCapacity(min(maxSamples, Int(duration / effectiveSampleInterval) + 1))
             var currentTime = 0.0
             var sampleCount = 0
             var lastEmittedTime: Double = 0
@@ -51,7 +54,7 @@ func analyzeColor(
                 let time = CMTime(seconds: currentTime, preferredTimescale: 600)
 
                 guard let cgImage = try? await generator.image(at: time).image else {
-                    currentTime += sampleInterval
+                currentTime += effectiveSampleInterval
                     continue
                 }
 
@@ -88,7 +91,7 @@ func analyzeColor(
 
                 sampleCount += 1
 
-                if currentTime - lastEmittedTime >= sampleInterval * 10 {
+                if currentTime - lastEmittedTime >= effectiveSampleInterval * 10 {
                     let sortedSamples = colorSamples.sorted { $0.time < $1.time }
                     continuation.yield(sortedSamples)
                     lastEmittedTime = currentTime
@@ -111,7 +114,9 @@ func analyzeColor(
 
 // MARK: - Bitmap Configuration
 
-private let rgbaBitmapInfo: UInt32 = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
+// Use noneSkipLast to get raw RGB values without alpha premultiplication
+// This ensures accurate brightness/color calculations
+private let rgbaBitmapInfo: UInt32 = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.noneSkipLast.rawValue
 
 private func createRGBAContext(width: Int, height: Int, data: UnsafeMutableRawPointer?) -> CGContext? {
     let bytesPerPixel = 4

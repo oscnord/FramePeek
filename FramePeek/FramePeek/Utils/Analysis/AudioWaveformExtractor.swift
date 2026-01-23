@@ -128,40 +128,64 @@ func extractWaveform(
                         return
                     }
 
-                    // Convert to Int16 samples (assuming 16-bit PCM, interleaved)
-                    let sampleCount = length / MemoryLayout<Int16>.size
-                    guard sampleCount > 0 else { return }
-
-                    // Work directly with UnsafeBufferPointer to avoid array copy
-                    let samplesBuffer = data.withMemoryRebound(to: Int16.self, capacity: sampleCount) { ptr in
-                        UnsafeBufferPointer(start: ptr, count: sampleCount)
-                    }
+                    // Get the actual number of audio frames (not interleaved samples)
+                    // For stereo audio, interleavedSampleCount would be 2x the number of frames
+                    let numFrames = CMSampleBufferGetNumSamples(sampleBuffer)
+                    guard numFrames > 0 else { return }
 
                     let bufferDuration = CMSampleBufferGetDuration(sampleBuffer).seconds
-                    let timeStep = bufferDuration / Double(sampleCount)
+                    // Use frame count for time step, not interleaved sample count
+                    let timeStep = bufferDuration / Double(numFrames)
 
-                    // Process samples - accumulate into windows
-                    for (index, sample) in samplesBuffer.enumerated() {
-                        let sampleTime = pts + Double(index) * timeStep
+                    // Calculate interleaved sample count for buffer access
+                    let interleavedSampleCount = length / MemoryLayout<Int16>.size
+                    guard interleavedSampleCount > 0 else { return }
 
-                        // Check if we need to finalize current window
-                        while sampleTime >= currentWindowStart + actualWindowSize && currentWindowStart < durationSeconds {
-                            if !windowSamples.isEmpty {
-                                let newSample = finalizeWindow(
-                                    samples: windowSamples,
-                                    windowStart: currentWindowStart,
-                                    windowSize: actualWindowSize
-                                )
-                                allSamples.append(newSample)
+                    // Determine channel count from interleaved samples vs frames
+                    let channelCount = max(1, interleavedSampleCount / numFrames)
+
+                    // Process samples safely inside withMemoryRebound closure
+                    // to avoid undefined behavior from escaping pointer
+                    data.withMemoryRebound(to: Int16.self, capacity: interleavedSampleCount) { ptr in
+                        let samplesBuffer = UnsafeBufferPointer(start: ptr, count: interleavedSampleCount)
+
+                        // Process by frame (mixing channels if stereo)
+                        for frameIdx in 0..<numFrames {
+                            let sampleTime = pts + Double(frameIdx) * timeStep
+
+                            // Check if we need to finalize current window
+                            while sampleTime >= currentWindowStart + actualWindowSize && currentWindowStart < durationSeconds {
+                                if !windowSamples.isEmpty {
+                                    let newSample = finalizeWindow(
+                                        samples: windowSamples,
+                                        windowStart: currentWindowStart,
+                                        windowSize: actualWindowSize
+                                    )
+                                    allSamples.append(newSample)
+                                }
+
+                                // Move to next window
+                                currentWindowStart += actualWindowSize
+                                windowSamples.removeAll(keepingCapacity: true)
                             }
 
-                            // Move to next window
-                            currentWindowStart += actualWindowSize
-                            windowSamples.removeAll(keepingCapacity: true)
+                            // Mix channels by averaging for this frame
+                            let baseIndex = frameIdx * channelCount
+                            if channelCount == 1 {
+                                windowSamples.append(samplesBuffer[baseIndex])
+                            } else {
+                                // Mix stereo/multi-channel to mono by averaging
+                                var sum: Int32 = 0
+                                for ch in 0..<channelCount {
+                                    let idx = baseIndex + ch
+                                    if idx < interleavedSampleCount {
+                                        sum += Int32(samplesBuffer[idx])
+                                    }
+                                }
+                                let mixed = Int16(clamping: sum / Int32(channelCount))
+                                windowSamples.append(mixed)
+                            }
                         }
-
-                        // Add sample to current window
-                        windowSamples.append(sample)
                     }
 
                     // Early termination: if we have enough samples and we're past the midpoint, we can stop
@@ -216,13 +240,9 @@ func extractWaveform(
                 finalSamples = allSamples
             }
 
-            // Yield final result (only new samples if any, or all if first yield)
-            if finalSamples.count > lastYieldedCount {
-                let newSamples = Array(finalSamples[lastYieldedCount...])
-                continuation.yield(WaveformUpdate(appendedSamples: newSamples, isFinished: true))
-            } else {
-                continuation.yield(WaveformUpdate(appendedSamples: finalSamples, isFinished: true))
-            }
+            // FIX: After downsampling, indices no longer correspond to pre-downsampling array
+            // Always yield the complete final result to avoid index mismatches
+            continuation.yield(WaveformUpdate(appendedSamples: finalSamples, isFinished: true))
             continuation.finish()
         }
 
@@ -231,7 +251,7 @@ func extractWaveform(
 }
 
 /// Finalize a window by calculating RMS, min, and max using Accelerate framework
-private func finalizeWindow(
+func finalizeWindow(
     samples: [Int16],
     windowStart: Double,
     windowSize: Double
@@ -258,8 +278,11 @@ private func finalizeWindow(
 
     // Normalize to 0.0-1.0 range (Int16 range is -32768 to 32767, Float range is -32768.0 to 32767.0)
     let normalizedAmplitude = min(1.0, Double(rms) / 32768.0)
-    let normalizedMin = abs(Double(minValue) / 32768.0)
-    let normalizedMax = abs(Double(maxValue) / 32768.0)
+    // For min/max, we want the absolute amplitude envelope
+    let absMin = abs(Double(minValue))
+    let absMax = abs(Double(maxValue))
+    let normalizedMin = min(absMin, absMax) / 32768.0
+    let normalizedMax = max(absMin, absMax) / 32768.0
 
     return WaveformSample(
         time: windowStart + windowSize / 2.0,
@@ -270,7 +293,7 @@ private func finalizeWindow(
 }
 
 /// Downsample waveform samples using LTTB algorithm
-private func downsampleWaveformLTTB(_ samples: [WaveformSample], targetCount: Int) -> [WaveformSample] {
+func downsampleWaveformLTTB(_ samples: [WaveformSample], targetCount: Int) -> [WaveformSample] {
     guard samples.count > targetCount, targetCount >= 2 else { return samples }
 
     var result: [WaveformSample] = []
@@ -287,13 +310,37 @@ private func downsampleWaveformLTTB(_ samples: [WaveformSample], targetCount: In
         let bucketStart = Int(Double(i) * bucketSize) + 1
         let bucketEnd = min(Int(Double(i + 1) * bucketSize) + 1, samples.count - 1)
 
+        // Guard against invalid bucket (bucketStart >= bucketEnd)
+        guard bucketStart < bucketEnd else {
+            // Just use bucketStart if bucket is empty/invalid
+            if bucketStart < samples.count {
+                result.append(samples[bucketStart])
+                lastSelectedIndex = bucketStart
+            }
+            continue
+        }
+
         // Calculate the average point for the next bucket (used as target)
         let nextBucketStart = bucketEnd
         let nextBucketEnd = min(Int(Double(i + 2) * bucketSize) + 1, samples.count - 1)
 
+        // Guard against invalid next bucket range
+        guard nextBucketStart <= nextBucketEnd else {
+            result.append(samples[bucketStart])
+            lastSelectedIndex = bucketStart
+            continue
+        }
+
         var avgX: Double = 0
         var avgY: Double = 0
-        let nextBucketCount = nextBucketEnd - nextBucketStart + 1
+        let nextBucketCount: Int = nextBucketEnd - nextBucketStart + 1
+
+        // Guard against division by zero
+        guard nextBucketCount > 0 else {
+            result.append(samples[bucketStart])
+            lastSelectedIndex = bucketStart
+            continue
+        }
 
         for j in nextBucketStart...nextBucketEnd {
             avgX += samples[j].time
@@ -310,11 +357,10 @@ private func downsampleWaveformLTTB(_ samples: [WaveformSample], targetCount: In
 
         for j in bucketStart..<bucketEnd {
             let pointB = samples[j]
-            // Triangle area using cross product
-            let area = abs(
-                (pointA.time - avgX) * (pointB.amplitude - pointA.amplitude) -
-                (pointA.time - pointB.time) * (avgY - pointA.amplitude)
-            ) * 0.5
+            // Triangle area using cross product - break into sub-expressions for compiler
+            let term1 = (pointA.time - avgX) * (pointB.amplitude - pointA.amplitude)
+            let term2 = (pointA.time - pointB.time) * (avgY - pointA.amplitude)
+            let area = abs(term1 - term2) * 0.5
 
             if area > maxArea {
                 maxArea = area

@@ -2,18 +2,48 @@ import Foundation
 import AVFoundation
 import CoreMedia
 
+// MARK: - Constants
+
+private enum SyncThresholds {
+    static let durationMismatchMs: Double = 1000  // 1 second difference = duration mismatch
+    static let significantOffsetMs: Double = 100  // 100ms = significant offset
+    static let minorOffsetMs: Double = 40         // 40ms = minor offset (perceptible)
+    static let gapThresholdSeconds: Double = 0.5  // 500ms gap detection
+}
+
 /// Analyzes audio/video synchronization by examining actual sample timestamps
 /// - Parameter asset: The AVAsset to analyze
-/// - Returns: SyncAnalysisResult with track timing information
+/// - Returns: SyncAnalysisResult with track timing information, or nil on failure
 func analyzeAudioVideoSync(asset: AVAsset) async -> SyncAnalysisResult? {
     do {
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
 
         guard let videoTrack = videoTracks.first else {
+            // Audio-only file - return audio track info without video comparison
             if audioTracks.isEmpty {
                 return nil
             }
+
+            var audioTrackSyncInfos: [AudioTrackSyncInfo] = []
+            for (index, audioTrack) in audioTracks.enumerated() {
+                let audioTimeRange = try await audioTrack.load(.timeRange)
+                let audioDuration = audioTimeRange.duration.seconds
+                guard audioDuration.isFinite else { continue }
+
+                let audioFirstPTS = await getFirstSamplePTS(asset: asset, track: audioTrack) ?? audioTimeRange.start.seconds
+                guard audioFirstPTS.isFinite else { continue }
+
+                audioTrackSyncInfos.append(AudioTrackSyncInfo(
+                    trackIndex: index,
+                    audioFirstPTS: audioFirstPTS,
+                    audioDuration: audioDuration,
+                    syncOffsetMs: 0,
+                    durationDifferenceMs: 0,
+                    syncStatus: .inSync  // No video to compare against
+                ))
+            }
+
             return SyncAnalysisResult(
                 videoFirstPTS: 0,
                 videoDuration: 0,
@@ -21,13 +51,16 @@ func analyzeAudioVideoSync(asset: AVAsset) async -> SyncAnalysisResult? {
                 averageVideoFrameInterval: nil,
                 frameIntervalVariance: nil,
                 hasTimestampGaps: false,
-                audioTracks: []
+                audioTracks: audioTrackSyncInfos
             )
         }
 
         let videoTimeRange = try await videoTrack.load(.timeRange)
         let videoDuration = videoTimeRange.duration.seconds
+        guard videoDuration.isFinite else { return nil }
+
         let videoFirstPTS = await getFirstSamplePTS(asset: asset, track: videoTrack) ?? videoTimeRange.start.seconds
+        guard videoFirstPTS.isFinite else { return nil }
 
         let frameAnalysis = await analyzeFrameTiming(asset: asset, videoTrack: videoTrack)
 
@@ -36,17 +69,20 @@ func analyzeAudioVideoSync(asset: AVAsset) async -> SyncAnalysisResult? {
         for (index, audioTrack) in audioTracks.enumerated() {
             let audioTimeRange = try await audioTrack.load(.timeRange)
             let audioDuration = audioTimeRange.duration.seconds
-            let audioFirstPTS = await getFirstAudioPTS(asset: asset, track: audioTrack) ?? audioTimeRange.start.seconds
+            guard audioDuration.isFinite else { continue }
+
+            let audioFirstPTS = await getFirstSamplePTS(asset: asset, track: audioTrack) ?? audioTimeRange.start.seconds
+            guard audioFirstPTS.isFinite else { continue }
 
             let ptsOffsetMs = (audioFirstPTS - videoFirstPTS) * 1000.0
             let durationDiffMs = abs(audioDuration - videoDuration) * 1000.0
 
             let syncStatus: SyncStatus
-            if durationDiffMs > 1000 {
+            if durationDiffMs > SyncThresholds.durationMismatchMs {
                 syncStatus = .durationMismatch
-            } else if abs(ptsOffsetMs) > 100 {
+            } else if abs(ptsOffsetMs) > SyncThresholds.significantOffsetMs {
                 syncStatus = .significantOffset
-            } else if abs(ptsOffsetMs) > 40 {
+            } else if abs(ptsOffsetMs) > SyncThresholds.minorOffsetMs {
                 syncStatus = .minorOffset
             } else {
                 syncStatus = .inSync
@@ -72,45 +108,12 @@ func analyzeAudioVideoSync(asset: AVAsset) async -> SyncAnalysisResult? {
             audioTracks: audioTrackSyncInfos
         )
     } catch {
-        return SyncAnalysisResult(
-            videoFirstPTS: 0,
-            videoDuration: 0,
-            videoFrameCount: 0,
-            averageVideoFrameInterval: nil,
-            frameIntervalVariance: nil,
-            hasTimestampGaps: false,
-            audioTracks: []
-        )
+        return nil
     }
 }
 
-/// Gets the PTS of the first video sample
+/// Gets the PTS of the first sample from a track
 private func getFirstSamplePTS(asset: AVAsset, track: AVAssetTrack) async -> Double? {
-    guard let reader = try? AVAssetReader(asset: asset) else { return nil }
-
-    let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
-    output.alwaysCopiesSampleData = false
-
-    guard reader.canAdd(output) else { return nil }
-    reader.add(output)
-
-    guard reader.startReading() else { return nil }
-
-    var firstPTS: Double?
-
-    if let sampleBuffer = output.copyNextSampleBuffer() {
-        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-        if pts.isFinite {
-            firstPTS = pts
-        }
-    }
-
-    reader.cancelReading()
-    return firstPTS
-}
-
-/// Gets the PTS of the first audio sample
-private func getFirstAudioPTS(asset: AVAsset, track: AVAssetTrack) async -> Double? {
     guard let reader = try? AVAssetReader(asset: asset) else { return nil }
 
     let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
@@ -318,29 +321,35 @@ private func analyzeFrameTiming(asset: AVAsset, videoTrack: AVAssetTrack) async 
     while let sampleBuffer = output.copyNextSampleBuffer() {
         if Task.isCancelled { break }
 
-        // Sample frames: skip some to speed up processing
-        if frameIndex % frameSkipInterval != 0 {
+        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+        frameCount += 1
+
+        // Skip non-finite PTS values
+        guard pts.isFinite else {
             frameIndex += 1
-            frameCount += 1
             continue
         }
-        frameIndex += 1
 
-        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-        guard pts.isFinite else { continue }
+        // Calculate interval between consecutive frames (always, for accuracy)
+        let shouldRecordInterval = frameIndex % frameSkipInterval == 0
 
         if let prev = previousPTS {
             let interval = pts - prev
             if interval > 0 && interval < 10 {
-                intervals.append(interval)
-                if interval > 0.5 {
+                // Only record intervals for sampled frames to limit memory
+                if shouldRecordInterval {
+                    intervals.append(interval)
+                }
+                // Always check for gaps regardless of sampling
+                if interval > SyncThresholds.gapThresholdSeconds {
                     hasGaps = true
                 }
             }
         }
 
+        // Always update previousPTS to get accurate single-frame intervals
         previousPTS = pts
-        frameCount += 1
+        frameIndex += 1
 
         // Early termination: if we have enough samples and processed enough frames
         if intervals.count >= targetSamples && frameCount >= earlyTerminationThreshold {

@@ -21,8 +21,6 @@ func extractWithCursor(
     var pending: [BitrateSample] = []
     pending.reserveCapacity(options.emitEveryNSamples)
 
-    var totalEmitted = 0
-
     // FPS stats
     var sumInterval = 0.0
     var intervalCount = 0
@@ -128,9 +126,11 @@ func extractWithCursor(
                     let firstFramePTS = frames.first!.pts
                     let lastFramePTS = frames.last!.pts
                     let actualSpan = lastFramePTS - firstFramePTS
+                    // Add minimum duration guard to prevent inflated bitrate from very small durations
+                    let minDuration = bucketSize * 0.1
                     let actualDuration: Double
                     if actualSpan < bucketSize - defaultFrameDuration {
-                        actualDuration = actualSpan + defaultFrameDuration
+                        actualDuration = max(actualSpan + defaultFrameDuration, minDuration)
                     } else {
                         actualDuration = bucketSize
                     }
@@ -139,8 +139,10 @@ func extractWithCursor(
                     let sampleTime = bucketStart + bucketSize / 2.0
 
                     pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
-                    totalEmitted += 1
                     lastEmittedBucket = prevBucketIndex
+
+                    // Remove emitted bucket to prevent unbounded memory growth
+                    bucketFrames.removeValue(forKey: prevBucketIndex)
 
                     if pending.count >= options.emitEveryNSamples {
                         continuation.yield(makeUpdate())
@@ -182,9 +184,11 @@ func extractWithCursor(
             let firstFramePTS = frames.first!.pts
             let lastFramePTS = frames.last!.pts
             let actualSpan = lastFramePTS - firstFramePTS
+            // Add minimum duration guard to prevent inflated bitrate from very small durations
+            let minDuration = bucketSize * 0.1
             let actualDuration: Double
             if actualSpan < bucketSize - defaultFrameDuration {
-                actualDuration = actualSpan + defaultFrameDuration
+                actualDuration = max(actualSpan + defaultFrameDuration, minDuration)
             } else {
                 actualDuration = bucketSize
             }
@@ -193,7 +197,6 @@ func extractWithCursor(
             let sampleTime = bucketStart + bucketSize / 2.0
 
             pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
-            totalEmitted += 1
 
             if pending.count >= options.emitEveryNSamples {
                 continuation.yield(makeUpdate())

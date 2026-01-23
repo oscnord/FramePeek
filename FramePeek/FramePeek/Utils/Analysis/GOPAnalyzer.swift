@@ -80,6 +80,9 @@ func extractGOPSegments(
 
                 var completedGOPFrameCounts: [Int] = []
                 var allCompletedGOPs: [GOPSegment] = []
+                // Limit stored GOPs to prevent unbounded memory growth
+                // We only need a few for pattern detection and representative GOP selection
+                let maxStoredGOPs = 100
                 var detectedStructureType: GOPStructureType = .unknown
                 var representativeGOP: GOPSegment?
                 var fixedGOPDetected = false
@@ -184,7 +187,10 @@ func extractGOPSegments(
                                     frames: sortedFrames
                                 )
                                 pending.append(newSegment)
-                                allCompletedGOPs.append(newSegment)
+                                // Limit stored GOPs to prevent memory growth
+                                if allCompletedGOPs.count < maxStoredGOPs {
+                                    allCompletedGOPs.append(newSegment)
+                                }
                                 emittedGOPs += 1
 
                                 if let frameCount = newSegment.frameCount {

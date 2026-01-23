@@ -263,14 +263,18 @@ private func detectH264FrameType(from data: Data, nalLengthSize: Int) -> FrameTy
     if hasIDR { return .i }
 
     // Process all collected slice types
+    // H.264 slice_type values: 0,5=P, 1,6=B, 2,7=I, 3,8=SP, 4,9=SI
+    // SP/SI slices (3,4,8,9) are for switching/error recovery - treat as P-like
     // Prefer I slices, then P, then B
     if sliceTypes.contains(where: { $0 == 2 || $0 == 7 }) {
         return .i
     }
-    if sliceTypes.contains(where: { $0 == 0 || $0 == 5 || $0 == 8 }) {
+    // P slices: 0, 5 (and SP slices 3, 8 as P-like)
+    if sliceTypes.contains(where: { $0 == 0 || $0 == 5 || $0 == 3 || $0 == 8 }) {
         return .p
     }
-    if sliceTypes.contains(where: { $0 == 1 || $0 == 6 || $0 == 9 }) {
+    // B slices: 1, 6 (and SI slices 4, 9 as B-like, though rare)
+    if sliceTypes.contains(where: { $0 == 1 || $0 == 6 || $0 == 4 || $0 == 9 }) {
         return .b
     }
 

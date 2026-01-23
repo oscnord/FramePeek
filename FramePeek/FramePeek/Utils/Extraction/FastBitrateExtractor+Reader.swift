@@ -41,8 +41,6 @@ func extractWithReader(
     var pending: [BitrateSample] = []
     pending.reserveCapacity(options.emitEveryNSamples)
 
-    var totalEmitted = 0
-
     // FPS stats
     var sumInterval = 0.0
     var intervalCount = 0
@@ -88,7 +86,6 @@ func extractWithReader(
     allSamples.reserveCapacity(min(estimatedFrameCount, 1_000_000)) // Cap at 1M to avoid excessive memory
 
     var readCount = 0
-    var lastReadPTS: Double = 0
     let batchSize = 1000  // Process frames in batches for better performance
 
     while !Task.isCancelled {
@@ -112,7 +109,6 @@ func extractWithReader(
                 allSamples.append((pts: pts, size: Int64(size)))
                 readCount += 1
                 batchCount += 1
-                lastReadPTS = max(lastReadPTS, pts) // Track the latest PTS we've read
             }
         }
 
@@ -188,11 +184,13 @@ func extractWithReader(
             }
 
             if totalBytes > 0 {
+                // Minimum duration to prevent inflated bitrates from rounding errors
+                let minDuration = bucketSize * 0.1
                 let actualDuration: Double
                 if let first = firstFramePTS, let last = lastFramePTS {
                     let actualSpan = last - first
                     if actualSpan < bucketSize - defaultFrameDuration {
-                        actualDuration = actualSpan + defaultFrameDuration
+                        actualDuration = max(actualSpan + defaultFrameDuration, minDuration)
                     } else {
                         actualDuration = bucketSize
                     }
@@ -204,7 +202,6 @@ func extractWithReader(
                 let sampleTime = bucketStart + bucketSize / 2.0
 
                 pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
-                totalEmitted += 1
                 lastEmittedBucket = bucketIndex
 
                 if pending.count >= options.emitEveryNSamples {
@@ -240,11 +237,13 @@ func extractWithReader(
         }
 
         if totalBytes > 0 {
+            // Minimum duration to prevent inflated bitrates from rounding errors
+            let minDuration = bucketSize * 0.1
             let actualDuration: Double
             if let first = firstFramePTS, let last = lastFramePTS {
                 let actualSpan = last - first
                 if actualSpan < bucketSize - defaultFrameDuration {
-                    actualDuration = actualSpan + defaultFrameDuration
+                    actualDuration = max(actualSpan + defaultFrameDuration, minDuration)
                 } else {
                     actualDuration = bucketSize
                 }
@@ -256,7 +255,6 @@ func extractWithReader(
             let sampleTime = bucketStart + bucketSize / 2.0
 
             pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
-            totalEmitted += 1
 
             if pending.count >= options.emitEveryNSamples {
                 continuation.yield(makeUpdate())
