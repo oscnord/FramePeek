@@ -2,9 +2,9 @@ import SwiftUI
 
 struct GOPStructureSection: View {
     @ObservedObject var viewModel: FramePeekViewModel
-    
+
     private var analysis: GOPAnalysisResult? { viewModel.gopAnalysis }
-    
+
     private var domainSeconds: Double {
         if let analysis, analysis.isPreview {
             return max(0.1, analysis.scannedUntilSeconds)
@@ -14,18 +14,18 @@ struct GOPStructureSection: View {
         }
         return max(0.1, analysis?.scannedUntilSeconds ?? 0.1)
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             headerRow
-            
+
             if let analysis {
                 if analysis.structureType.isFixed {
                     fixedGOPVisualization(analysis: analysis)
                 } else {
                     variableGOPVisualization(analysis: analysis)
                 }
-                
+
                 statsGrid(stats: analysis.stats, structureType: analysis.structureType)
             } else if viewModel.isAnalyzingGOP {
                 HStack(spacing: DesignSystem.Spacing.sm) {
@@ -42,12 +42,12 @@ struct GOPStructureSection: View {
                     .foregroundStyle(.secondary)
                     .padding(.vertical, DesignSystem.Padding.xs)
             }
-            
+
             actionsRow
         }
         .padding(.leading, DesignSystem.Padding.md2)
     }
-    
+
     @ViewBuilder
     private func fixedGOPVisualization(analysis: GOPAnalysisResult) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -59,14 +59,14 @@ struct GOPStructureSection: View {
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.green)
-                
+
                 if let frameCount = analysis.structureType.fixedFrameCount {
                     Text("(\(frameCount) frames)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
-            
+
             if let repGOP = analysis.representativeGOP ?? analysis.segments.first,
                let frames = repGOP.frames, !frames.isEmpty {
                 enlargedGOPFrameView(frames: frames, duration: repGOP.duration)
@@ -75,12 +75,12 @@ struct GOPStructureSection: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func enlargedGOPFrameView(frames: [FrameInfo], duration: Double) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             HStack(spacing: 1) {
-                ForEach(Array(frames.enumerated()), id: \.offset) { index, frame in
+                ForEach(Array(frames.enumerated()), id: \.offset) { _, frame in
                     RoundedRectangle(cornerRadius: 2)
                         .fill(colorForFrameType(frame.type))
                         .frame(height: 28)
@@ -93,12 +93,12 @@ struct GOPStructureSection: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .clipped()
-            
+
             HStack(spacing: DesignSystem.Spacing.md) {
                 frameLegend
-                
+
                 Spacer()
-                
+
                 if duration > 0 {
                     Text(String(format: "%.2fs", duration))
                         .font(.caption2)
@@ -107,7 +107,7 @@ struct GOPStructureSection: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func simpleGOPBar(frameCount: Int, duration: Double) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -115,7 +115,7 @@ struct GOPStructureSection: View {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(colorForFrameType(.i))
                     .frame(width: 6, height: 28)
-                
+
                 RoundedRectangle(cornerRadius: 0)
                     .fill(Color.accentColor.opacity(0.35))
                     .frame(height: 28)
@@ -127,7 +127,7 @@ struct GOPStructureSection: View {
                     }
             }
             .clipShape(RoundedRectangle(cornerRadius: 4))
-            
+
             if duration > 0 {
                 Text(String(format: "Duration: %.2fs", duration))
                     .font(.caption2)
@@ -135,7 +135,7 @@ struct GOPStructureSection: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func variableGOPVisualization(analysis: GOPAnalysisResult) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -150,26 +150,26 @@ struct GOPStructureSection: View {
                         .foregroundStyle(.orange)
                 }
             }
-            
+
             Canvas { context, canvasSize in
                 let w = canvasSize.width
                 let h = canvasSize.height
                 let domain = max(0.001, domainSeconds)
-                
+
                 let bg = Path(roundedRect: CGRect(x: 0, y: 0, width: w, height: h), cornerRadius: 6)
                 context.fill(bg, with: .color(Color.secondary.opacity(0.10)))
-                
+
                 guard !analysis.segments.isEmpty else { return }
-                
+
                 for s in analysis.segments {
                     let startX = CGFloat(max(0, min(1, s.startTime / domain))) * w
                     let endX = CGFloat(max(0, min(1, s.endTime / domain))) * w
                     let width = max(1, endX - startX)
-                    
+
                     let rect = CGRect(x: startX, y: 4, width: width, height: h - 8)
                     let p = Path(roundedRect: rect, cornerRadius: 3)
                     context.fill(p, with: .color(Color.accentColor.opacity(0.35)))
-                    
+
                     var tick = Path()
                     tick.move(to: CGPoint(x: startX, y: 2))
                     tick.addLine(to: CGPoint(x: startX, y: h - 2))
@@ -179,7 +179,7 @@ struct GOPStructureSection: View {
             .frame(height: 36)
         }
     }
-    
+
     private var frameLegend: some View {
         HStack(spacing: DesignSystem.Spacing.md) {
             legendItem(type: .i, label: "I")
@@ -187,7 +187,7 @@ struct GOPStructureSection: View {
             legendItem(type: .b, label: "B")
         }
     }
-    
+
     @ViewBuilder
     private func legendItem(type: FrameType, label: String) -> some View {
         HStack(spacing: 3) {
@@ -199,7 +199,7 @@ struct GOPStructureSection: View {
                 .foregroundStyle(.secondary)
         }
     }
-    
+
     private func colorForFrameType(_ type: FrameType) -> Color {
         switch type {
         case .i: return Color.blue
@@ -208,36 +208,36 @@ struct GOPStructureSection: View {
         case .unknown: return Color.gray
         }
     }
-    
+
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.md) {
             Text("GOP")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            
+
             if let analysis {
                 Text("\(analysis.stats.gopCount)")
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(.primary)
-                
+
                 if analysis.isPreview && !analysis.structureType.isFixed {
                     Text("Preview")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 if analysis.scannedUntilSeconds.isFinite, analysis.scannedUntilSeconds > 0 {
                     Text(String(format: "Scanned %.1fs", analysis.scannedUntilSeconds))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
-            
+
             Spacer()
         }
     }
-    
+
     private var actionsRow: some View {
         HStack(spacing: DesignSystem.Spacing.md) {
             if viewModel.isAnalyzingGOP {
@@ -256,43 +256,43 @@ struct GOPStructureSection: View {
                     }
                 }
             }
-            
+
             Spacer()
-            
+
             Text("See main view for detailed analysis")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
     }
-    
+
     @ViewBuilder
     private func statsGrid(stats: GOPAnalysisStats, structureType: GOPStructureType) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             if structureType.isFixed {
                 if let frameCount = structureType.fixedFrameCount {
-                    KV("Frames/GOP", "\(frameCount)", monospace: true)
+                    KVRow("Frames/GOP", "\(frameCount)", monospace: true)
                 }
-                KV("GOPs analyzed", "\(stats.gopCount)", monospace: true)
+                KVRow("GOPs analyzed", "\(stats.gopCount)", monospace: true)
             } else {
-                KV("GOPs", "\(stats.gopCount)", monospace: true)
+                KVRow("GOPs", "\(stats.gopCount)", monospace: true)
             }
-            
+
             if let avg = stats.avgDuration {
-                KV("Avg", String(format: "%.2f s", avg), monospace: true)
+                KVRow("Avg", String(format: "%.2f s", avg), monospace: true)
             }
             if let min = stats.minDuration, let max = stats.maxDuration {
                 if !structureType.isFixed || min != max {
-                    KV("Range", String(format: "%.2f–%.2f s", min, max), monospace: true)
+                    KVRow("Range", String(format: "%.2f–%.2f s", min, max), monospace: true)
                 }
             }
-            
+
             if !structureType.isFixed {
                 if let avgFrames = stats.avgFrameCount {
-                    KV("Frames", String(format: "%.1f avg", avgFrames), monospace: true)
+                    KVRow("Frames", String(format: "%.1f avg", avgFrames), monospace: true)
                 } else if stats.minFrameCount != nil || stats.maxFrameCount != nil {
                     let min = stats.minFrameCount.map(String.init) ?? "–"
                     let max = stats.maxFrameCount.map(String.init) ?? "–"
-                    KV("Frames", "\(min)–\(max)", monospace: true)
+                    KVRow("Frames", "\(min)–\(max)", monospace: true)
                 }
             }
         }

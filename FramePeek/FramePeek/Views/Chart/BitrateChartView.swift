@@ -14,9 +14,9 @@ struct BitrateChartView: View {
         }
         return viewModel.chartMaxDisplayPoints
     }
-    
+
     // MARK: - Statistics
-    
+
     private var statistics: BitrateChartStatistics {
         BitrateChartStatistics(
             samples: viewModel.samples,
@@ -24,7 +24,7 @@ struct BitrateChartView: View {
             effectiveFPS: viewModel.effectiveFPS
         )
     }
-    
+
     /// Downsampled samples for efficient chart rendering using LTTB algorithm
     private var displaySamples: [BitrateSample] {
         let filteredSamples: [BitrateSample]
@@ -39,13 +39,12 @@ struct BitrateChartView: View {
     private var yTickStep: Double {
         statistics.niceStep(forMax: statistics.maxBitrateKbps, targetTicks: 7)
     }
-    
+
     private var xTickStep: Double {
         let duration = (viewModel.visibleTimeRange?.upperBound ?? statistics.maxTime) - (viewModel.visibleTimeRange?.lowerBound ?? 0)
         return statistics.niceStep(forMax: duration, targetTicks: 6)
     }
-    
-    
+
     /// X-axis domain with padding for better visibility of start/end points
     private var xAxisDomain: ClosedRange<Double> {
         if let range = viewModel.visibleTimeRange {
@@ -165,7 +164,7 @@ struct BitrateChartView: View {
                 chart
                     .padding(.horizontal, DesignSystem.Padding.lg)
                     .padding(.bottom, DesignSystem.Padding.md)
-                
+
                 if viewModel.isGeneratingThumbnails {
                     KeyframeLoadingView(
                         message: "Generating thumbnails...",
@@ -219,7 +218,7 @@ struct BitrateChartView: View {
                     )
                 )
                 .interpolationMethod(.linear)
-                
+
                 LineMark(
                     x: .value("Time (s)", sample.time),
                     y: .value("Bitrate (kbps)", sample.bitrate / 1000.0)
@@ -228,7 +227,7 @@ struct BitrateChartView: View {
                 .interpolationMethod(.linear)
                 .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.medium))
             }
-            
+
             if !viewModel.samples.isEmpty {
                 RuleMark(y: .value("Avg", statistics.avgBitrateKbps))
                     .foregroundStyle(DesignSystem.Colors.Chart.averageOpacity)
@@ -242,19 +241,19 @@ struct BitrateChartView: View {
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous))
                     }
             }
-            
+
             if let hovered = viewModel.hoveredSample {
                 RuleMark(x: .value("Time (s)", hovered.time))
                     .foregroundStyle(DesignSystem.Colors.Chart.hoveredLine)
                     .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.medium, dash: [4, 4]))
             }
-            
+
             if let keyframeTime = viewModel.hoveredKeyframeTime {
                 RuleMark(x: .value("Keyframe", keyframeTime))
                     .foregroundStyle(DesignSystem.Colors.Chart.keyframeOpacity)
                     .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.thick))
             }
-            
+
             // Playback position indicator
             if let playbackTime = viewModel.currentPlaybackTime {
                 RuleMark(x: .value("Playback", playbackTime))
@@ -294,7 +293,7 @@ struct BitrateChartView: View {
                 .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
         }
         .chartOverlay { proxy in
-            GeometryReader { geometry in
+            GeometryReader { _ in
                 Rectangle()
                     .fill(.clear)
                     .contentShape(Rectangle())
@@ -343,18 +342,18 @@ struct BitrateChartView: View {
                 }
                 return nil
             }()
-            
+
             if let sample = tooltipSample {
                 let startTime = viewModel.visibleTimeRange?.lowerBound ?? 0
                 let endTime = viewModel.visibleTimeRange?.upperBound ?? statistics.maxTime
                 let duration = endTime - startTime
-                
+
                 if duration > 0 && sample.time >= startTime && sample.time <= endTime {
                     let timeRatio = (sample.time - startTime) / duration
                     let chartWidth = geometry.size.width
                     let xPos = timeRatio * chartWidth
                     let clampedX = min(max(xPos, 80), chartWidth - 80)
-                    
+
                     Tooltip(sample: sample, maxBitrateKbps: statistics.maxBitrateKbps)
                         .position(x: clampedX, y: 50)
                 }
@@ -393,4 +392,3 @@ struct BitrateChartView: View {
 #Preview {
     BitrateChartView(viewModel: FramePeekViewModel())
 }
-

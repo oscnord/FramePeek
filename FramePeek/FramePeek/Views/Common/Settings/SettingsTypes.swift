@@ -4,9 +4,9 @@ enum AppearanceMode: String, CaseIterable, Identifiable, Codable {
     case system
     case light
     case dark
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String {
         switch self {
         case .system: return String(localized: "System")
@@ -14,7 +14,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable, Codable {
         case .dark: return String(localized: "Dark")
         }
     }
-    
+
     var colorScheme: ColorScheme? {
         switch self {
         case .system: return nil
@@ -28,9 +28,9 @@ enum SamplingModeSetting: String, CaseIterable, Identifiable, Codable {
     case auto
     case interval
     case everyFrame
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String {
         switch self {
         case .auto: return String(localized: "Automatic")
@@ -44,9 +44,9 @@ enum FileOpeningBehavior: String, CaseIterable, Identifiable, Codable {
     case prompt
     case newTab
     case currentTab
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String {
         switch self {
         case .prompt: return String(localized: "Prompt")
@@ -60,9 +60,9 @@ enum ThumbnailSize: String, CaseIterable, Identifiable, Codable {
     case small
     case medium
     case large
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String {
         switch self {
         case .small: return String(localized: "Small")
@@ -70,7 +70,7 @@ enum ThumbnailSize: String, CaseIterable, Identifiable, Codable {
         case .large: return String(localized: "Large")
         }
     }
-    
+
     var cgSize: CGSize {
         switch self {
         case .small: return CGSize(width: 128, height: 80)
@@ -85,9 +85,9 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case analysis
     case media
     case display
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String {
         switch self {
         case .general: return String(localized: "General")
@@ -96,7 +96,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .display: return String(localized: "Display")
         }
     }
-    
+
     var systemImage: String {
         switch self {
         case .general: return "gearshape"
@@ -106,6 +106,3 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         }
     }
 }
-
-
-

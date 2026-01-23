@@ -12,7 +12,7 @@ func extractDurationInfo(asset: AVAsset) async -> DurationInfo {
     var duration = "N/A"
     var durationFormatted = "N/A"
     var durationSec: Double = 0
-    
+
     if let loadedDuration = try? await asset.load(.duration) {
         durationSec = CMTimeGetSeconds(loadedDuration)
         if durationSec > 0 {
@@ -20,12 +20,10 @@ func extractDurationInfo(asset: AVAsset) async -> DurationInfo {
             durationFormatted = formatDuration(seconds: durationSec)
         }
     }
-    
+
     return DurationInfo(
         duration: duration,
         durationFormatted: durationFormatted,
         durationSec: durationSec
     )
 }
-
-

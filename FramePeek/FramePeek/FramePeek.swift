@@ -7,18 +7,17 @@ struct FramePeek: View {
     @Environment(\.openWindow) private var openWindow
     @StateObject private var tabManager = TabManager()
     @StateObject private var fileHistory = FileHistoryManager.shared
-    
+
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
     @State private var isProcessing: Bool = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var isInspectorVisible: Bool = true
     @State private var isTimelineVisible: Bool = true
-    
+
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
     }
-    
 
     var body: some View {
         contentWithObservers
@@ -31,7 +30,7 @@ struct FramePeek: View {
             .background {
                 WindowTabbingDisabler()
             }
-            .onChange(of: appViewModel.showSettingsView) { oldValue, newValue in
+            .onChange(of: appViewModel.showSettingsView) { _, newValue in
                 if newValue {
                     openWindow(id: "settings")
                     // Reload settings for all tabs when settings window opens
@@ -54,7 +53,7 @@ struct FramePeek: View {
                 }
             }
     }
-    
+
     private var contentWithObservers: some View {
         contentWithDialogObservers
             .background {
@@ -65,62 +64,62 @@ struct FramePeek: View {
                 }
             }
     }
-    
+
     private var contentWithFileObservers: some View {
         contentWithProcessingObservers
             .onChange(of: tabManager.tabs) {
                 // Update tab names for all tabs when tabs array changes
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     updateAllTabNames()
                 }
             }
             .onChange(of: currentViewModel?.extendedInfo?.fileName) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     handleExtendedInfoChange()
                 }
             }
             .onChange(of: currentViewModel?.pendingURL) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     handlePendingURLChange()
                 }
             }
     }
-    
+
     private var contentWithDialogObservers: some View {
         contentWithFileObservers
             .onChange(of: currentViewModel?.showTabChoiceDialog) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     handleTabChoiceDialogChange()
                 }
             }
             .onChange(of: currentViewModel?.pendingURLForTabChoice) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     handlePendingURLForTabChoiceChange()
                 }
             }
             .onChange(of: currentViewModel?.shouldOpenInNewTab) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     handleShouldOpenInNewTabChange()
                 }
             }
     }
-    
+
     private var contentWithProcessingObservers: some View {
         mainContent
             .toolbar { toolbarContent }
             .animation(.spring(response: 0.7, dampingFraction: 0.8), value: isProcessing)
             .onChange(of: currentViewModel?.isAnalyzing) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     updateProcessingState()
                 }
             }
             .onChange(of: currentViewModel?.isGeneratingThumbnails) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     updateProcessingState()
                 }
             }
             .onChange(of: tabManager.selectedTabId) {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     updateProcessingState()
                     // Update player window if it's open
                     if let currentViewModel = currentViewModel {
@@ -129,12 +128,12 @@ struct FramePeek: View {
                 }
             }
             .onAppear {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     updateProcessingState()
                 }
             }
     }
-    
+
     private var mainContent: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarTabBarView(tabManager: tabManager)
@@ -164,14 +163,14 @@ struct FramePeek: View {
                                         .layoutPriority(1)
                                         .contentShape(Rectangle())
                                 }
-                                
+
                                 // GOP Structure visualization
                                 AnimatedContentWrapper(delay: 0.15) {
                                     GOPStructureView(viewModel: viewModel)
                                         .frame(maxWidth: .infinity)
                                         .layoutPriority(0)
                                 }
-                                
+
                                 // Waveform container (if audio tracks exist)
                                 if let info = viewModel.extendedInfo, !info.audioTracks.isEmpty {
                                     AnimatedContentWrapper(delay: 0.2) {
@@ -179,7 +178,7 @@ struct FramePeek: View {
                                             .frame(maxWidth: .infinity)
                                             .layoutPriority(0)
                                     }
-                                    
+
                                     // Sync analysis (if audio tracks exist)
                                     AnimatedContentWrapper(delay: 0.3) {
                                         SyncAnalysisView(viewModel: viewModel)
@@ -187,7 +186,7 @@ struct FramePeek: View {
                                             .layoutPriority(0)
                                     }
                                 }
-                                
+
                                 // Color analysis (if file is loaded)
                                 AnimatedContentWrapper(delay: viewModel.extendedInfo?.audioTracks.isEmpty ?? true ? 0.2 : 0.4) {
                                     ColorAnalysisView(viewModel: viewModel)
@@ -252,7 +251,7 @@ struct FramePeek: View {
                             }
                         }
                     }
-                } else if let viewModel = currentViewModel, (viewModel.pendingURL != nil || viewModel.isAnalyzing || viewModel.isGeneratingThumbnails) {
+                } else if let viewModel = currentViewModel, viewModel.pendingURL != nil || viewModel.isAnalyzing || viewModel.isGeneratingThumbnails {
                     // Loading state - show loading view instead of empty state
                     LoadingView(message: String(localized: "Loading file…"))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -291,7 +290,7 @@ struct FramePeek: View {
         .navigationSplitViewStyle(.balanced)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
 
@@ -304,7 +303,7 @@ struct FramePeek: View {
             .keyboardShortcut(",", modifiers: [.command])
             .transition(.move(edge: .trailing).combined(with: .opacity))
         }
-        
+
         ToolbarItem(placement: .confirmationAction) {
             Menu {
                 Button {
@@ -316,10 +315,10 @@ struct FramePeek: View {
                     Label("Open…", systemImage: "folder")
                 }
                 .keyboardShortcut("o", modifiers: [.command])
-                
+
                 if !fileHistory.validFiles.isEmpty {
                     Divider()
-                    
+
                     ForEach(fileHistory.validFiles, id: \.self) { url in
                         Button {
                             openFileFromHistory(url: url)
@@ -327,9 +326,9 @@ struct FramePeek: View {
                             Text(url.lastPathComponent)
                         }
                     }
-                    
+
                     Divider()
-                    
+
                     Button(role: .destructive) {
                         fileHistory.clearHistory()
                     } label: {
@@ -342,11 +341,11 @@ struct FramePeek: View {
             .keyboardShortcut("o", modifiers: [.command])
             .transition(.move(edge: .trailing).combined(with: .opacity))
         }
-        
+
         ToolbarItem(placement: .confirmationAction) {
             Spacer()
         }
-        
+
         ToolbarItem(placement: .confirmationAction) {
             Button {
                 withAnimation {
@@ -373,11 +372,11 @@ struct FramePeek: View {
             .transition(.move(edge: .trailing).combined(with: .opacity))
         }
     }
-    
+
     @ViewBuilder
     private var tabChoiceSheet: some View {
         let url = tabChoiceURL ?? currentViewModel?.pendingURLForTabChoice
-        
+
         if let url = url {
             TabChoiceDialog(
                 fileName: url.lastPathComponent,
@@ -393,7 +392,7 @@ struct FramePeek: View {
             )
         }
     }
-    
+
     private func updateAllTabNames() {
         // Update display names for all tabs based on their viewModels
         for tab in tabManager.tabs {
@@ -404,7 +403,7 @@ struct FramePeek: View {
             }
         }
     }
-    
+
     private func handleExtendedInfoChange() {
         // Update tab display name when file loads (this ensures it's correct even if it changed)
         if let fileName = currentViewModel?.extendedInfo?.fileName,
@@ -412,7 +411,7 @@ struct FramePeek: View {
             tabManager.updateTabDisplayName(id: currentTabId, name: fileName)
         }
     }
-    
+
     private func handlePendingURLChange() {
         // Update tab name immediately when a file URL is set (before it loads)
         if let url = currentViewModel?.pendingURL,
@@ -420,12 +419,12 @@ struct FramePeek: View {
             tabManager.updateTabDisplayName(id: currentTabId, name: url.lastPathComponent)
         }
     }
-    
+
     private func handleTabChoiceDialogChange() {
         // Sync local state with viewModel state for immediate reactivity
         let shouldShow = currentViewModel?.showTabChoiceDialog ?? false
         showTabChoiceDialog = shouldShow
-        
+
         // Always sync the URL when dialog state changes
         if shouldShow, let url = currentViewModel?.pendingURLForTabChoice {
             tabChoiceURL = url
@@ -434,21 +433,21 @@ struct FramePeek: View {
             tabChoiceURL = nil
         }
     }
-    
+
     private func handlePendingURLForTabChoiceChange() {
         // Update URL when it changes (in case it's set before showTabChoiceDialog)
         if let url = currentViewModel?.pendingURLForTabChoice {
             tabChoiceURL = url
         }
     }
-    
+
     private func handleShouldOpenInNewTabChange() {
         // Handle automatic new tab creation when setting is "newTab"
         guard let url = currentViewModel?.shouldOpenInNewTab else { return }
-        
+
         // Clear the signal first to prevent re-triggering
         currentViewModel?.shouldOpenInNewTab = nil
-        
+
         // First check if there's an untitled tab we can use
         if let untitledTab = tabManager.findUntitledTab() {
             // Switch to the untitled tab and load the file there
@@ -470,7 +469,7 @@ struct FramePeek: View {
             }
         }
     }
-    
+
     private func handleChooseCurrentTab(url: URL) {
         // Update tab name immediately
         if let currentTabId = tabManager.selectedTabId {
@@ -482,12 +481,12 @@ struct FramePeek: View {
         showTabChoiceDialog = false
         tabChoiceURL = nil
     }
-    
+
     private func handleChooseNewTab(url: URL) {
         if let viewModel = currentViewModel {
             viewModel.cancelTabChoice()
         }
-        
+
         // First check if there's an untitled tab we can use
         if let untitledTab = tabManager.findUntitledTab() {
             // Switch to the untitled tab and load the file there
@@ -511,7 +510,7 @@ struct FramePeek: View {
         showTabChoiceDialog = false
         tabChoiceURL = nil
     }
-    
+
     private func handleCancelTabChoice() {
         if let viewModel = currentViewModel {
             viewModel.cancelTabChoice()
@@ -522,13 +521,13 @@ struct FramePeek: View {
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
-        
+
         // Process immediately on main thread for responsiveness
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
             guard let data = item as? Data,
                   let url = URL(dataRepresentation: data, relativeTo: nil)
             else { return }
-            
+
             // All UI updates must happen on MainActor
             Task { @MainActor in
                 openFileInAppropriateTab(url: url)
@@ -536,7 +535,7 @@ struct FramePeek: View {
         }
         return true
     }
-    
+
     /// Opens a file from history
     private func openFileFromHistory(url: URL) {
         // Check for untitled tab first, then open file picker
@@ -545,12 +544,12 @@ struct FramePeek: View {
         }
         openFileInAppropriateTab(url: url)
     }
-    
+
     /// Opens a file in the appropriate tab - checks for untitled tabs first
     private func openFileInAppropriateTab(url: URL) {
         // Add to file history
         fileHistory.addFile(url)
-        
+
         // First, check if there's an untitled tab we can use
         if let untitledTab = tabManager.findUntitledTab() {
             // Switch to the untitled tab and load the file there
@@ -558,7 +557,7 @@ struct FramePeek: View {
             if let viewModel = tabManager.currentViewModel {
                 tabManager.updateTabDisplayName(id: untitledTab.id, name: url.lastPathComponent)
                 viewModel.handleIncomingFile(url: url)
-                
+
                 // Immediately sync the URL to local state if dialog is shown
                 if viewModel.showTabChoiceDialog, let pendingURL = viewModel.pendingURLForTabChoice {
                     tabChoiceURL = pendingURL
@@ -571,10 +570,10 @@ struct FramePeek: View {
             if let currentTabId = tabManager.selectedTabId {
                 tabManager.updateTabDisplayName(id: currentTabId, name: url.lastPathComponent)
             }
-            
+
             // Handle file - this will set showTabChoiceDialog if needed
             viewModel.handleIncomingFile(url: url)
-            
+
             // Immediately sync the URL to local state if dialog is shown
             if viewModel.showTabChoiceDialog, let pendingURL = viewModel.pendingURLForTabChoice {
                 tabChoiceURL = pendingURL
@@ -582,7 +581,7 @@ struct FramePeek: View {
             }
         }
     }
-    
+
     private func updateProcessingState() {
         guard let viewModel = currentViewModel else {
             isProcessing = false
@@ -597,13 +596,13 @@ private struct TabNameObserver: View {
     let tab: TabItem
     @ObservedObject var tabManager: TabManager
     @ObservedObject private var viewModel: FramePeekViewModel
-    
+
     init(tab: TabItem, tabManager: TabManager) {
         self.tab = tab
         self.tabManager = tabManager
         self._viewModel = ObservedObject(wrappedValue: tab.viewModel)
     }
-    
+
     var body: some View {
         Color.clear
             .onChange(of: viewModel.extendedInfo?.fileName) {
@@ -628,7 +627,7 @@ private struct WindowTabbingDisabler: NSViewRepresentable {
             window.tabbingMode = .disallowed
         } else {
             // If window isn't available yet, try again after a short delay
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if let window = view.window {
                     window.tabbingMode = .disallowed
                 }
@@ -636,7 +635,7 @@ private struct WindowTabbingDisabler: NSViewRepresentable {
         }
         return view
     }
-    
+
     func updateNSView(_ nsView: NSView, context: Context) {
         // Check again when view updates in case window wasn't available initially
         if let window = nsView.window {
@@ -649,4 +648,3 @@ private struct WindowTabbingDisabler: NSViewRepresentable {
     FramePeek()
         .environmentObject(FramePeekViewModel())
 }
-

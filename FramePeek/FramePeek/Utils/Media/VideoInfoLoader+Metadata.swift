@@ -16,7 +16,7 @@ func formatCreationDate(from asset: AVAsset) async -> String? {
     else {
         return nil
     }
-    
+
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
     formatter.timeStyle = .medium
@@ -33,15 +33,15 @@ func extractCommonMetadata(from asset: AVAsset) async -> (
     var artist: String?
     var encoder: String?
     var description: String?
-    
+
     guard let commonMetadata = try? await asset.load(.commonMetadata) else {
         return (nil, nil, nil, nil)
     }
-    
+
     for item in commonMetadata {
         guard let commonKey = item.commonKey?.rawValue,
               let value = try? await item.load(.stringValue) else { continue }
-        
+
         switch commonKey {
         case "title":
             if title == nil { title = value }
@@ -55,14 +55,14 @@ func extractCommonMetadata(from asset: AVAsset) async -> (
             break
         }
     }
-    
+
     return (title, artist, encoder, description)
 }
 
 func extractMetadataInfo(asset: AVAsset) async -> MetadataInfo {
     async let creationDate = formatCreationDate(from: asset)
     let commonMetadata = await extractCommonMetadata(from: asset)
-    
+
     return MetadataInfo(
         creationDate: await creationDate,
         title: commonMetadata.title,
@@ -71,5 +71,3 @@ func extractMetadataInfo(asset: AVAsset) async -> MetadataInfo {
         description: commonMetadata.description
     )
 }
-
-

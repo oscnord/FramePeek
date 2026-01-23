@@ -3,7 +3,7 @@ import SwiftUI
 struct GeneralSettingsView: View {
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("fileOpeningBehavior") private var fileOpeningBehavior: FileOpeningBehavior = .prompt
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
             SettingsSection(title: "Appearance") {
@@ -22,13 +22,13 @@ struct GeneralSettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-                    
+
                     Text("Choose how FramePeek should appear. 'System' follows your Mac's appearance setting.")
                         .font(.system(size: DesignSystem.Typography.footnote))
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 }
             }
-            
+
             SettingsSection(title: "Interface") {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -44,7 +44,7 @@ struct GeneralSettingsView: View {
                             .pickerStyle(.menu)
                             .frame(width: 200)
                         }
-                        
+
                         Text("Choose what happens when you open a file while another file is already open in the current tab.")
                             .font(.system(size: DesignSystem.Typography.footnote))
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
@@ -54,6 +54,3 @@ struct GeneralSettingsView: View {
         }
     }
 }
-
-
-

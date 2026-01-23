@@ -4,8 +4,8 @@ import AppKit
 struct TimelineView: View {
     let duration: Double
     @Binding var visibleTimeRange: ClosedRange<Double>?
-    var frameRate: Double? = nil
-    var currentPlaybackTime: Double? = nil
+    var frameRate: Double?
+    var currentPlaybackTime: Double?
     @Binding var isVisible: Bool
 
     @State var isDraggingRange = false
@@ -18,7 +18,7 @@ struct TimelineView: View {
     @State var dragStartX: CGFloat?
     @State var isHoveringResetButton = false
     @State var dragPreviewRange: ClosedRange<Double>? // Local preview during drag to avoid triggering chart updates
-    
+
     /// Normalized visible time range - converts full duration ranges to nil
     /// Uses dragPreviewRange during drag for smooth performance
     private var normalizedVisibleTimeRange: ClosedRange<Double>? {
@@ -44,9 +44,9 @@ struct TimelineView: View {
                         .font(.caption2)
                         .foregroundStyle(DesignSystem.Colors.Semantic.tertiary)
                 }
-                
+
                 Spacer()
-                
+
                 if let range = normalizedVisibleTimeRange {
                     let startTime = formatTimeForDisplay(range.lowerBound)
                     let endTime = formatTimeForDisplay(range.upperBound)
@@ -62,7 +62,7 @@ struct TimelineView: View {
                             .monospacedDigit()
                     }
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                    
+
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             visibleTimeRange = nil
@@ -98,7 +98,7 @@ struct TimelineView: View {
                         }
                     }
                 }
-                
+
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         isVisible = false
@@ -118,7 +118,7 @@ struct TimelineView: View {
             }
             .padding(.horizontal, DesignSystem.Padding.lg)
             .padding(.top, DesignSystem.Padding.lg)
-            
+
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     // Minimal line background (timeline track centered vertically in top half)
@@ -134,14 +134,14 @@ struct TimelineView: View {
                         formatTime: formatTimeShort,
                         calculateLabelStep: calculateLabelStep
                     )
-                    
+
                     TimelineTicksView(
                         duration: duration,
                         visibleTimeRange: visibleTimeRange != nil && isActuallyZoomed(visibleTimeRange!) ? visibleTimeRange : nil,
                         geometry: geo,
                         calculateLabelStep: calculateLabelStep
                     )
-                    
+
                     // Playback position indicator
                     if let playbackTime = currentPlaybackTime {
                         let x: CGFloat = {
@@ -153,7 +153,7 @@ struct TimelineView: View {
                                 return CGFloat(playbackTime / duration) * (geo.size.width - 20) + 10
                             }
                         }()
-                        
+
                         if x >= 10 && x <= geo.size.width - 10 {
                             Rectangle()
                                 .fill(.blue.opacity(0.9))
@@ -161,27 +161,27 @@ struct TimelineView: View {
                                 .position(x: x, y: 6) // Position at timeline track
                         }
                     }
-                    
+
                     Rectangle()
                         .fill(DesignSystem.Colors.Semantic.secondary.opacity(0.3))
                         .frame(width: DesignSystem.Borders.thin)
                         .frame(height: 10)
                         .position(x: geo.size.width - 10 - DesignSystem.Padding.sm, y: 6)
-                    
+
                     Text(formatTime(duration))
                         .font(.system(size: 8, weight: .medium))
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.7))
                         .fixedSize()
                         .position(x: geo.size.width - 10 - DesignSystem.Padding.sm, y: 20)
-                    
+
                     // Show selection preview while dragging
-                    if let selectionStart = selectionDragStart, let selectionCurrent = selectionDragCurrent, 
+                    if let selectionStart = selectionDragStart, let selectionCurrent = selectionDragCurrent,
                        visibleTimeRange == nil || (!isDraggingRange && !isResizingLeft && !isResizingRight) {
                         let startX = min(selectionStart, selectionCurrent)
                         let endX = max(selectionStart, selectionCurrent)
                         let width = max(abs(endX - startX), 2)
                         let centerX = (startX + endX) / 2
-                        
+
                         Rectangle()
                             .fill(DesignSystem.Colors.Chart.primary.opacity(0.15))
                             .overlay(
@@ -192,12 +192,12 @@ struct TimelineView: View {
                             .position(x: centerX, y: 6)
                             .allowsHitTesting(false)
                     }
-                    
+
                     if let range = normalizedVisibleTimeRange {
                         let startX = CGFloat(range.lowerBound / duration) * (geo.size.width - 20) + 10
                         let endX = CGFloat(range.upperBound / duration) * (geo.size.width - 20) + 10
                         let width = max(endX - startX, 20)
-                        
+
                         ZStack {
                             Rectangle()
                                 .fill(DesignSystem.Colors.Chart.primary.opacity(0.2))
@@ -205,7 +205,7 @@ struct TimelineView: View {
                                     Rectangle()
                                         .strokeBorder(DesignSystem.Colors.Chart.primary.opacity(0.6), lineWidth: DesignSystem.Borders.medium)
                                 )
-                            
+
                             if width > 80 {
                                 HStack {
                                     Text(formatTimeShort(range.lowerBound))
@@ -217,9 +217,9 @@ struct TimelineView: View {
                                             RoundedRectangle(cornerRadius: 2, style: .continuous)
                                                 .fill(DesignSystem.Colors.Chart.primary.opacity(0.95))
                                         )
-                                    
+
                                     Spacer()
-                                    
+
                                     Text(formatTimeShort(range.upperBound))
                                         .font(.system(size: 7, weight: .semibold))
                                         .foregroundStyle(.white)
@@ -237,7 +237,7 @@ struct TimelineView: View {
                         .position(x: startX + width / 2, y: 6)
                         .contentShape(Rectangle())
                         .allowsHitTesting(false)
-                        
+
                         TimelineRangeHandle(
                             x: startX,
                             geometry: geo,
@@ -246,7 +246,7 @@ struct TimelineView: View {
                             isDraggingRange: isDraggingRange,
                             isLeftHandle: true
                         )
-                        
+
                         TimelineRangeHandle(
                             x: endX,
                             geometry: geo,
@@ -256,7 +256,7 @@ struct TimelineView: View {
                             isLeftHandle: false
                         )
                     }
-                    
+
                     // Transparent overlay to capture mouse events immediately - must be last in ZStack
                     TimelineMouseTracker(
                         duration: duration,
@@ -289,17 +289,17 @@ struct TimelineView: View {
         .shadow(color: .black.opacity(0.1), radius: 10, y: 2)
         .accessibilityLabel("Timeline zoom control")
     }
-    
+
     private func isActuallyZoomed(_ range: ClosedRange<Double>) -> Bool {
         TimelineView.isActuallyZoomed(range: range, duration: duration)
     }
-    
+
     static func isActuallyZoomed(range: ClosedRange<Double>, duration: Double) -> Bool {
         // Check if the range is actually zoomed (not the full duration)
         // Use a percentage-based tolerance to handle videos of different lengths
         let rangeDuration = range.upperBound - range.lowerBound
         let tolerance = max(0.1, duration * 0.001) // At least 0.1s, or 0.1% of duration, whichever is larger
-        
+
         // Consider it NOT zoomed (i.e., full duration) if:
         // 1. Range starts at or very close to 0
         // 2. Range ends at or very close to full duration
@@ -307,35 +307,35 @@ struct TimelineView: View {
         let startsAtZero = range.lowerBound <= tolerance
         let endsAtDuration = range.upperBound >= duration - tolerance
         let coversFullDuration = rangeDuration >= duration - tolerance
-        
+
         // Only consider it zoomed if it doesn't cover the full duration
         let isFullDuration = startsAtZero && endsAtDuration && coversFullDuration
-        
+
         return !isFullDuration
     }
-    
+
     private func formatTime(_ seconds: Double) -> String {
         formatTimeForChart(seconds, frameRate: frameRate)
     }
-    
+
     /// Formats time for display in timeline header
     private func formatTimeForDisplay(_ seconds: Double) -> String {
         formatTimeForChart(seconds, frameRate: frameRate)
     }
-    
+
     private func formatTimeShort(_ seconds: Double) -> String {
         formatTimeForChart(seconds, frameRate: frameRate)
     }
-    
+
     /// Calculates an appropriate time step for labels based on the visible duration
     /// Returns nice round numbers (1s, 5s, 10s, 30s, 1m, 5m, etc.)
     private func calculateLabelStep(for duration: Double) -> Double {
         guard duration > 0 else { return 1.0 }
-        
+
         // Target: 5-10 labels
         let targetLabels = 7.0
         let rawStep = duration / targetLabels
-        
+
         // Find the nearest "nice" step value
         if rawStep < 0.1 {
             return 0.1
@@ -369,36 +369,36 @@ extension TimelineView {
     /// Unified drag handler that determines the action based on where the drag starts
     func handleUnifiedDrag(value: DragGesture.Value, geometry: GeometryProxy) {
         guard duration > 0 else { return }
-        
+
         let startX = value.startLocation.x
         let totalWidth = geometry.size.width - 20
-        
+
         if isResizingLeft {
             guard let range = dragStartRange, let originalX = dragStartX else { return }
             handleLeftResize(value: value, geometry: geometry, currentRange: range, startX: originalX)
             return
         }
-        
+
         if isResizingRight {
             guard let range = dragStartRange, let originalX = dragStartX else { return }
             handleRightResize(value: value, geometry: geometry, currentRange: range, endX: originalX)
             return
         }
-        
+
         if isDraggingRange {
             handleDrag(value: value, geometry: geometry)
             return
         }
-        
+
         // Clear any stale preview first
         dragPreviewRange = nil
-        
+
         // Only check for existing range if it's actually set and represents a zoom (not full duration)
         if let range = visibleTimeRange, isActuallyZoomed(range) {
             let windowStartX = CGFloat(range.lowerBound / duration) * totalWidth + 10
             let windowEndX = CGFloat(range.upperBound / duration) * totalWidth + 10
             let handleTolerance: CGFloat = 6
-            
+
             if startX >= windowStartX - handleTolerance && startX <= windowStartX + handleTolerance {
                 isResizingLeft = true
                 dragStartRange = range
@@ -406,7 +406,7 @@ extension TimelineView {
                 handleLeftResize(value: value, geometry: geometry, currentRange: range, startX: windowStartX)
                 return
             }
-            
+
             if startX >= windowEndX - handleTolerance && startX <= windowEndX + handleTolerance {
                 isResizingRight = true
                 dragStartRange = range
@@ -414,7 +414,7 @@ extension TimelineView {
                 handleRightResize(value: value, geometry: geometry, currentRange: range, endX: windowEndX)
                 return
             }
-            
+
             if startX >= windowStartX + handleTolerance && startX <= windowEndX - handleTolerance {
                 isDraggingRange = true
                 dragStartRange = range
@@ -424,7 +424,7 @@ extension TimelineView {
                 return
             }
         }
-        
+
         // New selection - ensure preview is cleared
         dragPreviewRange = nil
         if selectionDragStart == nil {
@@ -432,19 +432,19 @@ extension TimelineView {
         }
         handleNewSelectionDrag(value: value, geometry: geometry)
     }
-    
+
     func handleDrag(value: DragGesture.Value, geometry: GeometryProxy) {
         guard duration > 0, let startRange = dragStartRange, let startLoc = dragStartLocation else { return }
-        
+
         let totalWidth = geometry.size.width - 20
         let deltaX = value.location.x - startLoc
         let timeDelta = (Double(deltaX) / Double(totalWidth)) * duration
-        
+
         let newStart = max(0, min(duration, startRange.lowerBound + timeDelta))
         let newEnd = max(0, min(duration, startRange.upperBound + timeDelta))
-        
+
         let windowSize = startRange.upperBound - startRange.lowerBound
-        
+
         // Update preview only during drag to avoid triggering chart re-renders
         if newStart == 0 {
             dragPreviewRange = 0...windowSize
@@ -454,52 +454,52 @@ extension TimelineView {
             dragPreviewRange = newStart...newEnd
         }
     }
-    
+
     func handleNewSelectionDrag(value: DragGesture.Value, geometry: GeometryProxy) {
         guard duration > 0, let startLoc = selectionDragStart else { return }
-        
+
         let totalWidth = geometry.size.width - 20
         let x = value.location.x - 10
         let time = max(0, min(duration, (Double(x) / Double(totalWidth)) * duration))
-        
+
         let startX = startLoc - 10
         let startTime = max(0, min(duration, (Double(startX) / Double(totalWidth)) * duration))
-        
+
         let minTime = min(startTime, time)
         let maxTime = max(startTime, time)
-        
+
         let timeRange = maxTime - minTime
         let minZoomSize: Double = self.duration * 0.01
         if timeRange > minZoomSize { // Minimum zoom size
             visibleTimeRange = minTime...maxTime
         }
     }
-    
+
     func handleLeftResize(value: DragGesture.Value, geometry: GeometryProxy, currentRange: ClosedRange<Double>, startX: CGFloat) {
         guard duration > 0 else { return }
-        
+
         let totalWidth = geometry.size.width - 20
         let newX = startX + value.translation.width
         let newStartTime = max(0.0, min(duration, (Double(newX - 10) / Double(totalWidth)) * duration))
-        
+
         let minZoomSize = duration * 0.01
         let maxEnd = currentRange.upperBound
         let clampedStart = max(0.0, min(maxEnd - minZoomSize, newStartTime))
-        
+
         visibleTimeRange = clampedStart...maxEnd
     }
-    
+
     func handleRightResize(value: DragGesture.Value, geometry: GeometryProxy, currentRange: ClosedRange<Double>, endX: CGFloat) {
         guard duration > 0 else { return }
-        
+
         let totalWidth = geometry.size.width - 20
         let newX = endX + value.translation.width
         let newEndTime = max(0.0, min(duration, (Double(newX - 10) / Double(totalWidth)) * duration))
-        
+
         let minZoomSize = duration * 0.01
         let minStart = currentRange.lowerBound
         let clampedEnd = min(duration, max(minStart + minZoomSize, newEndTime))
-        
+
         visibleTimeRange = minStart...clampedEnd
     }
 }
@@ -519,11 +519,11 @@ private struct TimelineMouseTracker: NSViewRepresentable {
     @Binding var isResizingRight: Bool
     @Binding var dragStartX: CGFloat?
     let geometry: GeometryProxy
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
-    
+
     func makeNSView(context: Context) -> NSView {
         let view = TimelineTrackingView()
         context.coordinator.view = view
@@ -572,13 +572,13 @@ private struct TimelineMouseTracker: NSViewRepresentable {
         view.setup()
         return view
     }
-    
+
     func updateNSView(_ nsView: NSView, context: Context) {
         guard let view = nsView as? TimelineTrackingView else { return }
         view.duration = duration
         view.geometry = geometry
     }
-    
+
     class Coordinator {
         var view: TimelineTrackingView?
     }
@@ -597,54 +597,54 @@ private class TimelineTrackingView: NSView {
     var isResizingRight: Binding<Bool>?
     var dragStartX: Binding<CGFloat?>?
     var geometry: GeometryProxy?
-    
+
     private var mouseDownLocation: CGPoint?
     private var isDragging = false
     private var lastClickTime: Date?
     private var lastClickLocation: CGPoint?
-    
+
     func setup() {
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
     }
-    
+
     override func mouseDown(with event: NSEvent) {
         super.mouseDown(with: event)
         let location = convert(event.locationInWindow, from: nil)
         mouseDownLocation = location
         isDragging = false
-        
+
         // Initialize drag state immediately
         if let geo = geometry, duration > 0 {
             initializeDragState(at: location, geometry: geo)
         }
     }
-    
+
     override func mouseDragged(with event: NSEvent) {
         super.mouseDragged(with: event)
         guard let startLocation = mouseDownLocation else { return }
         isDragging = true
-        
+
         let currentLocation = convert(event.locationInWindow, from: nil)
         let translation = CGSize(
             width: currentLocation.x - startLocation.x,
             height: currentLocation.y - startLocation.y
         )
-        
+
         if let geo = geometry {
             handleDrag(location: currentLocation, startLocation: startLocation, translation: translation, geometry: geo)
         }
     }
-    
+
     override func mouseUp(with event: NSEvent) {
         super.mouseUp(with: event)
         let location = convert(event.locationInWindow, from: nil)
-        
+
         // Check for double-tap
         if !isDragging, let lastTime = lastClickTime, let lastLoc = lastClickLocation {
             let timeSinceLastClick = Date().timeIntervalSince(lastTime)
             let distance = sqrt(pow(location.x - lastLoc.x, 2) + pow(location.y - lastLoc.y, 2))
-            
+
             if timeSinceLastClick < 0.5 && distance < 5 {
                 // Double-tap detected - reset zoom
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -657,17 +657,17 @@ private class TimelineTrackingView: NSView {
                 return
             }
         }
-        
+
         lastClickTime = Date()
         lastClickLocation = location
         mouseDownLocation = nil
         isDragging = false
-        
+
         // Commit preview to actual range if we were dragging
         if isDraggingRange?.wrappedValue == true, let preview = dragPreviewRange?.wrappedValue {
             visibleTimeRange?.wrappedValue = preview
         }
-        
+
         // Reset drag state
         isDraggingRange?.wrappedValue = false
         isResizingLeft?.wrappedValue = false
@@ -680,36 +680,36 @@ private class TimelineTrackingView: NSView {
         dragPreviewRange?.wrappedValue = nil
         NSCursor.pop()
     }
-    
+
     private func initializeDragState(at location: CGPoint, geometry: GeometryProxy) {
         guard duration > 0 else { return }
-        
+
         // Clear any stale preview first
         dragPreviewRange?.wrappedValue = nil
-        
+
         let startX = location.x
         let totalWidth = geometry.size.width - 20
-        
+
         // Only check for existing range if it's actually set and represents a zoom (not full duration)
         if let range = visibleTimeRange?.wrappedValue, TimelineView.isActuallyZoomed(range: range, duration: duration) {
             let windowStartX = CGFloat(range.lowerBound / duration) * totalWidth + 10
             let windowEndX = CGFloat(range.upperBound / duration) * totalWidth + 10
             let handleTolerance: CGFloat = 6
-            
+
             if startX >= windowStartX - handleTolerance && startX <= windowStartX + handleTolerance {
                 isResizingLeft?.wrappedValue = true
                 dragStartRange?.wrappedValue = range
                 dragStartX?.wrappedValue = windowStartX
                 return
             }
-            
+
             if startX >= windowEndX - handleTolerance && startX <= windowEndX + handleTolerance {
                 isResizingRight?.wrappedValue = true
                 dragStartRange?.wrappedValue = range
                 dragStartX?.wrappedValue = windowEndX
                 return
             }
-            
+
             if startX >= windowStartX + handleTolerance && startX <= windowEndX - handleTolerance {
                 isDraggingRange?.wrappedValue = true
                 dragStartRange?.wrappedValue = range
@@ -718,51 +718,51 @@ private class TimelineTrackingView: NSView {
                 return
             }
         }
-        
+
         // New selection - ensure preview is cleared
         dragPreviewRange?.wrappedValue = nil
         selectionDragStart?.wrappedValue = startX
         selectionDragCurrent?.wrappedValue = startX // Initialize current position
     }
-    
+
     private func handleDrag(location: CGPoint, startLocation: CGPoint, translation: CGSize, geometry: GeometryProxy) {
         guard duration > 0 else { return }
-        
+
         if isResizingLeft?.wrappedValue == true {
             guard let range = dragStartRange?.wrappedValue, let originalX = dragStartX?.wrappedValue else { return }
             handleLeftResize(translation: translation, geometry: geometry, currentRange: range, startX: originalX)
             return
         }
-        
+
         if isResizingRight?.wrappedValue == true {
             guard let range = dragStartRange?.wrappedValue, let originalX = dragStartX?.wrappedValue else { return }
             handleRightResize(translation: translation, geometry: geometry, currentRange: range, endX: originalX)
             return
         }
-        
+
         if isDraggingRange?.wrappedValue == true {
             handleRangeDrag(location: location, geometry: geometry)
             return
         }
-        
+
         // New selection drag
         handleNewSelectionDrag(location: location, geometry: geometry)
     }
-    
+
     private func handleRangeDrag(location: CGPoint, geometry: GeometryProxy) {
         guard duration > 0,
               let startRange = dragStartRange?.wrappedValue,
               let startLoc = dragStartLocation?.wrappedValue else { return }
-        
+
         let totalWidth = geometry.size.width - 20
         let deltaX = location.x - startLoc
         let timeDelta = (Double(deltaX) / Double(totalWidth)) * duration
-        
+
         let newStart = max(0, min(duration, startRange.lowerBound + timeDelta))
         let newEnd = max(0, min(duration, startRange.upperBound + timeDelta))
-        
+
         let windowSize = startRange.upperBound - startRange.lowerBound
-        
+
         // Update preview only during drag to avoid triggering chart re-renders
         if newStart == 0 {
             dragPreviewRange?.wrappedValue = 0...windowSize
@@ -772,55 +772,55 @@ private class TimelineTrackingView: NSView {
             dragPreviewRange?.wrappedValue = newStart...newEnd
         }
     }
-    
+
     private func handleNewSelectionDrag(location: CGPoint, geometry: GeometryProxy) {
         guard duration > 0, let startLoc = selectionDragStart?.wrappedValue else { return }
-        
+
         // Update current drag position for preview
         selectionDragCurrent?.wrappedValue = location.x
-        
+
         let totalWidth = geometry.size.width - 20
         let x = location.x - 10
         let time = max(0, min(duration, (Double(x) / Double(totalWidth)) * duration))
-        
+
         let startX = startLoc - 10
         let startTime = max(0, min(duration, (Double(startX) / Double(totalWidth)) * duration))
-        
+
         let minTime = min(startTime, time)
         let maxTime = max(startTime, time)
-        
+
         let timeRange = maxTime - minTime
         let minZoomSize: Double = duration * 0.01
         if timeRange > minZoomSize {
             visibleTimeRange?.wrappedValue = minTime...maxTime
         }
     }
-    
+
     private func handleLeftResize(translation: CGSize, geometry: GeometryProxy, currentRange: ClosedRange<Double>, startX: CGFloat) {
         guard duration > 0 else { return }
-        
+
         let totalWidth = geometry.size.width - 20
         let newX = startX + translation.width
         let newStartTime = max(0.0, min(duration, (Double(newX - 10) / Double(totalWidth)) * duration))
-        
+
         let minZoomSize = duration * 0.01
         let maxEnd = currentRange.upperBound
         let clampedStart = max(0.0, min(maxEnd - minZoomSize, newStartTime))
-        
+
         visibleTimeRange?.wrappedValue = clampedStart...maxEnd
     }
-    
+
     private func handleRightResize(translation: CGSize, geometry: GeometryProxy, currentRange: ClosedRange<Double>, endX: CGFloat) {
         guard duration > 0 else { return }
-        
+
         let totalWidth = geometry.size.width - 20
         let newX = endX + translation.width
         let newEndTime = max(0.0, min(duration, (Double(newX - 10) / Double(totalWidth)) * duration))
-        
+
         let minZoomSize = duration * 0.01
         let minStart = currentRange.lowerBound
         let clampedEnd = min(duration, max(minStart + minZoomSize, newEndTime))
-        
+
         visibleTimeRange?.wrappedValue = minStart...clampedEnd
     }
 }
@@ -834,7 +834,7 @@ private struct TimelineRangeHandle: View {
     let isResizingRight: Bool
     let isDraggingRange: Bool
     let isLeftHandle: Bool
-    
+
     var body: some View {
         Rectangle()
             .fill(DesignSystem.Colors.Chart.secondary)
@@ -850,7 +850,7 @@ private struct TimelineRangeHandle: View {
                 }
             }
     }
-    
+
     private var shouldShowCursor: Bool {
         if isLeftHandle {
             return !isResizingRight && !isDraggingRange
@@ -858,7 +858,7 @@ private struct TimelineRangeHandle: View {
             return !isResizingLeft && !isDraggingRange
         }
     }
-    
+
     private var shouldPopCursor: Bool {
         return !isResizingLeft && !isResizingRight && !isDraggingRange
     }
@@ -872,30 +872,30 @@ private struct TimelineLabelsView: View {
     let geometry: GeometryProxy
     let formatTime: (Double) -> String
     let calculateLabelStep: (Double) -> Double
-    
+
     private var visibleLabels: [(time: Double, x: CGFloat)] {
         guard duration > 0 else { return [] }
-        
+
         let totalWidth = geometry.size.width - 20
         let minLabelSpacing: CGFloat = 70 // Minimum spacing between labels to avoid overlap (increased for HH:MM:SS:FF format)
-        
+
         // Always use a fixed step based on total duration - labels never change
         let labelStep = calculateLabelStep(duration)
-        
+
         var labels: [(time: Double, x: CGFloat)] = []
-        
+
         if let range = visibleTimeRange {
             // When zoomed, show only fixed-interval labels that fall within the visible range
             // The time values are completely static - they never change when dragging
             let visibleDuration = range.upperBound - range.lowerBound
             let startTime = range.lowerBound
             let endTime = range.upperBound
-            
+
             // Find the first fixed label time that's >= start of visible range
             let firstLabelTime = ceil(startTime / labelStep) * labelStep
-            
+
             var lastLabelX: CGFloat = -minLabelSpacing
-            
+
             // Generate all labels at fixed intervals that fall within visible range
             var currentTime = firstLabelTime
             let maxX = geometry.size.width - 35 // Right boundary accounting for label width
@@ -903,35 +903,35 @@ private struct TimelineLabelsView: View {
                 // Calculate position within visible range
                 let ratio = (currentTime - startTime) / visibleDuration
                 let x = CGFloat(ratio) * totalWidth + 35 // Start with more padding to prevent cutoff
-                
+
                 // Only add if it fits within bounds and has enough space from previous label
                 if x >= 35 && x <= maxX && abs(x - lastLabelX) >= minLabelSpacing {
                     labels.append((time: currentTime, x: x))
                     lastLabelX = x
                 }
-                
+
                 currentTime += labelStep
             }
         } else {
             let startLabel = floor(0 / labelStep) * labelStep
             var lastLabelX: CGFloat = -minLabelSpacing
-            
+
             let labelWidthEstimate: CGFloat = 60
             let maxX = geometry.size.width - 35 - labelWidthEstimate - 10
-            
+
             for time in stride(from: startLabel, to: duration, by: labelStep) {
                 let x = CGFloat(time / duration) * totalWidth + 35
-                
+
                 if x >= 35 && x <= maxX && abs(x - lastLabelX) >= minLabelSpacing {
                     labels.append((time: time, x: x))
                     lastLabelX = x
                 }
             }
         }
-        
+
         return labels
     }
-    
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             ForEach(Array(visibleLabels.enumerated()), id: \.offset) { _, label in
@@ -939,7 +939,7 @@ private struct TimelineLabelsView: View {
                 let minX = 35 + labelWidthEstimate / 2
                 let maxX = geometry.size.width - 35 - labelWidthEstimate
                 let clampedX = min(max(label.x, minX), maxX)
-                
+
                 if clampedX >= minX && clampedX <= maxX {
                     Text(formatTime(label.time))
                         .font(.system(size: 8, weight: .medium))
@@ -959,48 +959,48 @@ private struct TimelineTicksView: View {
     let visibleTimeRange: ClosedRange<Double>?
     let geometry: GeometryProxy
     let calculateLabelStep: (Double) -> Double
-    
+
     private var tickPositions: [(x: CGFloat, isFirst: Bool, isLast: Bool)] {
         guard duration > 0 else { return [] }
-        
+
         let totalWidth = geometry.size.width - 20
         let minLabelSpacing: CGFloat = 70
         let labelStep = calculateLabelStep(duration)
         let labelWidthEstimate: CGFloat = 60
         let minX = 35 + labelWidthEstimate / 2
         let maxX = geometry.size.width - 35 - labelWidthEstimate / 2
-        
+
         var positions: [(x: CGFloat, isFirst: Bool, isLast: Bool)] = []
-        
+
         if let range = visibleTimeRange {
             let visibleDuration = range.upperBound - range.lowerBound
             let startTime = range.lowerBound
             let endTime = range.upperBound
             let firstLabelTime = ceil(startTime / labelStep) * labelStep
-            
+
             var lastLabelX: CGFloat = -minLabelSpacing
             var currentTime = firstLabelTime
             var labelTimes: [Double] = []
-            
+
             while currentTime <= endTime {
                 let ratio = (currentTime - startTime) / visibleDuration
                 let x = CGFloat(ratio) * totalWidth + 35
                 let clampedX = min(max(x, minX), maxX)
-                
+
                 if clampedX >= minX && clampedX <= maxX && abs(clampedX - lastLabelX) >= minLabelSpacing {
                     labelTimes.append(currentTime)
                     lastLabelX = clampedX
                 }
                 currentTime += labelStep
             }
-            
+
             for (index, time) in labelTimes.enumerated() {
                 let ratio = (time - startTime) / visibleDuration
                 let x = CGFloat(ratio) * totalWidth + 35
                 let clampedX = min(max(x, minX), maxX)
                 let isFirst = index == 0
                 let isLast = index == labelTimes.count - 1
-                
+
                 if isFirst {
                     positions.append((x: clampedX - labelWidthEstimate / 2, isFirst: true, isLast: false))
                 } else if isLast {
@@ -1013,23 +1013,23 @@ private struct TimelineTicksView: View {
             let startLabel = floor(0 / labelStep) * labelStep
             var lastLabelX: CGFloat = -minLabelSpacing
             var labelTimes: [Double] = []
-            
+
             for time in stride(from: startLabel, to: duration, by: labelStep) {
                 let x = CGFloat(time / duration) * totalWidth + 35
                 let clampedX = min(max(x, minX), maxX)
-                
+
                 if clampedX >= minX && clampedX <= maxX && abs(clampedX - lastLabelX) >= minLabelSpacing {
                     labelTimes.append(time)
                     lastLabelX = clampedX
                 }
             }
-            
+
             for (index, time) in labelTimes.enumerated() {
                 let x = CGFloat(time / duration) * totalWidth + 35
                 let clampedX = min(max(x, minX), maxX)
                 let isFirst = index == 0
                 let isLast = index == labelTimes.count - 1
-                
+
                 if isFirst {
                     positions.append((x: clampedX - labelWidthEstimate / 2, isFirst: true, isLast: false))
                 } else if isLast {
@@ -1039,21 +1039,21 @@ private struct TimelineTicksView: View {
                 }
             }
         }
-        
+
         return positions
     }
-    
+
     var body: some View {
         Canvas { ctx, size in
             var path = Path()
             let tickTop: CGFloat = 0
             let tickBottom: CGFloat = size.height
-            
+
             for position in tickPositions {
                 path.move(to: CGPoint(x: position.x, y: tickTop))
                 path.addLine(to: CGPoint(x: position.x, y: tickBottom))
             }
-            
+
             ctx.stroke(path, with: .color(DesignSystem.Colors.Semantic.secondary.opacity(0.3)), lineWidth: DesignSystem.Borders.thin)
         }
     }

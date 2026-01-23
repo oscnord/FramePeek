@@ -1,18 +1,18 @@
 import SwiftUI
 
 struct SkeletonView: View {
-    var width: CGFloat? = nil
+    var width: CGFloat?
     var height: CGFloat
     var cornerRadius: CGFloat = DesignSystem.CornerRadius.medium
-    
+
     @State private var shimmerOffset: CGFloat = -300
-    
+
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(DesignSystem.Materials.ultraThin)
             .frame(width: width, height: height)
             .overlay(
-                GeometryReader { geometry in
+                GeometryReader { _ in
                     LinearGradient(
                         gradient: Gradient(colors: [
                             Color.clear,
@@ -37,10 +37,10 @@ struct SkeletonView: View {
 }
 
 struct SkeletonCard: View {
-    var width: CGFloat? = nil
+    var width: CGFloat?
     var height: CGFloat = 80
     var cornerRadius: CGFloat = DesignSystem.CornerRadius.medium
-    
+
     var body: some View {
         SkeletonView(width: width, height: height, cornerRadius: cornerRadius)
     }
@@ -50,7 +50,7 @@ struct SkeletonText: View {
     var width: CGFloat
     var height: CGFloat = 16
     var cornerRadius: CGFloat = DesignSystem.CornerRadius.small
-    
+
     var body: some View {
         SkeletonView(width: width, height: height, cornerRadius: cornerRadius)
     }
@@ -59,7 +59,7 @@ struct SkeletonText: View {
 struct SkeletonChart: View {
     var height: CGFloat = 200
     var cornerRadius: CGFloat = DesignSystem.CornerRadius.large
-    
+
     var body: some View {
         SkeletonView(width: nil, height: height, cornerRadius: cornerRadius)
     }
@@ -73,4 +73,3 @@ struct SkeletonChart: View {
     }
     .padding()
 }
-

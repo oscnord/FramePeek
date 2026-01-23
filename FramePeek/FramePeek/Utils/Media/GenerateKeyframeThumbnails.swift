@@ -9,20 +9,20 @@ private func convertToSRGBSimple(_ cgImage: CGImage) -> CGImage? {
     guard let sRGBColorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
         return cgImage
     }
-    
+
     // Check if already sRGB
     if let colorSpace = cgImage.colorSpace,
        let sRGB = CGColorSpace(name: CGColorSpace.sRGB),
        CFEqual(colorSpace, sRGB) {
         return cgImage
     }
-    
+
     // Simple CoreImage conversion - let it handle everything automatically
     let ciImage = CIImage(cgImage: cgImage)
     let context = CIContext(options: [
         .outputColorSpace: sRGBColorSpace
     ])
-    
+
     // Render directly to sRGB - CoreImage will handle tone mapping automatically
     return context.createCGImage(ciImage, from: ciImage.extent, format: .BGRA8, colorSpace: sRGBColorSpace)
 }
@@ -36,33 +36,33 @@ func GenerateKeyframeThumbnailsStream(
     batchSize: Int = 10,  // Generate thumbnails in batches
     thumbnailSize: CGSize = CGSize(width: 192, height: 120)  // Thumbnail size
 ) -> AsyncStream<[KeyframeThumbnail]> {
-    
+
     AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
             guard !keyframeTimes.isEmpty else {
                 continuation.finish()
                 return
             }
-            
+
             // Get video duration
             let duration = (try? await asset.load(.duration).seconds) ?? 0
             guard duration > 0 else {
                 continuation.finish()
                 return
             }
-            
+
             // Strategy: Generate thumbnails that cover the entire video evenly
             // but snap to actual keyframe times for accurate representation
             let chosen: [Double]
-            
+
             if keyframeTimes.count <= maxThumbnails {
                 chosen = keyframeTimes
             } else {
                 var selectedTimes: [Double] = []
                 selectedTimes.reserveCapacity(maxThumbnails)
-                
+
                 let interval = duration / Double(maxThumbnails - 1)
-                
+
                 for i in 0..<maxThumbnails {
                     let targetTime = Double(i) * interval
                     if let nearest = keyframeTimes.min(by: { abs($0 - targetTime) < abs($1 - targetTime) }) {
@@ -71,14 +71,14 @@ func GenerateKeyframeThumbnailsStream(
                         }
                     }
                 }
-                
+
                 if let first = keyframeTimes.first, !selectedTimes.contains(where: { abs($0 - first) < 0.001 }) {
                     selectedTimes.insert(first, at: 0)
                 }
                 if let last = keyframeTimes.last, !selectedTimes.contains(where: { abs($0 - last) < 0.001 }) {
                     selectedTimes.append(last)
                 }
-                
+
                 chosen = selectedTimes.sorted()
             }
 
@@ -91,7 +91,7 @@ func GenerateKeyframeThumbnailsStream(
             gen.apertureMode = .productionAperture
 
             let times = chosen.map { NSValue(time: CMTime(seconds: $0, preferredTimescale: 600)) }
-            
+
             guard !times.isEmpty else {
                 continuation.finish()
                 return
@@ -100,13 +100,13 @@ func GenerateKeyframeThumbnailsStream(
             // Simple state management
             var cancellationLock = os_unfair_lock_s()
             var cancelled = false
-            
+
             var stateLock = os_unfair_lock_s()
             var pendingThumbnails: [KeyframeThumbnail] = []
             var completed = 0
             let total = times.count
             var finished = false
-            
+
             func withLock<T>(_ lock: UnsafeMutablePointer<os_unfair_lock_s>, _ work: () -> T) -> T {
                 os_unfair_lock_lock(lock)
                 defer { os_unfair_lock_unlock(lock) }
@@ -116,13 +116,13 @@ func GenerateKeyframeThumbnailsStream(
             gen.generateCGImagesAsynchronously(forTimes: times) { requestedTime, cgImage, _, result, _ in
                 let isCancelled = withLock(&cancellationLock) { cancelled }
                 if isCancelled { return }
-                
+
                 let stateResult = withLock(&stateLock) { () -> (shouldEmit: Bool, batch: [KeyframeThumbnail]?, shouldFinish: Bool) in
                     if finished { return (false, nil, false) }
 
                     completed += 1
                     var shouldEmit = false
-                    var batch: [KeyframeThumbnail]? = nil
+                    var batch: [KeyframeThumbnail]?
                     var shouldFinish = false
 
                     if result == .succeeded, let cgImage {
@@ -131,7 +131,7 @@ func GenerateKeyframeThumbnailsStream(
                         let img = NSImage(cgImage: convertedImage, size: .zero)
                         let thumbnail = KeyframeThumbnail(time: requestedTime.seconds, image: img)
                         pendingThumbnails.append(thumbnail)
-                        
+
                         if pendingThumbnails.count >= batchSize || completed >= total {
                             batch = pendingThumbnails.sorted { $0.time < $1.time }
                             pendingThumbnails.removeAll(keepingCapacity: true)
@@ -148,19 +148,19 @@ func GenerateKeyframeThumbnailsStream(
                         }
                         shouldFinish = true
                     }
-                    
+
                     return (shouldEmit, batch, shouldFinish)
                 }
-                
+
                 if stateResult.shouldEmit, let batchToEmit = stateResult.batch {
                     continuation.yield(batchToEmit)
                 }
-                
+
                 if stateResult.shouldFinish {
                     continuation.finish()
                 }
             }
-            
+
             while !Task.isCancelled {
                 let isDone = withLock(&stateLock) {
                     finished || completed >= total
@@ -168,7 +168,7 @@ func GenerateKeyframeThumbnailsStream(
                 if isDone { break }
                 try? await Task.sleep(nanoseconds: 100_000_000)
             }
-            
+
             if Task.isCancelled {
                 withLock(&cancellationLock) { cancelled = true }
                 gen.cancelAllCGImageGeneration()
@@ -176,8 +176,8 @@ func GenerateKeyframeThumbnailsStream(
                 continuation.finish()
             }
         }
-        
-        continuation.onTermination = { _ in 
+
+        continuation.onTermination = { _ in
             task.cancel()
         }
     }
@@ -191,7 +191,7 @@ func GenerateKeyframeThumbnails(
     thumbnailSize: CGSize = CGSize(width: 192, height: 120)  // Thumbnail size
 ) async -> [KeyframeThumbnail] {
     var allThumbnails: [KeyframeThumbnail] = []
-    
+
     for await batch in GenerateKeyframeThumbnailsStream(
         asset: asset,
         keyframeTimes: keyframeTimes,
@@ -200,7 +200,6 @@ func GenerateKeyframeThumbnails(
     ) {
         allThumbnails.append(contentsOf: batch)
     }
-    
+
     return allThumbnails.sorted { $0.time < $1.time }
 }
-

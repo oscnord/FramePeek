@@ -5,10 +5,10 @@ import AppKit
 struct VideoPreviewView: View {
     @ObservedObject var viewModel: FramePeekViewModel
     @Environment(\.openWindow) private var openWindow
-    
+
     @State private var thumbnailImage: NSImage?
     @State private var isHovering: Bool = false
-    
+
     // Calculate aspect ratio from resolution string (e.g., "1920x1080")
     private var aspectRatio: CGFloat? {
         guard let info = viewModel.extendedInfo else { return nil }
@@ -21,7 +21,7 @@ struct VideoPreviewView: View {
         }
         return width / height
     }
-    
+
     var body: some View {
         Group {
             if let videoURL = viewModel.currentVideoURL {
@@ -41,21 +41,21 @@ struct VideoPreviewView: View {
                                     .controlSize(.small)
                             }
                     }
-                    
+
                     // Video player indicator and hover overlay
                     ZStack {
                         // Dark overlay on hover
                         if isHovering {
                             Color.black.opacity(0.4)
                         }
-                        
+
                         // Play icon (always visible, more prominent on hover)
                         Image(systemName: "play.circle.fill")
                             .font(.system(size: isHovering ? 32 : 24))
                             .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.5), radius: 4)
                             .animation(.easeInOut(duration: 0.2), value: isHovering)
-                        
+
                         // Enlarge icon on hover
                         if isHovering {
                             VStack {
@@ -115,32 +115,32 @@ struct VideoPreviewView: View {
             }
         }
     }
-    
+
     private func loadThumbnail(url: URL) {
         thumbnailImage = nil
-        
+
         Task {
             let asset = AVURLAsset(url: url)
             let imageGenerator = AVAssetImageGenerator(asset: asset)
             imageGenerator.appliesPreferredTrackTransform = true
             imageGenerator.maximumSize = CGSize(width: 400, height: 300)
-            
+
             // Get thumbnail from a few seconds in to avoid black frames
             // Try to get the third frame or at least 2-3 seconds in
             let duration = (try? await asset.load(.duration).seconds) ?? 0
-            
+
             // Get frame rate to calculate third frame time
             var frameRate: Double = 30.0 // Default to 30 fps
             if let videoTrack = try? await asset.loadTracks(withMediaType: .video).first,
                let nominalFrameRate = try? await videoTrack.load(.nominalFrameRate) {
                 frameRate = Double(nominalFrameRate)
             }
-            
+
             // Calculate time for third frame (or at least 2 seconds in, whichever is smaller)
             let thirdFrameTime = 2.0 / frameRate // Time for third frame
             let minTime = min(2.0, duration * 0.1) // At least 2 seconds or 10% of duration
             let time = duration > 0 ? CMTime(seconds: max(thirdFrameTime, minTime), preferredTimescale: 600) : CMTime(seconds: 0.1, preferredTimescale: 600)
-            
+
             do {
                 let cgImage = try await imageGenerator.image(at: time).image
                 let nsImage = NSImage(cgImage: cgImage, size: .zero)
@@ -153,4 +153,3 @@ struct VideoPreviewView: View {
         }
     }
 }
-

@@ -35,4 +35,3 @@ struct ResizeHandle: View {
             .help(String(localized: "Drag to resize"))
     }
 }
-

@@ -10,7 +10,7 @@ func openFileDialog(completion: @escaping (String?) -> Void) {
     dialog.canChooseFiles = true
     dialog.canChooseDirectories = false
     dialog.contentMinSize = NSSize(width: 800, height: 600)
-    
+
     if dialog.runModal() == .OK, let url = dialog.url {
         completion(url.path)
     } else {

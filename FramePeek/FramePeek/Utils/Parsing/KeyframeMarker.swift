@@ -1,4 +1,3 @@
-
 import AVFoundation
 import CoreMedia
 import AppKit
@@ -21,7 +20,7 @@ func extractKeyframesStream(
     minSpacingSeconds: Double = 0.0,      // optional downsample to avoid "solid line"
     onProgress: ((String) -> Void)? = nil // Optional progress callback
 ) -> AsyncStream<[KeyframeMarker]> {
-    
+
     AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
             // Load the video track
@@ -30,7 +29,7 @@ func extractKeyframesStream(
                 continuation.finish()
                 return
             }
-            
+
             // Get duration for fallback synthetic keyframes
             let duration = (try? await asset.load(.duration).seconds) ?? 0
 
@@ -45,7 +44,7 @@ func extractKeyframesStream(
                 continuation: continuation
             )
         }
-        
+
         continuation.onTermination = { _ in task.cancel() }
     }
 }
@@ -58,7 +57,7 @@ func extractKeyframes(
     onProgress: ((String) -> Void)? = nil // Optional progress callback
 ) async -> [KeyframeMarker] {
     var allKeyframes: [KeyframeMarker] = []
-    
+
     for await batch in extractKeyframesStream(
         asset: asset,
         maxKeyframes: maxKeyframes,
@@ -67,7 +66,7 @@ func extractKeyframes(
     ) {
         allKeyframes.append(contentsOf: batch)
     }
-    
+
     return allKeyframes
 }
 
@@ -82,7 +81,7 @@ private func extractKeyframesWithReaderStream(
     onProgress: ((String) -> Void)?,
     continuation: AsyncStream<[KeyframeMarker]>.Continuation
 ) async {
-    
+
     do {
         let reader = try AVAssetReader(asset: asset)
         let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
@@ -100,10 +99,10 @@ private func extractKeyframesWithReaderStream(
 
         var pendingMarkers: [KeyframeMarker] = []
         pendingMarkers.reserveCapacity(50) // Batch size for updates
-        
+
         // Don't accumulate all markers - just track count to avoid memory growth
         var totalKeyframeCount = 0
-        var lastAccepted: Double? = nil
+        var lastAccepted: Double?
         var sampleCount = 0
         var lastProgressUpdate = 0
         var lastEmitCount = 0
@@ -113,7 +112,7 @@ private func extractKeyframesWithReaderStream(
             if Task.isCancelled {
                 break
             }
-            
+
             let t = CMSampleBufferGetPresentationTimeStamp(sbuf).seconds
             guard t.isFinite else {
                 sampleCount += 1
@@ -144,24 +143,24 @@ private func extractKeyframesWithReaderStream(
                     }
                     continue
                 }
-                
+
                 let marker = KeyframeMarker(time: t)
                 pendingMarkers.append(marker)
                 totalKeyframeCount += 1
                 lastAccepted = t
-                
+
                 // Emit batch every 20 keyframes or every 100 keyframes processed (optimized balance)
                 if pendingMarkers.count >= 20 || (totalKeyframeCount - lastEmitCount) >= 100 {
                     continuation.yield(pendingMarkers)
                     pendingMarkers.removeAll(keepingCapacity: true)
                     lastEmitCount = totalKeyframeCount
                 }
-                
+
                 if totalKeyframeCount >= maxKeyframes { break }
             }
-            
+
             sampleCount += 1
-            
+
             // Update progress every 5000 samples or every 100 keyframes
             if let progressCallback = onProgress, duration > 0 {
                 let progressInterval = 5000
@@ -171,18 +170,18 @@ private func extractKeyframesWithReaderStream(
                     lastProgressUpdate = sampleCount
                 }
             }
-            
+
             // Yield every 2000 samples (balanced for performance and responsiveness)
             if sampleCount % 2000 == 0 {
                 await Task.yield()
             }
         }
-        
+
         // Emit any remaining pending markers (even if cancelled)
         if !pendingMarkers.isEmpty {
             continuation.yield(pendingMarkers)
         }
-        
+
         // If we didn't get any keyframes but have duration, the file might use a format
         // where all frames are sync samples - create synthetic markers
         // Only create synthetic markers if we weren't cancelled
@@ -198,6 +197,9 @@ private func extractKeyframesWithReaderStream(
 
         continuation.finish()
     } catch {
+        #if DEBUG
+        print("KeyframeMarker: Failed to create AVAssetReader - \(error.localizedDescription)")
+        #endif
         continuation.finish()
     }
 }

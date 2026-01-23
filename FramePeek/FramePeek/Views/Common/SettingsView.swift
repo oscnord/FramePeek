@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .general
-    
+
     var body: some View {
         NavigationSplitView {
             // Sidebar with tabs
@@ -52,4 +52,3 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
 }
-

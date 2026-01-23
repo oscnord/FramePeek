@@ -26,7 +26,7 @@ struct ExtendedVideoInfo {
     let containerFormat: String?
     let containerFormatProfile: String?
     let codecIdRaw: String?
-    
+
     // Video basic
     let resolution: String
     let displayAspectRatio: String?
@@ -34,7 +34,7 @@ struct ExtendedVideoInfo {
     let codec: String
     let codecProfile: String?
     let codecIdInfo: String?
-    
+
     // Video extra
     let orientationDegrees: Int?
     let trackBitrate: String?
@@ -48,7 +48,7 @@ struct ExtendedVideoInfo {
     let chromaSubsampling: String?
     let bitsPerPixelFrame: String?
     let videoStreamSize: String?
-    
+
     // Color
     let colorPrimaries: String?
     let transferFunction: String?
@@ -56,21 +56,21 @@ struct ExtendedVideoInfo {
     let colorRange: String?
     let bitDepth: String?
     let hdrFormat: String?
-    
+
     // AV1 extras
     let av1CSize: Int?
     let av1Profile: String?
     let av1Level: String?
     let av1ChromaSubsampling: String?
     let av1FullRange: String?
-    
+
     // Metadata
     let creationDate: String?
     let metadataTitle: String?
     let metadataArtist: String?
     let metadataEncoder: String?
     let metadataDescription: String?
-    
+
     // Audio
     let audioTracks: [AudioTrackInfo]
 }
@@ -88,9 +88,9 @@ enum BitrateVisualizationMode: String, CaseIterable, Identifiable {
     case second = "Second"    // 1-second rolling window (default)
     case frame = "Frame"      // Per-frame bitrate
     case gop = "GOP"          // Per-GOP (Group of Pictures) bitrate
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String {
         switch self {
         case .second: return String(localized: "Second")
@@ -105,9 +105,9 @@ enum FormatAccuracyMode: String, CaseIterable, Identifiable, Codable {
     case performance  // Use AVFoundation data as-is (fastest)
     case balanced    // Format-specific optimizations without deep parsing
     case accuracy    // Full format parsing (TS packets, fragment analysis)
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String {
         switch self {
         case .performance: return String(localized: "Performance")
@@ -123,14 +123,14 @@ struct FrameSamplingOptions {
     let emitEveryNSamples: Int
     let preferAccuracy: Bool  // If true, uses reader path (accurate) instead of cursor path (fast)
     let visualizationMode: BitrateVisualizationMode  // How to aggregate bitrate samples
-    
+
     // Format-specific options
     /// For TS files: account for packet overhead in bitrate calculations
     let accountTSOverhead: Bool
-    
+
     /// For fragmented formats: smooth bitrate at segment boundaries
     let smoothSegmentBoundaries: Bool
-    
+
     /// Format-specific accuracy mode
     let formatAccuracyMode: FormatAccuracyMode
 
@@ -214,9 +214,9 @@ enum WaveformHeight: String, CaseIterable, Identifiable {
     case compact
     case normal
     case large
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String {
         switch self {
         case .compact: return String(localized: "Compact")
@@ -224,7 +224,7 @@ enum WaveformHeight: String, CaseIterable, Identifiable {
         case .large: return String(localized: "Large")
         }
     }
-    
+
     var height: CGFloat {
         switch self {
         case .compact: return 60
@@ -253,14 +253,14 @@ struct SyncAnalysisResult {
     let frameIntervalVariance: Double?
     let hasTimestampGaps: Bool
     let audioTracks: [AudioTrackSyncInfo]
-    
+
     var overallSyncStatus: SyncStatus {
         if audioTracks.isEmpty {
             return .noAudio
         }
-        
+
         let statuses = audioTracks.map { $0.syncStatus }
-        
+
         if statuses.contains(.durationMismatch) {
             return .durationMismatch
         }
@@ -273,19 +273,19 @@ struct SyncAnalysisResult {
         if statuses.allSatisfy({ $0 == .inSync }) {
             return .inSync
         }
-        
+
         return .inSync
     }
-    
+
     var isVariableFrameRate: Bool {
         guard let variance = frameIntervalVariance, let avg = averageVideoFrameInterval else { return false }
         return variance > avg * 0.1
     }
-    
+
     var primaryTrackSyncOffsetMs: Double {
         audioTracks.first?.syncOffsetMs ?? 0
     }
-    
+
     var primaryTrackDurationDifferenceMs: Double {
         audioTracks.first?.durationDifferenceMs ?? 0
     }
@@ -299,7 +299,7 @@ enum SyncStatus {
     case noAudio
     case noVideo
     case analysisError
-    
+
     var displayName: String {
         switch self {
         case .inSync: return String(localized: "In Sync")

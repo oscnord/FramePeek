@@ -14,7 +14,7 @@ func extractBasicInfo(url: URL) -> BasicFileInfo {
     let fileSizeBytes = getFileSizeBytes(for: url)
     let containerFormat = detectContainerFormat(url: url)
     let containerFormatProfile = parseContainerFormatProfile(url: url)
-    
+
     return BasicFileInfo(
         fileName: fileName,
         fileSize: fileSize,
@@ -23,5 +23,3 @@ func extractBasicInfo(url: URL) -> BasicFileInfo {
         containerFormatProfile: containerFormatProfile
     )
 }
-
-

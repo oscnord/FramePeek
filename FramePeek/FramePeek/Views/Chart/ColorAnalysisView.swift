@@ -4,7 +4,7 @@ import AVFoundation
 
 struct ColorAnalysisView: View {
     @ObservedObject var viewModel: FramePeekViewModel
-    
+
     private var displaySamples: [ColorSample] {
         let filteredSamples: [ColorSample]
         if let range = viewModel.visibleTimeRange {
@@ -14,19 +14,19 @@ struct ColorAnalysisView: View {
         }
         return filteredSamples
     }
-    
+
     // MARK: - HDR Detection
-    
+
     private var isHDRContent: Bool {
         viewModel.extendedInfo?.hdrFormat != nil
     }
-    
+
     private var isDolbyVision: Bool {
         viewModel.extendedInfo?.hdrFormat == "Dolby Vision"
     }
-    
+
     // MARK: - Statistics
-    
+
     private var brightnessStats: (min: Double, max: Double, avg: Double)? {
         guard !displaySamples.isEmpty else { return nil }
         let brightnesses = displaySamples.map { $0.brightness }
@@ -34,7 +34,7 @@ struct ColorAnalysisView: View {
         let avg = brightnesses.reduce(0, +) / Double(brightnesses.count)
         return (min: min, max: max, avg: avg)
     }
-    
+
     private var temperatureStats: (min: Double, max: Double, avg: Double)? {
         let validTemps = displaySamples.compactMap { $0.colorTemperature }
         guard !validTemps.isEmpty else { return nil }
@@ -42,15 +42,15 @@ struct ColorAnalysisView: View {
         let avg = validTemps.reduce(0, +) / Double(validTemps.count)
         return (min: min, max: max, avg: avg)
     }
-    
+
     private var aggregatedHistogram: ColorHistogram? {
         let samplesWithHist = displaySamples.compactMap { $0.histogram }
         guard !samplesWithHist.isEmpty else { return nil }
-        
+
         var redSum = Array(repeating: 0.0, count: 256)
         var greenSum = Array(repeating: 0.0, count: 256)
         var blueSum = Array(repeating: 0.0, count: 256)
-        
+
         for hist in samplesWithHist {
             for i in 0..<256 {
                 redSum[i] += hist.red[i]
@@ -58,7 +58,7 @@ struct ColorAnalysisView: View {
                 blueSum[i] += hist.blue[i]
             }
         }
-        
+
         let count = Double(samplesWithHist.count)
         return ColorHistogram(
             red: redSum.map { $0 / count },
@@ -66,14 +66,14 @@ struct ColorAnalysisView: View {
             blue: blueSum.map { $0 / count }
         )
     }
-    
+
     var body: some View {
         if viewModel.isFileUnanalyzable {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 headerSection
-                
+
                 if viewModel.isAnalyzingColor {
                     loadingSection
                 } else if viewModel.colorSamples.isEmpty {
@@ -93,7 +93,7 @@ struct ColorAnalysisView: View {
             .padding(DesignSystem.Padding.lg)
         }
     }
-    
+
     private var headerSection: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -106,7 +106,7 @@ struct ColorAnalysisView: View {
                 }
             }
             Spacer()
-            
+
             if viewModel.colorSamples.isEmpty {
                 Button {
                     if let url = viewModel.currentVideoURL {
@@ -127,13 +127,13 @@ struct ColorAnalysisView: View {
         .padding(.top, DesignSystem.Padding.lg)
         .padding(.bottom, DesignSystem.Padding.md)
     }
-    
+
     private var loadingSection: some View {
         ColorAnalysisSkeletonView()
             .padding(.horizontal, DesignSystem.Padding.lg)
             .padding(.bottom, DesignSystem.Padding.lg)
     }
-    
+
     private var emptySection: some View {
         Text("Click Analyze to start color analysis")
             .font(.subheadline)
@@ -141,7 +141,7 @@ struct ColorAnalysisView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, DesignSystem.Padding.xxl)
     }
-    
+
     @ViewBuilder
     private var contentSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
@@ -150,13 +150,13 @@ struct ColorAnalysisView: View {
             } else if let brightnessStats = brightnessStats {
                 statisticsSummarySection(brightnessStats: brightnessStats)
             }
-            
+
             chartsSection
         }
         .padding(.horizontal, DesignSystem.Padding.lg)
         .padding(.bottom, DesignSystem.Padding.lg)
     }
-    
+
     private var chartsSection: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
             BrightnessChartView(samples: displaySamples, frameRate: viewModel.effectiveFPS)
@@ -171,15 +171,15 @@ struct ColorAnalysisView: View {
                         hdrChartWarning
                     }
                 }
-            
+
             if let histogram = aggregatedHistogram {
                 RGBHistogramView(histogram: histogram, isHDRContent: isHDRContent, isDolbyVision: isDolbyVision)
             }
         }
     }
-    
+
     // MARK: - Subviews
-    
+
     private var hdrWarningBanner: some View {
         HStack(spacing: DesignSystem.Spacing.sm) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -204,7 +204,7 @@ struct ColorAnalysisView: View {
                 )
         )
     }
-    
+
     private var hdrChartWarning: some View {
         Image(systemName: "info.circle.fill")
             .font(.caption)
@@ -212,7 +212,7 @@ struct ColorAnalysisView: View {
             .padding(DesignSystem.Padding.xs)
             .help(String(localized: "Color data may be inaccurate for HDR content"))
     }
-    
+
     @ViewBuilder
     private func statisticsSummarySection(brightnessStats: (min: Double, max: Double, avg: Double)) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -220,7 +220,7 @@ struct ColorAnalysisView: View {
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
-            
+
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible()),
@@ -259,14 +259,14 @@ struct ColorSummaryItem: View {
     let value: String
     let icon: String
     let detail: String?
-    
+
     init(label: String, value: String, icon: String, detail: String? = nil) {
         self.label = label
         self.value = value
         self.icon = icon
         self.detail = detail
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: DesignSystem.Spacing.xs) {
@@ -277,7 +277,7 @@ struct ColorSummaryItem: View {
                     .font(.caption2)
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
             }
-            
+
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value)
                     .font(.system(.body, design: .monospaced))
@@ -307,7 +307,7 @@ private struct ColorAnalysisSkeletonView: View {
             // Statistics summary skeleton
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                 SkeletonText(width: 120, height: 16)
-                
+
                 LazyVGrid(columns: [
                     GridItem(.flexible()),
                     GridItem(.flexible()),
@@ -318,7 +318,7 @@ private struct ColorAnalysisSkeletonView: View {
                     SkeletonCard(width: nil, height: 70)
                 }
             }
-            
+
             // Charts skeleton
             VStack(spacing: DesignSystem.Spacing.md) {
                 SkeletonChart(height: 200)

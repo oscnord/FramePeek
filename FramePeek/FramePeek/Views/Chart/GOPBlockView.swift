@@ -9,24 +9,24 @@ struct GOPBlockView: View {
     let minHeight: CGFloat
     let maxHeight: CGFloat
     let onClick: () -> Void
-    
+
     @State private var isHovered = false
-    
+
     private var frameCount: Int {
         segment.frameCount ?? 0
     }
-    
+
     private var height: CGFloat {
         guard maxFrameCount > 0 else { return minHeight }
         let ratio = CGFloat(frameCount) / CGFloat(maxFrameCount)
         return minHeight + (maxHeight - minHeight) * ratio
     }
-    
+
     private var frameDensity: Double {
         guard maxFrameCount > 0 else { return 0.5 }
         return min(1.0, Double(frameCount) / Double(maxFrameCount))
     }
-    
+
     var body: some View {
         ZStack(alignment: .leading) {
             // GOP block
@@ -49,7 +49,7 @@ struct GOPBlockView: View {
                         )
                 )
                 .shadow(color: .black.opacity(isSelected ? 0.15 : 0.05), radius: isSelected ? 4 : 2, y: 1)
-            
+
             // I-frame marker at start
             VStack {
                 Circle()
@@ -59,7 +59,7 @@ struct GOPBlockView: View {
                 Spacer()
             }
             .frame(height: height)
-            
+
             // Frame count badge (always show if there's space)
             if height > 35 {
                 VStack {
@@ -119,7 +119,7 @@ struct GOPBlockView: View {
         }
         .help(tooltipText)
     }
-    
+
     private var tooltipText: String {
         var parts: [String] = []
         parts.append("GOP #\(index + 1)")
@@ -127,13 +127,12 @@ struct GOPBlockView: View {
             parts.append("\(frameCount) frames")
         }
         parts.append(String(format: "%.2fs", segment.duration))
-        
+
         if let frames = segment.frames, !frames.isEmpty {
             let frameTypes = frames.map { $0.type.rawValue }.joined(separator: "-")
             parts.append("(\(frameTypes))")
         }
-        
+
         return parts.joined(separator: ", ")
     }
 }
-

@@ -5,21 +5,21 @@ struct TabChoiceDialog: View {
     let onChooseCurrentTab: () -> Void
     let onChooseNewTab: () -> Void
     let onCancel: () -> Void
-    
+
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.xl2) {
             VStack(spacing: DesignSystem.Spacing.md) {
                 Text("A file is already open")
                     .font(.system(size: DesignSystem.Typography.callout, weight: .medium))
                     .foregroundStyle(DesignSystem.Colors.Semantic.primary)
-                
+
                 Text("Open \"\(fileName)\" in:")
                     .font(.system(size: DesignSystem.Typography.subheadline))
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            
+
             HStack(spacing: DesignSystem.Spacing.md2) {
                 Button {
                     onChooseCurrentTab()
@@ -34,7 +34,7 @@ struct TabChoiceDialog: View {
                     .padding(.vertical, DesignSystem.Padding.lg3)
                 }
                 .buttonStyle(.borderedProminent)
-                
+
                 Button {
                     onChooseNewTab()
                 } label: {
@@ -63,4 +63,3 @@ struct TabChoiceDialog: View {
         onCancel: {}
     )
 }
-

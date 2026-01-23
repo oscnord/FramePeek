@@ -3,22 +3,22 @@ import AVFoundation
 
 struct WaveformContainerView: View {
     @ObservedObject var viewModel: FramePeekViewModel
-    
+
     private var audioTracks: [AudioTrackInfo] {
         viewModel.extendedInfo?.audioTracks ?? []
     }
-    
+
     private var hasTracks: Bool {
         !audioTracks.isEmpty
     }
-    
+
     var body: some View {
         Group {
             if hasTracks {
                 VStack(spacing: DesignSystem.Spacing.sm) {
                     // Header with controls
                     headerView
-                    
+
                     // Scrollable waveform tracks
                     ScrollView(.vertical, showsIndicators: true) {
                         VStack(spacing: DesignSystem.Spacing.sm) {
@@ -48,7 +48,7 @@ struct WaveformContainerView: View {
             }
         }
     }
-    
+
     private var headerView: some View {
         HStack {
             HStack(spacing: DesignSystem.Spacing.md) {
@@ -67,21 +67,21 @@ struct WaveformContainerView: View {
         .padding(.horizontal, DesignSystem.Padding.lg)
         .padding(.top, DesignSystem.Padding.lg)
     }
-    
+
     private func triggerExtractionForExpandedTracks() {
         guard let url = viewModel.currentVideoURL else { return }
         let asset = AVURLAsset(url: url)
-        
+
         let tracksToExtract = audioTracks.filter { track in
             viewModel.expandedWaveformTracks.contains(track.index) &&
             viewModel.waveformData[track.index] == nil &&
             viewModel.waveformTasks[track.index] == nil
         }
-        
+
         for trackInfo in tracksToExtract {
             Task.detached(priority: .userInitiated) { [weak viewModel] in
                 guard let viewModel else { return }
-                
+
                 do {
                     let tracks = try await asset.loadTracks(withMediaType: AVMediaType.audio)
                     guard let audioTrack = tracks.first(where: { track in
@@ -90,7 +90,7 @@ struct WaveformContainerView: View {
                     }) else {
                         return
                     }
-                    
+
                     await MainActor.run {
                         viewModel.extractWaveformForTrack(
                             trackIndex: trackInfo.index,
@@ -106,4 +106,3 @@ struct WaveformContainerView: View {
         }
     }
 }
-

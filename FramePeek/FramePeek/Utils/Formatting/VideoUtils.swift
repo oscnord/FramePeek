@@ -43,7 +43,7 @@ func getOverallBitrateString(asset: AVAsset, fileURL: URL) async -> String {
     } else {
         return "Unknown"
     }
-    
+
     do {
         let attrs = try FileManager.default.attributesOfItem(atPath: fileURL.path)
         if let size = attrs[.size] as? UInt64 {

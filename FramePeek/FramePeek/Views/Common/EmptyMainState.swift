@@ -4,28 +4,28 @@ struct EmptyMainState: View {
     @StateObject private var fileHistory = FileHistoryManager.shared
     let onFileSelected: (URL) -> Void
     let onOpenFile: () -> Void
-    
+
     @State private var contentOpacity: Double = 0
     @State private var contentOffset: CGFloat = 20
-    
+
     private var recentFiles: [URL] {
         fileHistory.validFiles
     }
-    
+
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.xl) {
             Spacer()
-            
+
             // Title
             VStack(spacing: DesignSystem.Spacing.xs) {
                 Text("FramePeek")
                     .font(.system(size: DesignSystem.Typography.title2, weight: .semibold))
                     .foregroundStyle(.primary)
-                
+
                 Text("Inspect and analyze your video files")
                     .font(.system(size: DesignSystem.Typography.callout))
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                
+
                 // Supported file types badges
                 HStack(spacing: DesignSystem.Spacing.sm) {
                     ForEach(supportedFileTypes, id: \.self) { fileType in
@@ -36,7 +36,7 @@ struct EmptyMainState: View {
             }
             .opacity(contentOpacity)
             .offset(y: contentOffset)
-            
+
             // Recent files box
             if !recentFiles.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
@@ -46,7 +46,7 @@ struct EmptyMainState: View {
                         .padding(.horizontal, DesignSystem.Padding.md)
                         .padding(.top, DesignSystem.Padding.md)
                         .padding(.bottom, DesignSystem.Padding.sm)
-                    
+
                     ScrollView {
                         VStack(spacing: 0) {
                             ForEach(recentFiles, id: \.self) { url in
@@ -77,7 +77,7 @@ struct EmptyMainState: View {
             .buttonBorderShape(.capsule)
             .controlSize(.regular)
             .offset(y: contentOffset)
-            
+
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -94,7 +94,7 @@ private let supportedFileTypes = ["MP4", "MOV", "AVI", "MPEG", "M4V"]
 
 private struct FileTypeBadge: View {
     let fileType: String
-    
+
     var body: some View {
         Text(fileType)
             .font(.system(size: DesignSystem.Typography.caption2, weight: .medium))
@@ -115,7 +115,7 @@ private struct FileTypeBadge: View {
 private struct RecentFileRow: View {
     let url: URL
     let onSelect: () -> Void
-    
+
     var body: some View {
         Button(action: onSelect) {
             HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
@@ -124,13 +124,13 @@ private struct RecentFileRow: View {
                         .font(.system(size: DesignSystem.Typography.footnote, weight: .medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                    
+
                     Text(url.deletingLastPathComponent().path)
                         .font(.system(size: DesignSystem.Typography.caption2))
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                         .lineLimit(1)
                 }
-                
+
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, DesignSystem.Padding.md)
@@ -146,4 +146,3 @@ private struct RecentFileRow: View {
     EmptyMainState(onFileSelected: { _ in }, onOpenFile: {})
         .frame(width: 800, height: 600)
 }
-

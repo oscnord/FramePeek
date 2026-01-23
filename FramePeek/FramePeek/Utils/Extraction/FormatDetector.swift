@@ -16,7 +16,7 @@ enum ContainerFormat {
 func detectContainerFormat(asset: AVAsset, url: URL) async -> ContainerFormat {
     // First check file extension for quick detection
     let ext = url.pathExtension.lowercased()
-    
+
     // MPEG-TS detection via extension
     if ext == "ts" || ext == "mts" || ext == "m2ts" {
         // Verify with file signature
@@ -24,12 +24,12 @@ func detectContainerFormat(asset: AVAsset, url: URL) async -> ContainerFormat {
             return .mpegTS
         }
     }
-    
+
     // QuickTime detection
     if ext == "mov" {
         return .quicktime
     }
-    
+
     // MP4/M4V - need to check if fragmented or CMAF
     if ext == "mp4" || ext == "m4v" {
         // Check for CMAF branding first
@@ -39,20 +39,20 @@ func detectContainerFormat(asset: AVAsset, url: URL) async -> ContainerFormat {
                 return .cmaf
             }
         }
-        
+
         // Check for fragmented MP4 structure
         if isFragmentedMP4(url: url) {
             return .fragmentedMP4
         }
-        
+
         return .standardMP4
     }
-    
+
     // For other formats, return generic type
     if let formatName = detectContainerFormat(url: url) {
         return .other(formatName)
     }
-    
+
     // Default fallback
     return .other("Unknown")
 }
@@ -61,11 +61,11 @@ func detectContainerFormat(asset: AVAsset, url: URL) async -> ContainerFormat {
 private func hasTSFileSignature(url: URL) -> Bool {
     guard let fileHandle = FileHandle(forReadingAtPath: url.path) else { return false }
     defer { fileHandle.closeFile() }
-    
+
     do {
         try fileHandle.seek(toOffset: 0)
         guard let data = try? fileHandle.read(upToCount: 188) else { return false }
-        
+
         // TS packets are 188 bytes, starting with 0x47 sync byte
         // Check first few packets
         let bytes = [UInt8](data)
@@ -86,16 +86,16 @@ private func hasTSFileSignature(url: URL) -> Bool {
 private func isFragmentedMP4(url: URL) -> Bool {
     guard let fileHandle = FileHandle(forReadingAtPath: url.path) else { return false }
     defer { fileHandle.closeFile() }
-    
+
     do {
         // Read first 64KB to check for moof atoms
         try fileHandle.seek(toOffset: 0)
         guard let data = try? fileHandle.read(upToCount: 65536) else { return false }
-        
+
         let bytes = [UInt8](data)
         var moofCount = 0
         var offset: Int = 0
-        
+
         // Search for 'moof' atoms
         while offset < bytes.count - 8 {
             // Check if we found 'moof' at this offset
@@ -109,7 +109,7 @@ private func isFragmentedMP4(url: URL) -> Bool {
                     }
                 }
             }
-            
+
             // Try to skip to next atom
             if offset + 4 <= bytes.count {
                 let size = (UInt32(bytes[offset]) << 24) | (UInt32(bytes[offset + 1]) << 16) | (UInt32(bytes[offset + 2]) << 8) | UInt32(bytes[offset + 3])
@@ -122,19 +122,18 @@ private func isFragmentedMP4(url: URL) -> Bool {
                 break
             }
         }
-        
+
         // Also check if there's no moov atom at the beginning (another indicator of fragmentation)
         // Standard MP4 has moov early, fragmented may have it later or not at all
         let hasMoovEarly = String(bytes: Array(bytes.prefix(100)), encoding: .ascii)?.contains("moov") ?? false
-        
+
         // If we found moof but no early moov, likely fragmented
         if moofCount > 0 && !hasMoovEarly {
             return true
         }
-        
+
         return false
     } catch {
         return false
     }
 }
-

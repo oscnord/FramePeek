@@ -1,0 +1,36 @@
+# SwiftLint Configuration for FramePeek
+
+included:
+  - FramePeek
+  - FramePeekTests
+
+excluded:
+  - FramePeekUITests
+  - .build
+  - DerivedData
+
+# Disable rules that don't fit this codebase
+disabled_rules:
+  - line_length              # Many lines are long, would need major refactor
+  - type_body_length         # Views can be large
+  - file_length              # Some files are large by design
+  - function_body_length     # Complex analysis functions
+  - cyclomatic_complexity    # Analysis code can be complex
+  - identifier_name          # Short names (x, y, t, i) common in graphics/math
+  - large_tuple              # Used for multiple return values
+  - nesting                  # SwiftUI has deep nesting
+  - force_cast               # Sometimes needed with AVFoundation
+  - force_try                # Used intentionally
+  - todo                     # Allow TODO comments
+  - function_parameter_count # Some functions need many parameters
+  - type_name                # Allow short type names like KVRow
+
+# Opt-in to useful rules
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - first_where
+  - sorted_first_last
+  - toggle_bool
+
+reporter: "xcode"

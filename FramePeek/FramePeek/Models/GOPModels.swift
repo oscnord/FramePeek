@@ -11,12 +11,12 @@ enum GOPStructureType: Equatable, Sendable {
     case unknown
     case fixed(frameCount: Int)
     case variable
-    
+
     var isFixed: Bool {
         if case .fixed = self { return true }
         return false
     }
-    
+
     var fixedFrameCount: Int? {
         if case .fixed(let count) = self { return count }
         return nil
@@ -36,9 +36,9 @@ struct GOPSegment: Identifiable, Equatable, Sendable {
     let endTime: Double
     let frameCount: Int?
     let frames: [FrameInfo]?
-    
+
     var duration: Double { max(0, endTime - startTime) }
-    
+
     static func == (lhs: GOPSegment, rhs: GOPSegment) -> Bool {
         lhs.startTime == rhs.startTime &&
         lhs.endTime == rhs.endTime &&
@@ -54,15 +54,15 @@ struct GOPAnalysisStats: Equatable {
     let minFrameCount: Int?
     let avgFrameCount: Double?
     let maxFrameCount: Int?
-    
+
     init(segments: [GOPSegment]) {
         gopCount = segments.count
-        
+
         let durations = segments.map(\.duration).filter { $0.isFinite && $0 > 0 }
         minDuration = durations.min()
         maxDuration = durations.max()
         avgDuration = durations.isEmpty ? nil : (durations.reduce(0, +) / Double(durations.count))
-        
+
         let frameCounts = segments.compactMap(\.frameCount)
         minFrameCount = frameCounts.min()
         maxFrameCount = frameCounts.max()
@@ -78,7 +78,7 @@ struct GOPAnalysisResult: Equatable {
     let stats: GOPAnalysisStats
     let structureType: GOPStructureType
     let representativeGOP: GOPSegment?
-    
+
     init(
         segments: [GOPSegment],
         isPreview: Bool,
@@ -106,7 +106,7 @@ struct GOPOptions: Sendable {
     let detectFixedStructure: Bool
     let minGOPsForFixedDetection: Int
     let fixedFrameTolerance: Int
-    
+
     init(
         maxScanSeconds: Double?,
         maxGOPs: Int?,
@@ -126,7 +126,7 @@ struct GOPOptions: Sendable {
         self.minGOPsForFixedDetection = max(3, minGOPsForFixedDetection)
         self.fixedFrameTolerance = max(0, fixedFrameTolerance)
     }
-    
+
     static func preview(maxSeconds: Double = 30, maxGOPs: Int = 200, detectFrameTypes: Bool = true, detectFixedStructure: Bool = true) -> GOPOptions {
         GOPOptions(
             maxScanSeconds: maxSeconds,
@@ -139,7 +139,7 @@ struct GOPOptions: Sendable {
             fixedFrameTolerance: 1
         )
     }
-    
+
     static func fullFile(detectFrameTypes: Bool = true, detectFixedStructure: Bool = false) -> GOPOptions {
         GOPOptions(
             maxScanSeconds: nil,
@@ -150,7 +150,7 @@ struct GOPOptions: Sendable {
             detectFixedStructure: detectFixedStructure
         )
     }
-    
+
     static func timeRange(_ range: ClosedRange<Double>, detectFrameTypes: Bool = true) -> GOPOptions {
         let duration = range.upperBound - range.lowerBound
         return GOPOptions(
@@ -172,7 +172,7 @@ struct GOPUpdate: Sendable {
     let structureType: GOPStructureType
     let detectedFixedFrameCount: Int?
     let representativeGOP: GOPSegment?
-    
+
     init(
         appendedSegments: [GOPSegment],
         scannedUntilSeconds: Double,

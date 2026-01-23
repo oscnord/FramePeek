@@ -35,4 +35,3 @@ extension InfoInspectorView {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-

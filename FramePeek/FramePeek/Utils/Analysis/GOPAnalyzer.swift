@@ -15,7 +15,7 @@ func extractGOPSegments(
     AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
             let isPreview = options.maxScanSeconds != nil || options.maxGOPs != nil
-            
+
             guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
                 continuation.yield(GOPUpdate(
                     appendedSegments: [],
@@ -26,22 +26,22 @@ func extractGOPSegments(
                 continuation.finish()
                 return
             }
-            
+
             let durationSeconds = (try? await asset.load(.duration).seconds) ?? 0
-            
-            var codecType: FourCharCode? = nil
+
+            var codecType: FourCharCode?
             if options.detectFrameTypes {
                 if let formatDescs = try? await track.load(.formatDescriptions),
                    let firstDesc = formatDescs.first {
                     codecType = CMFormatDescriptionGetMediaSubType(firstDesc)
                 }
             }
-            
+
             do {
                 let reader = try AVAssetReader(asset: asset)
                 let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
                 output.alwaysCopiesSampleData = false
-                
+
                 guard reader.canAdd(output) else {
                     continuation.yield(GOPUpdate(
                         appendedSegments: [],
@@ -52,9 +52,9 @@ func extractGOPSegments(
                     continuation.finish()
                     return
                 }
-                
+
                 reader.add(output)
-                
+
                 guard reader.startReading() else {
                     continuation.yield(GOPUpdate(
                         appendedSegments: [],
@@ -65,25 +65,25 @@ func extractGOPSegments(
                     continuation.finish()
                     return
                 }
-                
+
                 var pending: [GOPSegment] = []
                 pending.reserveCapacity(options.emitEveryNGOPs)
-                
-                var lastKeyframeTime: Double? = nil
+
+                var lastKeyframeTime: Double?
                 var framesInCurrentGOP: Int = 0
                 var framesInCurrentGOPList: [FrameInfo] = []
-                
+
                 var emittedGOPs = 0
                 var sampleCount = 0
                 var lastSeenPTS: Double = 0
                 var lastScannedPTS: Double = 0
-                
+
                 var completedGOPFrameCounts: [Int] = []
                 var allCompletedGOPs: [GOPSegment] = []
                 var detectedStructureType: GOPStructureType = .unknown
-                var representativeGOP: GOPSegment? = nil
+                var representativeGOP: GOPSegment?
                 var fixedGOPDetected = false
-                
+
                 func yieldPending(isFinished: Bool, structureType: GOPStructureType = .unknown, representativeGOP: GOPSegment? = nil) {
                     let fixedCount = structureType.fixedFrameCount
                     continuation.yield(GOPUpdate(
@@ -97,34 +97,34 @@ func extractGOPSegments(
                     ))
                     pending.removeAll(keepingCapacity: true)
                 }
-                
+
                 var shouldStopEarly = false
                 let timeRange = options.timeRange
-                
+
                 while let sbuf = output.copyNextSampleBuffer() {
                     if Task.isCancelled { break }
-                    
+
                     let t = CMSampleBufferGetPresentationTimeStamp(sbuf).seconds
                     sampleCount += 1
-                    
+
                     guard t.isFinite else {
                         if sampleCount % 2000 == 0 { await Task.yield() }
                         continue
                     }
-                    
+
                     if let range = timeRange, t < range.lowerBound {
                         if sampleCount % 2000 == 0 { await Task.yield() }
                         continue
                     }
-                    
+
                     if let range = timeRange, t > range.upperBound {
                         shouldStopEarly = true
                         break
                     }
-                    
+
                     lastSeenPTS = max(lastSeenPTS, t)
                     lastScannedPTS = t
-                    
+
                     var isKeyframe = false
                     if let attachments = CMSampleBufferGetSampleAttachmentsArray(sbuf, createIfNecessary: false),
                        CFArrayGetCount(attachments) > 0 {
@@ -133,13 +133,13 @@ func extractGOPSegments(
                             isKeyframe = !notSync
                         }
                     }
-                    
+
                     var frameType: FrameType = .unknown
-                    var frameSize: Int64? = nil
+                    var frameSize: Int64?
                     if options.detectFrameTypes {
                         if let codec = codecType {
                             frameType = detectFrameType(sampleBuffer: sbuf, codecType: codec)
-                            
+
                             if isKeyframe {
                                 if frameType != .i {
                                     frameType = .i
@@ -163,7 +163,7 @@ func extractGOPSegments(
                     } else if isKeyframe {
                         frameType = .i
                     }
-                    
+
                     if isKeyframe {
                         if let start = lastKeyframeTime {
                             let gopStart = start
@@ -174,7 +174,7 @@ func extractGOPSegments(
                             } else {
                                 shouldIncludeGOP = true
                             }
-                            
+
                             if shouldIncludeGOP {
                                 let sortedFrames = options.detectFrameTypes ? framesInCurrentGOPList.sorted(by: { $0.time < $1.time }) : nil
                                 let newSegment = GOPSegment(
@@ -186,21 +186,21 @@ func extractGOPSegments(
                                 pending.append(newSegment)
                                 allCompletedGOPs.append(newSegment)
                                 emittedGOPs += 1
-                                
+
                                 if let frameCount = newSegment.frameCount {
                                     completedGOPFrameCounts.append(frameCount)
                                 }
-                                
+
                                 if options.detectFixedStructure && !fixedGOPDetected {
                                     if completedGOPFrameCounts.count >= options.minGOPsForFixedDetection {
                                         if let fixedCount = detectFixedGOPPattern(completedGOPFrameCounts, tolerance: options.fixedFrameTolerance) {
                                             fixedGOPDetected = true
                                             detectedStructureType = .fixed(frameCount: fixedCount)
-                                            
+
                                             representativeGOP = allCompletedGOPs.first(where: { $0.frameCount == fixedCount && $0.frames != nil })
                                                 ?? allCompletedGOPs.first(where: { $0.frameCount == fixedCount })
                                                 ?? newSegment
-                                            
+
                                             yieldPending(isFinished: true, structureType: detectedStructureType, representativeGOP: representativeGOP)
                                             continuation.finish()
                                             return
@@ -209,17 +209,17 @@ func extractGOPSegments(
                                         }
                                     }
                                 }
-                                
+
                                 if pending.count >= options.emitEveryNGOPs {
                                     yieldPending(isFinished: false, structureType: detectedStructureType)
                                 }
-                                
+
                                 if let maxGOPs = options.maxGOPs, emittedGOPs >= maxGOPs {
                                     shouldStopEarly = true
                                 }
                             }
                         }
-                        
+
                         if timeRange == nil || (t >= timeRange!.lowerBound && t <= timeRange!.upperBound) {
                             lastKeyframeTime = t
                             framesInCurrentGOP = 1
@@ -236,20 +236,20 @@ func extractGOPSegments(
                             }
                         }
                     }
-                    
+
                     if let maxSeconds = options.maxScanSeconds {
                         if t > maxSeconds {
                             shouldStopEarly = true
                         }
                     }
-                    
+
                     if shouldStopEarly { break }
-                    
+
                     if sampleCount % 2000 == 0 {
                         await Task.yield()
                     }
                 }
-                
+
                 if !Task.isCancelled, let start = lastKeyframeTime {
                     let end: Double
                     if let range = timeRange {
@@ -272,7 +272,7 @@ func extractGOPSegments(
                             end = max(lastSeenPTS, start)
                         }
                     }
-                    
+
                     let shouldIncludeLastGOP: Bool
                     if let range = timeRange {
                         shouldIncludeLastGOP = end >= range.lowerBound && start <= range.upperBound
@@ -281,7 +281,7 @@ func extractGOPSegments(
                     } else {
                         shouldIncludeLastGOP = true
                     }
-                    
+
                     if shouldIncludeLastGOP && (end > start || framesInCurrentGOP > 0) {
                         let sortedFrames = options.detectFrameTypes ? framesInCurrentGOPList.sorted(by: { $0.time < $1.time }) : nil
                         let effectiveEnd = end > start ? end : start + 0.001
@@ -293,11 +293,11 @@ func extractGOPSegments(
                         ))
                     }
                 }
-                
+
                 if !pending.isEmpty {
                     yieldPending(isFinished: false, structureType: detectedStructureType)
                 }
-                
+
                 continuation.yield(GOPUpdate(
                     appendedSegments: [],
                     scannedUntilSeconds: lastScannedPTS,
@@ -307,6 +307,9 @@ func extractGOPSegments(
                 ))
                 continuation.finish()
             } catch {
+                #if DEBUG
+                print("GOPAnalyzer: Failed to analyze GOP structure - \(error.localizedDescription)")
+                #endif
                 continuation.yield(GOPUpdate(
                     appendedSegments: [],
                     scannedUntilSeconds: 0,
@@ -316,7 +319,7 @@ func extractGOPSegments(
                 continuation.finish()
             }
         }
-        
+
         continuation.onTermination = { _ in task.cancel() }
     }
 }

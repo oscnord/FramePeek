@@ -7,7 +7,7 @@ import CoreMedia
 /// Handles both AVCC/HVCC (length-prefixed) and Annex-B (start-code prefixed) formats.
 func detectFrameType(sampleBuffer: CMSampleBuffer, codecType: FourCharCode) -> FrameType {
     guard let dataBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return .unknown }
-    
+
     var totalLength: Int = 0
     var dataPointer: UnsafeMutablePointer<Int8>?
     let status = CMBlockBufferGetDataPointer(
@@ -18,12 +18,12 @@ func detectFrameType(sampleBuffer: CMSampleBuffer, codecType: FourCharCode) -> F
         dataPointerOut: &dataPointer
     )
     guard status == noErr, let pointer = dataPointer, totalLength > 0, totalLength <= Int.max else { return .unknown }
-    
+
     let data = Data(bytes: pointer, count: totalLength)
-    
+
     let codecID = fourCCToString(codecType).lowercased()
     let nalLengthSize = sampleBufferNALLengthSize(sampleBuffer: sampleBuffer, codecID: codecID)
-    
+
     if codecID.hasPrefix("avc") || codecID == "h264" {
         return detectH264FrameType(from: data, nalLengthSize: nalLengthSize)
     } else if codecID.hasPrefix("hev") || codecID.hasPrefix("hvc") || codecID == "hevc" {
@@ -44,7 +44,7 @@ private enum NALFormat {
 private func detectNALFormat(_ data: Data, nalLengthSize: Int) -> NALFormat {
     if data.count >= 3,
        data[0] == 0x00, data[1] == 0x00,
-       (data[2] == 0x01 || (data.count >= 4 && data[2] == 0x00 && data[3] == 0x01)) {
+       data[2] == 0x01 || (data.count >= 4 && data[2] == 0x00 && data[3] == 0x01) {
         return .annexB
     }
     return .lengthPrefixed(nalLengthSize: max(1, min(4, nalLengthSize)))
@@ -56,7 +56,7 @@ private func convertLengthPrefixedToAnnexB(data: Data, nalLengthSize: Int) -> Da
     guard (1...4).contains(nalLengthSize) else { return nil }
     var out = Data()
     var offset = 0
-    
+
     while offset + nalLengthSize <= data.count {
         // Read NAL length (big-endian)
         var length: UInt32 = 0
@@ -147,7 +147,7 @@ private func ebspToRbsp(_ ebsp: Data) -> Data {
             zerosCount = 0
             continue
         }
-        
+
         rbsp.append(b)
 
         if b == 0x00 {
@@ -242,7 +242,7 @@ private func detectH264FrameType(from data: Data, nalLengthSize: Int) -> FrameTy
             continue
         } else if nalType == 1 {
             hasNonIDR = true
-            
+
             // Slice header is after 1-byte NAL header; but must parse RBSP (remove emulation bytes)
             let rbsp = ebspToRbsp(nal) // includes header; OK
             guard rbsp.count >= 2 else { continue }
@@ -273,7 +273,7 @@ private func detectH264FrameType(from data: Data, nalLengthSize: Int) -> FrameTy
     if sliceTypes.contains(where: { $0 == 1 || $0 == 6 || $0 == 9 }) {
         return .b
     }
-    
+
     // If we found non-IDR NAL units but couldn't determine type, return unknown
     return hasNonIDR ? .unknown : .unknown
 }
@@ -298,7 +298,7 @@ private func detectHEVCFrameType(from data: Data, nalLengthSize: Int) -> FrameTy
             hasIRAP = true
             continue
         }
-        
+
         // Non-IRAP VCL 0..9 (TRAIL/TSA/STSA/RADL/RASL)
         if (0...9).contains(nalType) {
             hasNonIRAP = true

@@ -6,7 +6,7 @@ import QuartzCore
 
 struct VideoPlayerView: View {
     @ObservedObject private var manager = PlayerViewModelManager.shared
-    
+
     private var viewModel: FramePeekViewModel? {
         manager.activeViewModel
     }
@@ -16,7 +16,7 @@ struct VideoPlayerView: View {
     @AppStorage("playerMuted") private var playerMuted: Bool = false
     @AppStorage("statisticsOverlayOffsetX") private var savedOffsetX: Double = 0
     @AppStorage("statisticsOverlayOffsetY") private var savedOffsetY: Double = 0
-    
+
     @State private var player: AVPlayer?
     @State private var currentTime: Double = 0
     @State private var isPlaying: Bool = false
@@ -26,7 +26,7 @@ struct VideoPlayerView: View {
     @State private var overlaySize: CGSize = .zero
     @State private var shouldInitializePosition: Bool = false
     @State private var hasInitializedPosition: Bool = false
-    
+
     var body: some View {
         ZStack {
             if let viewModel = viewModel, let videoURL = viewModel.currentVideoURL {
@@ -37,7 +37,7 @@ struct VideoPlayerView: View {
                         // Reset overlay position when opening video player
                         resetOverlayPosition()
                         // Delay setup slightly to ensure view is laid out
-                        DispatchQueue.main.async {
+                        Task { @MainActor in
                             setupPlayer(url: videoURL)
                         }
                     }
@@ -48,33 +48,33 @@ struct VideoPlayerView: View {
                         if let newURL = newValue, newURL != oldValue {
                             // Reset overlay position when loading new video
                             resetOverlayPosition()
-                            DispatchQueue.main.async {
+                            Task { @MainActor in
                                 setupPlayer(url: newURL)
                             }
                         } else if newValue == nil {
                             cleanupPlayer()
                         }
                     }
-                    .onChange(of: manager.activeViewModel?.extendedInfo?.fileName) { oldValue, newValue in
+                    .onChange(of: manager.activeViewModel?.extendedInfo?.fileName) { _, _ in
                         // When ViewModel changes (tab switch), update player if URL exists
                         if let viewModel = manager.activeViewModel, let url = viewModel.currentVideoURL {
-                            DispatchQueue.main.async {
+                            Task { @MainActor in
                                 setupPlayer(url: url)
                             }
                         }
                     }
-                    .onChange(of: playerMuted) { oldValue, newValue in
+                    .onChange(of: playerMuted) { _, newValue in
                         // Update mute state when setting changes
                         player?.isMuted = newValue
                     }
-                    .onChange(of: manager.seekTime) { oldValue, newValue in
+                    .onChange(of: manager.seekTime) { _, newValue in
                         // Handle seek request
                         if let seekTime = newValue, let player = player {
                             let time = CMTime(seconds: seekTime, preferredTimescale: 600)
                             player.seek(to: time)
                         }
                     }
-                
+
                 // Statistics overlay
                 if playerShowStatistics {
                     GeometryReader { geometry in
@@ -86,7 +86,7 @@ struct VideoPlayerView: View {
                                             overlaySize = overlayGeometry.size
                                             initializePositionIfNeeded(geometry: geometry, overlaySize: overlayGeometry.size)
                                         }
-                                        .onChange(of: overlayGeometry.size) { oldValue, newValue in
+                                        .onChange(of: overlayGeometry.size) { _, newValue in
                                             overlaySize = newValue
                                             initializePositionIfNeeded(geometry: geometry, overlaySize: newValue)
                                         }
@@ -109,24 +109,24 @@ struct VideoPlayerView: View {
                                         // Calculate new offset (relative to bottom-left anchor with padding)
                                         let newOffsetX = savedOffsetX + value.translation.width
                                         let newOffsetY = savedOffsetY + value.translation.height
-                                        
+
                                         // Calculate bounds (accounting for padding)
                                         let horizontalPadding = DesignSystem.Padding.lg
                                         let bottomPadding = DesignSystem.Padding.xl2
                                         let padding = DesignSystem.Padding.lg
-                                        
+
                                         // Minimum position: can't go further left/up than the default position
                                         let minOffsetX = -horizontalPadding
                                         let minOffsetY = -(geometry.size.height - overlaySize.height - bottomPadding - padding)
-                                        
+
                                         // Maximum position: can't go further right/down than the opposite corner
                                         let maxOffsetX = geometry.size.width - overlaySize.width - horizontalPadding
                                         let maxOffsetY = -bottomPadding
-                                        
+
                                         // Check if position is outside visible bounds
-                                        let isOutsideBounds = newOffsetX < minOffsetX || newOffsetX > maxOffsetX || 
+                                        let isOutsideBounds = newOffsetX < minOffsetX || newOffsetX > maxOffsetX ||
                                                              newOffsetY < minOffsetY || newOffsetY > maxOffsetY
-                                        
+
                                         if isOutsideBounds {
                                             // Reset to default position if dragged out of view
                                             savedOffsetX = 0
@@ -136,7 +136,7 @@ struct VideoPlayerView: View {
                                             savedOffsetX = max(minOffsetX, min(maxOffsetX, newOffsetX))
                                             savedOffsetY = max(minOffsetY, min(maxOffsetY, newOffsetY))
                                         }
-                                        
+
                                         dragOffset = .zero
                                     }
                             )
@@ -157,9 +157,9 @@ struct VideoPlayerView: View {
         .frame(minWidth: 400, minHeight: 300)
         .navigationTitle(viewModel?.extendedInfo?.fileName ?? "Video Player")
     }
-    
+
     // MARK: - Statistics Overlay
-    
+
     private var statisticsOverlay: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             if let viewModel = viewModel, let info = viewModel.extendedInfo {
@@ -171,7 +171,7 @@ struct VideoPlayerView: View {
                         .font(.caption)
                         .monospacedDigit()
                 }
-                
+
                 // Frame rate
                 if !info.frameRate.isEmpty {
                     HStack(spacing: DesignSystem.Spacing.sm) {
@@ -183,7 +183,7 @@ struct VideoPlayerView: View {
                     }
                 }
             }
-            
+
             // Current time
             HStack(spacing: DesignSystem.Spacing.sm) {
                 Image(systemName: "clock")
@@ -198,7 +198,7 @@ struct VideoPlayerView: View {
                         .monospacedDigit()
                 }
             }
-            
+
             // Current bitrate
             if let viewModel = viewModel, let bitrate = getBitrateAtTime(currentTime, samples: viewModel.samples) {
                 HStack(spacing: DesignSystem.Spacing.sm) {
@@ -209,7 +209,7 @@ struct VideoPlayerView: View {
                         .monospacedDigit()
                 }
             }
-            
+
             // Color analysis stats
             if let viewModel = viewModel, let colorSample = getColorSampleAtTime(currentTime, samples: viewModel.colorSamples) {
                 // Brightness
@@ -220,7 +220,7 @@ struct VideoPlayerView: View {
                         .font(.caption)
                         .monospacedDigit()
                 }
-                
+
                 // Color temperature
                 if let temperature = colorSample.colorTemperature {
                     HStack(spacing: DesignSystem.Spacing.sm) {
@@ -237,9 +237,9 @@ struct VideoPlayerView: View {
         .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.medium))
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous))
     }
-    
+
     // MARK: - Overlay Position
-    
+
     private func resetOverlayPosition() {
         savedOffsetX = 0
         savedOffsetY = 0
@@ -247,15 +247,15 @@ struct VideoPlayerView: View {
         shouldInitializePosition = true
         hasInitializedPosition = false
     }
-    
+
     private func initializePositionIfNeeded(geometry: GeometryProxy, overlaySize: CGSize) {
         // Only initialize if we explicitly need to reset, or if we've never initialized before
-        guard (shouldInitializePosition || !hasInitializedPosition),
+        guard shouldInitializePosition || !hasInitializedPosition,
               overlaySize.width > 0 && overlaySize.height > 0,
               geometry.size.width > 0 && geometry.size.height > 0 else {
             return
         }
-        
+
         // With frame alignment at bottom-leading, offsets are relative to that position
         // Default position is already at bottom-left via frame alignment, so offsets start at 0
         // Only set non-zero offsets if we have saved values from AppStorage
@@ -264,19 +264,19 @@ struct VideoPlayerView: View {
             savedOffsetX = 0
             savedOffsetY = 0
         }
-        
+
         shouldInitializePosition = false
         hasInitializedPosition = true
     }
-    
+
     // MARK: - Player Setup
-    
+
     private func setupPlayer(url: URL) {
         cleanupPlayer()
-        
+
         let newPlayer = AVPlayer(url: url)
         self.player = newPlayer
-        
+
         // Load duration
         Task {
             if let duration = try? await newPlayer.currentItem?.asset.load(.duration) {
@@ -285,7 +285,7 @@ struct VideoPlayerView: View {
                 }
             }
         }
-        
+
         // Observe time updates
         let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
         timeObserver = newPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak newPlayer] time in
@@ -300,16 +300,16 @@ struct VideoPlayerView: View {
             }
             isPlaying = player.rate > 0
         }
-        
+
         // Set mute state
         newPlayer.isMuted = playerMuted
-        
+
         // Auto-play if enabled
         if playerAutoPlay {
             newPlayer.play()
         }
     }
-    
+
     private func cleanupPlayer() {
         if let observer = timeObserver {
             player?.removeTimeObserver(observer)
@@ -321,115 +321,144 @@ struct VideoPlayerView: View {
         isPlaying = false
         duration = 0
     }
-    
+
     // MARK: - Helper Functions
-    
+
     private func formatTime(_ seconds: Double) -> String {
         let totalSeconds = Int(seconds)
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
         let secs = totalSeconds % 60
-        
+
         if hours > 0 {
             return String(format: "%d:%02d:%02d", hours, minutes, secs)
         } else {
             return String(format: "%d:%02d", minutes, secs)
         }
     }
-    
+
     private func formatBitrate(_ bitrate: Double) -> String {
         let kbps = bitrate / 1000.0
         return String(format: "%.0f kb/s", kbps)
     }
-    
+
     /// Finds the bitrate at a given time by finding the nearest sample or interpolating
     private func getBitrateAtTime(_ time: Double, samples: [BitrateSample]) -> Double? {
         guard !samples.isEmpty else { return nil }
-        
+
         // Find the sample that contains this time
         // Samples have a time (end of window) and duration (window size)
         for sample in samples {
             let windowStart = sample.time - sample.duration
             let windowEnd = sample.time
-            
+
             if time >= windowStart && time <= windowEnd {
                 return sample.bitrate
             }
         }
-        
-        // If not found, find nearest samples and interpolate
-        let sortedSamples = samples.sorted { $0.time < $1.time }
-        
-        // Before first sample
-        if time < sortedSamples.first?.time ?? 0 {
-            return sortedSamples.first?.bitrate
-        }
-        
-        // After last sample
-        if time > sortedSamples.last?.time ?? 0 {
-            return sortedSamples.last?.bitrate
-        }
-        
-        // Find two samples to interpolate between
-        for i in 0..<sortedSamples.count - 1 {
-            let sample1 = sortedSamples[i]
-            let sample2 = sortedSamples[i + 1]
-            
-            if time >= sample1.time && time <= sample2.time {
-                // Linear interpolation
-                let t = (time - sample1.time) / (sample2.time - sample1.time)
-                return sample1.bitrate + (sample2.bitrate - sample1.bitrate) * t
-            }
-        }
-        
-        return nil
+
+        // Use generic interpolation helper
+        return interpolateValue(
+            at: time,
+            in: samples,
+            timeKeyPath: \.time,
+            valueKeyPath: \.bitrate
+        )
     }
-    
+
     /// Finds the color sample at a given time by finding the nearest sample or interpolating
     private func getColorSampleAtTime(_ time: Double, samples: [ColorSample]) -> ColorSample? {
         guard !samples.isEmpty else { return nil }
-        
+
         let sortedSamples = samples.sorted { $0.time < $1.time }
-        
+
         // Before first sample
         if time <= sortedSamples.first?.time ?? 0 {
             return sortedSamples.first
         }
-        
+
         // After last sample
         if time >= sortedSamples.last?.time ?? 0 {
             return sortedSamples.last
         }
-        
+
         // Find two samples to interpolate between
-        for i in 0..<sortedSamples.count - 1 {
-            let sample1 = sortedSamples[i]
-            let sample2 = sortedSamples[i + 1]
-            
-            if time >= sample1.time && time <= sample2.time {
-                // Linear interpolation for brightness
-                let t = (time - sample1.time) / (sample2.time - sample1.time)
-                let interpolatedBrightness = sample1.brightness + (sample2.brightness - sample1.brightness) * t
-                
-                // Interpolate color temperature if both samples have it
-                let interpolatedTemperature: Double?
-                if let temp1 = sample1.colorTemperature, let temp2 = sample2.colorTemperature {
-                    interpolatedTemperature = temp1 + (temp2 - temp1) * t
-                } else {
-                    interpolatedTemperature = sample1.colorTemperature ?? sample2.colorTemperature
-                }
-                
-                return ColorSample(
-                    time: time,
-                    brightness: interpolatedBrightness,
-                    colorTemperature: interpolatedTemperature,
-                    histogram: nil
-                )
-            }
+        guard let (sample1, sample2, t) = findInterpolationPair(at: time, in: sortedSamples, timeKeyPath: \.time) else {
+            return nil
         }
-        
+
+        // Interpolate brightness
+        let interpolatedBrightness = linearInterpolate(sample1.brightness, sample2.brightness, t: t)
+
+        // Interpolate color temperature if both samples have it
+        let interpolatedTemperature: Double?
+        if let temp1 = sample1.colorTemperature, let temp2 = sample2.colorTemperature {
+            interpolatedTemperature = linearInterpolate(temp1, temp2, t: t)
+        } else {
+            interpolatedTemperature = sample1.colorTemperature ?? sample2.colorTemperature
+        }
+
+        return ColorSample(
+            time: time,
+            brightness: interpolatedBrightness,
+            colorTemperature: interpolatedTemperature,
+            histogram: nil
+        )
+    }
+}
+
+// MARK: - Interpolation Helpers
+
+/// Performs linear interpolation between two values
+private func linearInterpolate(_ v1: Double, _ v2: Double, t: Double) -> Double {
+    v1 + (v2 - v1) * t
+}
+
+/// Finds two adjacent samples for interpolation and returns them with the interpolation factor
+private func findInterpolationPair<T>(
+    at time: Double,
+    in sortedSamples: [T],
+    timeKeyPath: KeyPath<T, Double>
+) -> (T, T, Double)? {
+    for i in 0..<sortedSamples.count - 1 {
+        let sample1 = sortedSamples[i]
+        let sample2 = sortedSamples[i + 1]
+        let time1 = sample1[keyPath: timeKeyPath]
+        let time2 = sample2[keyPath: timeKeyPath]
+
+        if time >= time1 && time <= time2 {
+            let t = (time - time1) / (time2 - time1)
+            return (sample1, sample2, t)
+        }
+    }
+    return nil
+}
+
+/// Generic interpolation for samples with time and a numeric value
+private func interpolateValue<T>(
+    at time: Double,
+    in samples: [T],
+    timeKeyPath: KeyPath<T, Double>,
+    valueKeyPath: KeyPath<T, Double>
+) -> Double? {
+    let sortedSamples = samples.sorted { $0[keyPath: timeKeyPath] < $1[keyPath: timeKeyPath] }
+
+    // Before first sample
+    if time < sortedSamples.first?[keyPath: timeKeyPath] ?? 0 {
+        return sortedSamples.first?[keyPath: valueKeyPath]
+    }
+
+    // After last sample
+    if time > sortedSamples.last?[keyPath: timeKeyPath] ?? 0 {
+        return sortedSamples.last?[keyPath: valueKeyPath]
+    }
+
+    // Find pair and interpolate
+    guard let (sample1, sample2, t) = findInterpolationPair(at: time, in: sortedSamples, timeKeyPath: timeKeyPath) else {
         return nil
     }
+
+    return linearInterpolate(sample1[keyPath: valueKeyPath], sample2[keyPath: valueKeyPath], t: t)
 }
 
 // MARK: - AVPlayerView Wrapper (using Apple's default controls)
@@ -437,40 +466,39 @@ struct VideoPlayerView: View {
 struct AVPlayerViewRepresentable: NSViewRepresentable {
     let player: AVPlayer?
     let showsControls: Bool
-    
+
     func makeNSView(context: Context) -> AVPlayerView {
         let playerView = AVPlayerView()
         playerView.controlsStyle = showsControls ? .inline : .none
         playerView.videoGravity = .resizeAspect
-        
+
         // Set player after view is laid out to avoid constraint warnings
         // AVPlayerView has internal constraints that need the view to have bounds first
-        DispatchQueue.main.async {
+        Task { @MainActor in
             playerView.player = player
         }
-        
+
         return playerView
     }
-    
+
     func updateNSView(_ nsView: AVPlayerView, context: Context) {
         // Update controls style synchronously (safe, doesn't trigger layout)
         let newControlsStyle: AVPlayerViewControlsStyle = showsControls ? .inline : .none
         if nsView.controlsStyle != newControlsStyle {
             nsView.controlsStyle = newControlsStyle
         }
-        
+
         // Update player asynchronously to avoid constraint conflicts during layout
         // Only update if player actually changed
         if nsView.player !== player {
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 nsView.player = player
             }
         }
     }
-    
+
     static func dismantleNSView(_ nsView: AVPlayerView, coordinator: ()) {
         // Clean up player when view is removed
         nsView.player = nil
     }
 }
-

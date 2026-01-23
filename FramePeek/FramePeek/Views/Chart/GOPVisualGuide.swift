@@ -18,7 +18,7 @@ struct GOPVisualGuide: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 // I-frame marker
                 HStack(spacing: 6) {
                     Circle()
@@ -28,7 +28,7 @@ struct GOPVisualGuide: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 // Pattern colors
                 HStack(spacing: 6) {
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
@@ -38,7 +38,7 @@ struct GOPVisualGuide: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 HStack(spacing: 6) {
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .strokeBorder(.orange, lineWidth: 2)
@@ -47,7 +47,7 @@ struct GOPVisualGuide: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 HStack(spacing: 6) {
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .strokeBorder(.red, lineWidth: 2)
@@ -56,7 +56,7 @@ struct GOPVisualGuide: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 Spacer()
             }
             .padding(.horizontal, DesignSystem.Padding.sm)
@@ -68,4 +68,3 @@ struct GOPVisualGuide: View {
         }
     }
 }
-

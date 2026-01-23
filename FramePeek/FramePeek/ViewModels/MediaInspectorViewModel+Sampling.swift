@@ -6,57 +6,57 @@ extension FramePeekViewModel {
     /// Re-aggregates samples from stored raw frames (always uses second-based mode)
     private func reAggregateSamples() {
         guard !rawFrames.isEmpty else { return }
-        
+
         let aggregated = aggregateFrames(
             rawFrames: rawFrames,
             mode: visualizationMode,
             averageFPS: effectiveFPS,
             maxSamples: maxPointsTarget
         )
-        
+
         samples = aggregated
         // Update maxBitrate after re-aggregation
         updateMaxBitrateFromSamples()
     }
-    
+
     /// Updates maxBitrate and minBitrate in extendedInfo with peak and minimum bitrate calculated from raw frames
     /// Uses rawFrames instead of aggregated samples to avoid missing peaks due to downsampling
     private func updateMaxBitrateFromSamples() {
         guard let info = extendedInfo else { return }
-        
+
         // Calculate from rawFrames if available (more accurate, no downsampling)
         // Otherwise fall back to samples
         let maxBitrateKbps: Double
         let minBitrateKbps: Double
-        
+
         if !rawFrames.isEmpty {
             // Calculate bitrate for all 1-second windows from raw frames
             let estimatedFPS = effectiveFPS ?? 30.0
             let defaultFrameDuration = 1.0 / estimatedFPS
             let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
-            
+
             guard !sortedFrames.isEmpty else { return }
-            
+
             let startTime = sortedFrames.first!.pts
             let endTime = sortedFrames.last!.pts
             let totalDuration = endTime - startTime + defaultFrameDuration
             let numBuckets = Int(ceil(totalDuration / 1.0))
-            
+
             guard numBuckets > 0 else { return }
-            
+
             var bitrates: [Double] = []
             bitrates.reserveCapacity(numBuckets)
-            
+
             var frameIndex = 0
             for bucketIndex in 0..<numBuckets {
                 let bucketStart = startTime + Double(bucketIndex) * 1.0
                 let bucketEnd = bucketStart + 1.0
-                
+
                 // Advance to first frame in this bucket
                 while frameIndex < sortedFrames.count && sortedFrames[frameIndex].pts < bucketStart {
                     frameIndex += 1
                 }
-                
+
                 // Sum frames in bucket [bucketStart, bucketEnd)
                 var totalBytes: Int64 = 0
                 var tempIndex = frameIndex
@@ -64,16 +64,16 @@ extension FramePeekViewModel {
                     totalBytes += sortedFrames[tempIndex].size
                     tempIndex += 1
                 }
-                
+
                 // Calculate bitrate for this 1-second bucket
                 if totalBytes > 0 {
                     let bitrate = (Double(totalBytes) * 8.0) / 1.0
                     bitrates.append(bitrate)
                 }
             }
-            
+
             guard !bitrates.isEmpty else { return }
-            
+
             let maxBits = bitrates.max() ?? 0
             let minBits = bitrates.min() ?? 0
             maxBitrateKbps = Double(maxBits) / 1000.0
@@ -87,10 +87,10 @@ extension FramePeekViewModel {
         } else {
             return
         }
-        
+
         let maxBitrateString = String(format: "%.0f kb/s", maxBitrateKbps)
         let minBitrateString = String(format: "%.0f kb/s", minBitrateKbps)
-        
+
         // Create new ExtendedVideoInfo with updated maxBitrate and minBitrate
         let updatedInfo = ExtendedVideoInfo(
             fileName: info.fileName,
@@ -138,15 +138,15 @@ extension FramePeekViewModel {
             metadataDescription: info.metadataDescription,
             audioTracks: info.audioTracks
         )
-        
+
         extendedInfo = updatedInfo
     }
 
     func makeSamplingOptions(asset: AVAsset) async -> FrameSamplingOptions {
         // Load format-specific settings from UserDefaults
         let defaults = UserDefaults.standard
-        let accountTSOverhead = defaults.object(forKey: "accountTSOverhead") != nil 
-            ? defaults.bool(forKey: "accountTSOverhead") 
+        let accountTSOverhead = defaults.object(forKey: "accountTSOverhead") != nil
+            ? defaults.bool(forKey: "accountTSOverhead")
             : false
         let smoothSegmentBoundaries = defaults.object(forKey: "smoothSegmentBoundaries") != nil
             ? defaults.bool(forKey: "smoothSegmentBoundaries")
@@ -158,7 +158,7 @@ extension FramePeekViewModel {
             }
             return .balanced
         }()
-        
+
         switch samplingMode {
         case .everyFrame:
             return .everyFrame(
@@ -214,7 +214,7 @@ extension FramePeekViewModel {
             )
         }
     }
-    
+
     func startFrameAnalysis(asset: AVAsset) {
         // Frames (async + progressive updates) - use fast bitrate extraction
         framesTask = Task.detached(priority: .userInitiated) { [weak self] in
@@ -253,4 +253,3 @@ extension FramePeekViewModel {
         }
     }
 }
-

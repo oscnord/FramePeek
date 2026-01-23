@@ -3,7 +3,7 @@ import SwiftUI
 struct GOPStatsPanel: View {
     let stats: GOPAnalysisStats
     let frameTypeStats: (iCount: Int, pCount: Int, bCount: Int, unknownCount: Int, total: Int)?
-    
+
     private var patternInfo: (label: String, color: Color)? {
         // Need at least 3 GOPs to reliably determine pattern
         guard stats.gopCount >= 3,
@@ -13,7 +13,7 @@ struct GOPStatsPanel: View {
               avg > 0 else {
             return nil
         }
-        
+
         let variance = (max - min) / avg
         if variance < 0.1 {
             return ("Fixed", .green)
@@ -23,7 +23,7 @@ struct GOPStatsPanel: View {
             return ("Irregular", .red)
         }
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             // Summary cards
@@ -39,7 +39,7 @@ struct GOPStatsPanel: View {
                     icon: "rectangle.split.3x1",
                     color: .blue
                 )
-                
+
                 if let pattern = patternInfo {
                     summaryCard(
                         title: "Pattern",
@@ -48,7 +48,7 @@ struct GOPStatsPanel: View {
                         color: pattern.color
                     )
                 }
-                
+
                 if let avg = stats.avgDuration {
                     summaryCard(
                         title: "Avg Duration",
@@ -57,7 +57,7 @@ struct GOPStatsPanel: View {
                         color: .orange
                     )
                 }
-                
+
                 if let frameStats = frameTypeStats, frameStats.total > 0 {
                     summaryCard(
                         title: "Frames",
@@ -67,7 +67,7 @@ struct GOPStatsPanel: View {
                     )
                 }
             }
-            
+
             // Frame distribution (if available)
             if let frameStats = frameTypeStats, frameStats.total > 0 {
                 frameDistributionView(stats: frameStats)
@@ -75,7 +75,7 @@ struct GOPStatsPanel: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func summaryCard(title: String, value: String, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -98,14 +98,14 @@ struct GOPStatsPanel: View {
                 .fill(DesignSystem.Materials.ultraThin)
         )
     }
-    
+
     @ViewBuilder
     private func frameDistributionView(stats: (iCount: Int, pCount: Int, bCount: Int, unknownCount: Int, total: Int)) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             Text("Frame Distribution")
                 .font(.subheadline)
                 .fontWeight(.semibold)
-            
+
             // Visual bar
             GeometryReader { geo in
                 HStack(spacing: 1) {
@@ -133,7 +133,7 @@ struct GOPStatsPanel: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             }
             .frame(height: 16)
-            
+
             // Legend
             HStack(spacing: DesignSystem.Spacing.lg) {
                 frameTypeLegend(type: .i, count: stats.iCount, total: stats.total)
@@ -151,7 +151,7 @@ struct GOPStatsPanel: View {
                 .fill(DesignSystem.Materials.ultraThin)
         )
     }
-    
+
     private func frameTypeLegend(type: FrameType, count: Int, total: Int) -> some View {
         let color: Color = {
             switch type {
@@ -165,7 +165,7 @@ struct GOPStatsPanel: View {
                 return .gray
             }
         }()
-        
+
         return HStack(spacing: 4) {
             Circle()
                 .fill(color)
@@ -182,4 +182,3 @@ struct GOPStatsPanel: View {
         }
     }
 }
-

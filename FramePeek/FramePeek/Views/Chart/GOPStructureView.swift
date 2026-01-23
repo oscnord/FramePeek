@@ -6,16 +6,16 @@ struct GOPStructureView: View {
     @State private var selectedRangeStart: Double = 0
     @State private var selectedRangeEnd: Double = 60
     @State private var showRangePicker = false
-    
+
     private var analysis: GOPAnalysisResult? { viewModel.gopAnalysis }
-    
+
     private var duration: Double {
         if viewModel.durationSeconds.isFinite, viewModel.durationSeconds > 0 {
             return viewModel.durationSeconds
         }
         return 60
     }
-    
+
     private var domainSeconds: Double {
         if let analysis, analysis.isPreview {
             return max(0.1, analysis.scannedUntilSeconds)
@@ -25,31 +25,31 @@ struct GOPStructureView: View {
         }
         return max(0.1, analysis?.scannedUntilSeconds ?? 0.1)
     }
-    
+
     private var frameTypeStats: (iCount: Int, pCount: Int, bCount: Int, unknownCount: Int, total: Int)? {
         guard let analysis else { return nil }
         let allFrames = analysis.segments.compactMap { $0.frames }.flatMap { $0 }
         guard !allFrames.isEmpty else { return nil }
-        
+
         let iCount = allFrames.filter { $0.type == .i }.count
         let pCount = allFrames.filter { $0.type == .p }.count
         let bCount = allFrames.filter { $0.type == .b }.count
         let unknownCount = allFrames.filter { $0.type == .unknown }.count
-        
+
         return (iCount, pCount, bCount, unknownCount, allFrames.count)
     }
-    
+
     private var hasFrameTypes: Bool {
         analysis?.segments.contains(where: { $0.frames != nil && !$0.frames!.isEmpty }) ?? false
     }
-    
+
     var body: some View {
         if viewModel.isFileUnanalyzable {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 headerSection
-                
+
                 if viewModel.isAnalyzingGOP {
                     loadingSection
                 } else if analysis == nil {
@@ -89,15 +89,15 @@ struct GOPStructureView: View {
             }
         }
     }
-    
+
     private func initializeRangeValues() {
         let defaultEnd = min(60.0, duration)
         selectedRangeStart = 0
         selectedRangeEnd = defaultEnd
     }
-    
+
     // MARK: - Header Section
-    
+
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             HStack(alignment: .firstTextBaseline) {
@@ -105,7 +105,7 @@ struct GOPStructureView: View {
                     HStack(spacing: 4) {
                         Text("GOP Structure")
                             .font(.headline)
-                        
+
                         Button {
                             showGOPInfoPopover.toggle()
                         } label: {
@@ -119,12 +119,12 @@ struct GOPStructureView: View {
                             gopInfoPopoverContent
                         }
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text("GOPs (Groups of Pictures) are sequences between I-frames. They determine compression efficiency and seeking performance.")
                             .font(.caption2)
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                        
+
                         if let analysis, !analysis.segments.isEmpty {
                             if analysis.isPreview {
                                 Text("Analyzed \(analysis.segments.count) GOPs in this range. Each block shows one GOP - wider blocks last longer, taller blocks contain more frames.")
@@ -138,9 +138,9 @@ struct GOPStructureView: View {
                         }
                     }
                 }
-                
+
                 Spacer()
-                
+
                 if let analysis {
                     HStack(spacing: DesignSystem.Spacing.md) {
                         StatPill(title: "GOPs", value: "\(analysis.stats.gopCount)")
@@ -153,7 +153,7 @@ struct GOPStructureView: View {
                     }
                 }
             }
-            
+
             // Frame type legend (if frame types are shown)
             if hasFrameTypes {
                 frameTypeLegend
@@ -163,22 +163,22 @@ struct GOPStructureView: View {
         .padding(.top, DesignSystem.Padding.lg)
         .padding(.bottom, DesignSystem.Padding.md)
     }
-    
+
     @ViewBuilder
     private var frameTypeLegend: some View {
         HStack(spacing: DesignSystem.Spacing.lg) {
             Text("Frame Types:")
                 .font(.caption2)
                     .foregroundStyle(.secondary)
-            
+
             frameTypeLegendItem(type: .i, color: Color(red: 0.0, green: 0.48, blue: 1.0))
             frameTypeLegendItem(type: .p, color: Color(red: 1.0, green: 0.58, blue: 0.0))
             frameTypeLegendItem(type: .b, color: Color(red: 1.0, green: 0.23, blue: 0.19))
-            
+
             Spacer()
         }
     }
-    
+
     @ViewBuilder
     private func frameTypeLegendItem(type: FrameType, color: Color) -> some View {
         HStack(spacing: 4) {
@@ -190,7 +190,7 @@ struct GOPStructureView: View {
                             .fontWeight(.medium)
                     }
     }
-    
+
     private func patternInfo(stats: GOPAnalysisStats) -> (label: String, color: Color)? {
         // Need at least 3 GOPs to reliably determine pattern
         guard stats.gopCount >= 3,
@@ -200,7 +200,7 @@ struct GOPStructureView: View {
               avg > 0 else {
             return nil
         }
-        
+
         let variance = (max - min) / avg
         if variance < 0.1 {
             return ("Fixed", .green)
@@ -210,45 +210,45 @@ struct GOPStructureView: View {
             return ("Irregular", .red)
         }
     }
-    
+
     // MARK: - Loading Section
-    
+
     private var loadingSection: some View {
         GOPStructureSkeletonView()
             .padding(.horizontal, DesignSystem.Padding.lg)
             .padding(.bottom, DesignSystem.Padding.lg)
     }
-    
+
     // MARK: - Empty Section
-    
+
     private var emptySection: some View {
         VStack(spacing: DesignSystem.Spacing.lg) {
             Image(systemName: "rectangle.split.3x1")
                 .font(.largeTitle)
                 .foregroundStyle(.tertiary)
-            
+
             Text("No GOP data available")
                 .font(.subheadline)
                 .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-            
+
             Text("Select a range to analyze or use a quick preset")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
-            
+
             quickActionsBar
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, DesignSystem.Padding.xl)
     }
-    
+
     // MARK: - Content Section
-    
+
     private var contentSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
             if let analysis {
                 // Visual guide
                 GOPVisualGuide()
-                
+
                 // Main timeline visualization
                 GOPTimelineView(
                     segments: analysis.segments,
@@ -260,7 +260,7 @@ struct GOPStructureView: View {
                     viewModel.selectGOP(at: index)
                 }
                 .frame(height: 180)
-                
+
                 // Selected GOP details panel
                 if let selectedIndex = viewModel.selectedGOPIndex,
                    selectedIndex < analysis.segments.count {
@@ -270,13 +270,13 @@ struct GOPStructureView: View {
                         viewModel: viewModel
                     )
                 }
-                
+
                 // Statistics panel
                 GOPStatsPanel(
                     stats: analysis.stats,
                     frameTypeStats: frameTypeStats
                 )
-                
+
                 // Action bar
                 actionBar(analysis: analysis)
             }
@@ -284,9 +284,9 @@ struct GOPStructureView: View {
         .padding(.horizontal, DesignSystem.Padding.lg)
         .padding(.bottom, DesignSystem.Padding.lg)
     }
-    
+
     // MARK: - Quick Actions Bar
-    
+
     private var quickActionsBar: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
             HStack(spacing: DesignSystem.Spacing.sm) {
@@ -297,7 +297,7 @@ struct GOPStructureView: View {
                     }
                 presetButton("Entire File", start: 0, end: duration)
             }
-            
+
                     Button {
                 showRangePicker = true
                     } label: {
@@ -308,7 +308,7 @@ struct GOPStructureView: View {
         }
         .padding(DesignSystem.Padding.lg)
     }
-    
+
     @ViewBuilder
     private func presetButton(_ title: String, start: Double, end: Double) -> some View {
         Button {
@@ -319,14 +319,14 @@ struct GOPStructureView: View {
         .buttonStyle(.borderedProminent)
         .controlSize(.small)
     }
-    
+
     // MARK: - Action Bar
-    
+
     @ViewBuilder
     private func actionBar(analysis: GOPAnalysisResult) -> some View {
         HStack {
             Spacer()
-            
+
             if analysis.isPreview {
                 Button {
                     viewModel.analyzeGOPFullFile(detectFrameTypes: true)
@@ -346,15 +346,15 @@ struct GOPStructureView: View {
             .controlSize(.small)
         }
     }
-    
+
     // MARK: - Info Popover
-    
+
     private var gopInfoPopoverContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             Text("GOP Structure")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
+
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                 Text("What is a GOP?")
                 .font(.subheadline)
@@ -363,7 +363,7 @@ struct GOPStructureView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                
+
                 Text("Frame Types")
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -373,7 +373,7 @@ struct GOPStructureView: View {
                     frameTypeExplanation(type: .p, color: Color(red: 1.0, green: 0.58, blue: 0.0), description: "Frames that reference the previous I or P-frame. More efficient than I-frames but require previous frames to decode.")
                     frameTypeExplanation(type: .b, color: Color(red: 1.0, green: 0.23, blue: 0.19), description: "Frames that reference both previous and future frames. Most efficient compression but require buffering.")
                 }
-                
+
                 Text("Pattern Types")
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -388,7 +388,7 @@ struct GOPStructureView: View {
         .padding(DesignSystem.Padding.lg)
         .frame(width: 360, alignment: .leading)
     }
-    
+
     @ViewBuilder
     private func frameTypeExplanation(type: FrameType, color: Color, description: String) -> some View {
         HStack(spacing: 6) {
@@ -405,7 +405,7 @@ struct GOPStructureView: View {
             .fixedSize(horizontal: false, vertical: true)
             .padding(.leading, 18)
     }
-    
+
     @ViewBuilder
     private func patternExplanation(label: String, color: Color, description: String) -> some View {
                     HStack(spacing: 6) {
@@ -431,10 +431,10 @@ private struct GOPStructureSkeletonView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
             // Visual guide skeleton
             SkeletonView(width: nil, height: 40, cornerRadius: DesignSystem.CornerRadius.small)
-            
+
             // Timeline visualization skeleton
             SkeletonChart(height: 180)
-            
+
             // Stats panel skeleton
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 LazyVGrid(columns: [
@@ -448,7 +448,7 @@ private struct GOPStructureSkeletonView: View {
                     SkeletonCard(width: nil, height: 80)
                     SkeletonCard(width: nil, height: 80)
                 }
-                
+
                 // Frame distribution skeleton
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                     SkeletonText(width: 140, height: 16)
@@ -465,7 +465,7 @@ private struct GOPStructureSkeletonView: View {
                         .fill(DesignSystem.Materials.ultraThin)
                 )
             }
-            
+
             // Action bar skeleton
             HStack {
                 Spacer()
@@ -475,4 +475,3 @@ private struct GOPStructureSkeletonView: View {
         }
     }
 }
-

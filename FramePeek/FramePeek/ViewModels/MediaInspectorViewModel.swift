@@ -14,63 +14,63 @@ final class FramePeekViewModel: ObservableObject {
     @Published var isAnalyzing: Bool = false
     @Published var durationSeconds: Double = 0
     @Published var keyframeThumbs: [KeyframeThumbnail] = []
-    @Published var hoveredKeyframeTime: Double? = nil  // Shared hover state for syncing thumbnails and chart
-    @Published var visibleTimeRange: ClosedRange<Double>? = nil // Zoom state
+    @Published var hoveredKeyframeTime: Double?  // Shared hover state for syncing thumbnails and chart
+    @Published var visibleTimeRange: ClosedRange<Double>? // Zoom state
     @Published var isGeneratingThumbnails: Bool = false
-    
+
     // GOP analysis
-    @Published var gopAnalysis: GOPAnalysisResult? = nil
+    @Published var gopAnalysis: GOPAnalysisResult?
     @Published var isAnalyzingGOP: Bool = false
-    @Published var selectedGOPIndex: Int? = nil // Selected GOP for details view
+    @Published var selectedGOPIndex: Int? // Selected GOP for details view
 
     // UI
     @Published var showAboutView: Bool = false
     @Published var showSettingsView: Bool = false
-    
+
     // Tab choice dialog
     @Published var showTabChoiceDialog: Bool = false
     @Published var pendingURLForTabChoice: URL?
-    
+
     // Signal to open file in new tab (set by view model, handled by FramePeek.swift)
     @Published var shouldOpenInNewTab: URL?
-    
+
     // Settings loaded from AppStorage (synced on init and when needed)
     @Published var samplingMode: SamplingMode = .auto
     @Published var samplingIntervalSeconds: Double = 0.5   // used if mode == .interval
     @Published var maxPointsTarget: Int = 2000             // used if mode == .auto / caps
     @Published var emitEveryNSamples: Int = 100            // UI update batch size
     @Published var preferAccuracy: Bool = false             // Use reader path for accurate bitrate (slower but matches ffprobe)
-    
+
     // Thumbnails settings
     @Published var autoGenerateThumbnails: Bool = true
     @Published var maxThumbnails: Int = 200
     @Published var thumbnailSize: ThumbnailSize = .medium
-    
+
     // Chart Display settings
     @Published var chartMaxDisplayPoints: Int = 1_000
     @Published var chartMaxDisplayPointsZoomed: Int = 2_000
-    
+
     // Waveform settings
     @Published var waveformData: [Int: [WaveformSample]] = [:] // Dictionary keyed by track index
     @Published var isExtractingWaveforms: Bool = false
     @Published var expandedWaveformTracks: Set<Int> = [] // Tracks that are expanded/visible
     @Published var waveformHeight: WaveformHeight = .normal
-    
+
     // Sync analysis
     @Published var syncAnalysisResult: SyncAnalysisResult?
     @Published var frameTimingSamples: [FrameTimingSample] = []
     @Published var isAnalyzingSync: Bool = false
-    
+
     // Color analysis
     @Published var colorSamples: [ColorSample] = []
     @Published var isAnalyzingColor: Bool = false
-    
+
     // Playback position
-    @Published var currentPlaybackTime: Double? = nil
-    
+    @Published var currentPlaybackTime: Double?
+
     // Always use second-based visualization mode
     var visualizationMode: BitrateVisualizationMode { .second }
-    
+
     /// Returns true if a file is loaded but cannot be analyzed for bitrate/frame data
     var isFileUnanalyzable: Bool {
         guard let info = extendedInfo else { return false }
@@ -80,18 +80,18 @@ final class FramePeekViewModel: ObservableObject {
         let hasNoVideoTrack = info.resolution == "N/A" || info.codec == "Unknown"
         // Check if duration is invalid
         let hasInvalidDuration = durationSeconds <= 0 || !durationSeconds.isFinite
-        
+
         return hasNoSamples && (hasNoVideoTrack || hasInvalidDuration)
     }
-    
+
     init() {
         loadSettingsFromUserDefaults()
     }
-    
+
     /// Loads settings from UserDefaults (AppStorage)
     func loadSettingsFromUserDefaults() {
         let defaults = UserDefaults.standard
-        
+
         // Load sampling mode (convert from SamplingModeSetting string to SamplingMode)
         if let modeString = defaults.string(forKey: "samplingMode") {
             // SamplingModeSetting and SamplingMode use the same raw values
@@ -99,7 +99,7 @@ final class FramePeekViewModel: ObservableObject {
                 samplingMode = mode
             }
         }
-        
+
         // Load other settings
         if defaults.object(forKey: "samplingIntervalSeconds") != nil {
             samplingIntervalSeconds = defaults.double(forKey: "samplingIntervalSeconds")
@@ -113,7 +113,7 @@ final class FramePeekViewModel: ObservableObject {
         if defaults.object(forKey: "emitEveryNSamples") != nil {
             emitEveryNSamples = defaults.integer(forKey: "emitEveryNSamples")
         }
-        
+
         // Load Thumbnails settings
         if defaults.object(forKey: "autoGenerateThumbnails") != nil {
             autoGenerateThumbnails = defaults.bool(forKey: "autoGenerateThumbnails")
@@ -125,7 +125,7 @@ final class FramePeekViewModel: ObservableObject {
            let size = ThumbnailSize(rawValue: sizeString) {
             thumbnailSize = size
         }
-        
+
         // Load Chart Display settings
         if defaults.object(forKey: "chartMaxDisplayPoints") != nil {
             chartMaxDisplayPoints = defaults.integer(forKey: "chartMaxDisplayPoints")
@@ -134,7 +134,7 @@ final class FramePeekViewModel: ObservableObject {
             chartMaxDisplayPointsZoomed = defaults.integer(forKey: "chartMaxDisplayPointsZoomed")
         }
     }
-    
+
     /// Saves current settings to UserDefaults (called when settings change)
     func saveSettingsToUserDefaults() {
         let defaults = UserDefaults.standard
@@ -143,7 +143,7 @@ final class FramePeekViewModel: ObservableObject {
         defaults.set(maxPointsTarget, forKey: "maxPointsTarget")
         defaults.set(preferAccuracy, forKey: "preferAccuracy")
     }
-    
+
     var pendingURL: URL?
     private var currentURL: URL?  // Store current URL for re-analysis
     @Published var currentVideoURL: URL?  // Current video URL for player window
@@ -164,4 +164,3 @@ final class FramePeekViewModel: ObservableObject {
         var id: String { rawValue }
     }
 }
-

@@ -6,13 +6,13 @@ struct GOPRangePickerSheet: View {
     let duration: Double
     let onAnalyze: () -> Void
     let onCancel: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
                     header
-                    
+
                     GOPRangePicker(
                         startTime: $startTime,
                         endTime: $endTime,
@@ -21,31 +21,31 @@ struct GOPRangePickerSheet: View {
                 }
                 .padding(DesignSystem.Padding.xxl2)
             }
-            
+
             Divider()
-            
+
             footerButtons
                 .padding(.horizontal, DesignSystem.Padding.xxl2)
                 .padding(.vertical, DesignSystem.Padding.xl)
         }
         .frame(width: 700, height: 640)
     }
-    
+
     private var header: some View {
         Text(String(localized: "Analyze GOP Range"))
             .font(.system(size: DesignSystem.Typography.title2, weight: .semibold))
             .foregroundStyle(.primary)
     }
-    
+
     private var footerButtons: some View {
         HStack(spacing: DesignSystem.Spacing.md) {
             Button("Cancel", action: onCancel)
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .keyboardShortcut(.escape)
-            
+
             Spacer()
-            
+
             Button(action: onAnalyze) {
                 Label("Analyze Range", systemImage: "play.fill")
             }
@@ -60,10 +60,10 @@ struct GOPRangePicker: View {
     @Binding var startTime: Double
     @Binding var endTime: Double
     let duration: Double
-    
+
     @State private var startText: String = ""
     @State private var endText: String = ""
-    
+
     var body: some View {
         customRangeCard
         .onAppear {
@@ -77,13 +77,13 @@ struct GOPRangePicker: View {
             endText = formatTimeInput(endTime)
         }
     }
-    
+
     private var customRangeCard: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
             Text("Custom Range")
                 .font(.system(size: DesignSystem.Typography.headline, weight: .semibold))
                 .foregroundStyle(.primary)
-            
+
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                     RangeSliderView(
@@ -96,7 +96,7 @@ struct GOPRangePicker: View {
                         }
                     )
                     .frame(height: 40)
-                    
+
                     HStack {
                         Text(formatTimeInput(startTime))
                             .font(.system(size: DesignSystem.Typography.footnote, design: .monospaced))
@@ -107,9 +107,9 @@ struct GOPRangePicker: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 Divider()
-                
+
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                     HStack(spacing: DesignSystem.Spacing.xl) {
                         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -126,7 +126,7 @@ struct GOPRangePicker: View {
                                     startText = formatTimeInput(startTime)
                                 }
                         }
-                        
+
                         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                             Text("End Time")
                                 .font(.system(size: DesignSystem.Typography.subheadline, weight: .medium))
@@ -141,9 +141,9 @@ struct GOPRangePicker: View {
                                     endText = formatTimeInput(endTime)
                                 }
                         }
-                        
+
                         Spacer()
-                        
+
                         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                             Text("Duration")
                                 .font(.system(size: DesignSystem.Typography.subheadline, weight: .medium))
@@ -170,7 +170,7 @@ struct GOPRangePicker: View {
                 .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
         )
     }
-    
+
     @ViewBuilder
     private func presetButton(_ title: String, start: Double, end: Double) -> some View {
         Button {
@@ -186,20 +186,20 @@ struct GOPRangePicker: View {
         .buttonStyle(.bordered)
         .controlSize(.regular)
     }
-    
+
     private func formatTimeInput(_ seconds: Double) -> String {
         let totalSeconds = Int(seconds)
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
         let secs = totalSeconds % 60
-        
+
         if hours > 0 {
             return String(format: "%d:%02d:%02d", hours, minutes, secs)
         } else {
             return String(format: "%d:%02d", minutes, secs)
         }
     }
-    
+
     private func formatDurationLabel(_ seconds: Double) -> String {
         let totalSeconds = Int(seconds)
         if totalSeconds >= 3600 {
@@ -210,7 +210,7 @@ struct GOPRangePicker: View {
             return String(format: "%.0fs", seconds)
         }
     }
-    
+
     private func parseTimeInput(_ text: String) -> Double? {
         let parts = text.split(separator: ":").compactMap { Int($0) }
         switch parts.count {
@@ -233,29 +233,29 @@ private struct RangeSliderView: View {
     @Binding var end: Double
     let bounds: ClosedRange<Double>
     var onChanged: ((Double, Double) -> Void)?
-    
+
     @State private var isDraggingStart = false
     @State private var isDraggingEnd = false
     @State private var isDraggingRange = false
     @State private var dragStartOffset: Double = 0
-    
+
     private let handleWidth: CGFloat = 12
     private let trackHeight: CGFloat = 8
-    
+
     var body: some View {
         GeometryReader { geo in
             let width = geo.size.width
             let range = bounds.upperBound - bounds.lowerBound
-            
+
             let startX = range > 0 ? CGFloat((start - bounds.lowerBound) / range) * width : 0
             let endX = range > 0 ? CGFloat((end - bounds.lowerBound) / range) * width : width
-            
+
             ZStack(alignment: .leading) {
                 // Background track
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.secondary.opacity(0.2))
                     .frame(height: trackHeight)
-                
+
                 // Selected range
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.accentColor.opacity(0.4))
@@ -280,7 +280,7 @@ private struct RangeSliderView: View {
                                 isDraggingRange = false
                             }
                     )
-                
+
                 // Start handle
                 Circle()
                     .fill(isDraggingStart ? Color.accentColor : Color.white)
@@ -303,7 +303,7 @@ private struct RangeSliderView: View {
                                 isDraggingStart = false
                             }
                     )
-                
+
                 // End handle
                 Circle()
                     .fill(isDraggingEnd ? Color.accentColor : Color.white)
@@ -336,12 +336,12 @@ private struct RangeSliderView: View {
 
 private struct FlowLayout: Layout {
     var spacing: CGFloat = 8
-    
+
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let result = arrangeSubviews(proposal: proposal, subviews: subviews)
         return result.size
     }
-    
+
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let result = arrangeSubviews(proposal: proposal, subviews: subviews)
         for (index, subview) in subviews.enumerated() {
@@ -350,7 +350,7 @@ private struct FlowLayout: Layout {
                           proposal: .unspecified)
         }
     }
-    
+
     private func arrangeSubviews(proposal: ProposedViewSize, subviews: Subviews) -> (positions: [CGPoint], size: CGSize) {
         let maxWidth = proposal.width ?? .infinity
         var positions: [CGPoint] = []
@@ -358,22 +358,22 @@ private struct FlowLayout: Layout {
         var currentY: CGFloat = 0
         var lineHeight: CGFloat = 0
         var maxX: CGFloat = 0
-        
+
         for subview in subviews {
             let size = subview.sizeThatFits(.unspecified)
-            
+
             if currentX + size.width > maxWidth && currentX > 0 {
                 currentX = 0
                 currentY += lineHeight + spacing
                 lineHeight = 0
             }
-            
+
             positions.append(CGPoint(x: currentX, y: currentY))
             lineHeight = max(lineHeight, size.height)
             currentX += size.width + spacing
             maxX = max(maxX, currentX - spacing)
         }
-        
+
         return (positions, CGSize(width: maxX, height: currentY + lineHeight))
     }
 }

@@ -20,35 +20,35 @@ func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> C
               let extDict = CMFormatDescriptionGetExtensions(formatDesc) as? [CFString: Any] else {
             return nil
         }
-        
-        var colorSpace: String? = nil
-        var chromaSubsampling: String? = nil
-        var colorPrimaries: String? = nil
-        var transferFunction: String? = nil
-        var matrixCoefficients: String? = nil
-        var colorRange: String? = nil
-        var inferredBitDepthBpc: Int? = nil
-        
+
+        var colorSpace: String?
+        var chromaSubsampling: String?
+        var colorPrimaries: String?
+        var transferFunction: String?
+        var matrixCoefficients: String?
+        var colorRange: String?
+        var inferredBitDepthBpc: Int?
+
         // Color primaries & transfer function
         colorPrimaries = extDict[kCMFormatDescriptionExtension_ColorPrimaries] as? String
         transferFunction = extDict[kCMFormatDescriptionExtension_TransferFunction] as? String
-        
+
         // Matrix coefficients (indicates YUV color space)
         if let matrix = extDict[kCMFormatDescriptionExtension_YCbCrMatrix] as? String {
             matrixCoefficients = matrix
             colorSpace = "YUV" // If matrix is present, it's YUV
         }
-        
+
         // Color range
         if let fullRangeNumber = extDict[kCMFormatDescriptionExtension_FullRangeVideo] as? NSNumber {
             colorRange = fullRangeNumber.boolValue ? "Full" : "Limited"
         }
-        
+
         // Bit depth
         if let bpc = extDict[kCMFormatDescriptionExtension_BitsPerComponent] as? NSNumber {
             inferredBitDepthBpc = bpc.intValue
         }
-        
+
         // Depth (for chroma subsampling detection)
         if let depth = extDict[kCMFormatDescriptionExtension_Depth] as? NSNumber {
             // 24-bit typically means 4:4:4, 12-bit means 4:2:0
@@ -61,14 +61,14 @@ func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> C
                 }
             }
         }
-        
+
         // Detect HDR format
         let hdrFormat = detectHDRFormat(
             transferFunction: transferFunction,
             colorPrimaries: colorPrimaries,
             hasDolbyVisionConfig: hasDolbyVision
         )
-        
+
         return ColorInfo(
             colorSpace: colorSpace,
             chromaSubsampling: chromaSubsampling,
@@ -84,5 +84,3 @@ func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> C
         return nil
     }
 }
-
-

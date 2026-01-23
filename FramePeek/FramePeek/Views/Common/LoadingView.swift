@@ -2,12 +2,12 @@ import SwiftUI
 
 struct LoadingView: View {
     let message: String
-    
+
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.md) {
             ProgressView()
                 .controlSize(.small)
-            
+
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
@@ -23,4 +23,3 @@ struct LoadingView: View {
     }
     .padding()
 }
-

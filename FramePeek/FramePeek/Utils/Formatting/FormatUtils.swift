@@ -19,13 +19,13 @@ func fourCCToString(_ code: OSType) -> String {
 /// Formats duration in a human-readable way (e.g., "1h 23m 45s" or "2m 30s")
 func formatDuration(seconds: Double) -> String {
     guard seconds.isFinite, seconds >= 0 else { return "N/A" }
-    
+
     let totalSeconds = Int(seconds)
     let hours = totalSeconds / 3600
     let minutes = (totalSeconds % 3600) / 60
     let secs = totalSeconds % 60
     let ms = Int((seconds - Double(totalSeconds)) * 1000)
-    
+
     if hours > 0 {
         return String(format: "%dh %02dm %02ds", hours, minutes, secs)
     } else if minutes > 0 {
@@ -44,17 +44,17 @@ func formatDuration(seconds: Double) -> String {
 func formatTimeForChart(_ seconds: Double, frameRate: Double? = nil) -> String {
     let fps = frameRate ?? 30.0
     let totalFrames = Int((seconds * fps).rounded())
-    
+
     let framesPerHour = Int(fps * 3600)
     let framesPerMinute = Int(fps * 60)
-    
+
     let hours = totalFrames / framesPerHour
     let remainingFrames = totalFrames % framesPerHour
     let minutes = remainingFrames / framesPerMinute
     let remainingFrames2 = remainingFrames % framesPerMinute
     let secs = remainingFrames2 / Int(fps)
     let frames = remainingFrames2 % Int(fps)
-    
+
     return String(format: "%02d:%02d:%02d:%02d", hours, minutes, secs, frames)
 }
 
@@ -198,16 +198,16 @@ func detectContainerFormat(url: URL, checkDetailed: Bool = false) -> String? {
 /// Parses HEVC (H.265) profile from hvcC box data
 func parseHEVCProfile(_ data: Data) -> String? {
     guard data.count >= 13 else { return nil }
-    
+
     let bytes = [UInt8](data)
     // Byte 1: general_profile_space (2 bits), general_tier_flag (1 bit), general_profile_idc (5 bits)
     let profileIdc = bytes[1] & 0x1F
     let tierFlag = (bytes[1] >> 5) & 0x01
-    
+
     // Byte 12: general_level_idc
     let levelIdc = bytes[12]
     let level = Double(levelIdc) / 30.0
-    
+
     let profileName: String
     switch profileIdc {
     case 1: profileName = "Main"
@@ -217,7 +217,7 @@ func parseHEVCProfile(_ data: Data) -> String? {
     case 5: profileName = "High Throughput"
     default: profileName = "Profile \(profileIdc)"
     }
-    
+
     let tierName = tierFlag == 1 ? "High" : "Main"
     return "\(profileName)@L\(String(format: "%.1f", level))@\(tierName)"
 }
@@ -225,7 +225,7 @@ func parseHEVCProfile(_ data: Data) -> String? {
 /// Parses AVC (H.264) profile from avcC box data
 func parseAVCProfile(_ data: Data) -> String? {
     guard data.count >= 4 else { return nil }
-    
+
     let bytes = [UInt8](data)
     // Byte 1: AVCProfileIndication
     // Byte 2: profile_compatibility
@@ -233,7 +233,7 @@ func parseAVCProfile(_ data: Data) -> String? {
     let profileIdc = bytes[1]
     let levelIdc = bytes[3]
     let level = Double(levelIdc) / 10.0
-    
+
     let profileName: String
     switch profileIdc {
     case 66: profileName = "Baseline"
@@ -245,20 +245,20 @@ func parseAVCProfile(_ data: Data) -> String? {
     case 244: profileName = "High 4:4:4 Predictive"
     default: profileName = "Profile \(profileIdc)"
     }
-    
+
     return "\(profileName)@L\(String(format: "%.1f", level))"
 }
 
 /// Parses VP9 profile from vpcC box data
 func parseVP9Profile(_ data: Data) -> String? {
     guard data.count >= 8 else { return nil }
-    
+
     let bytes = [UInt8](data)
     // Byte 4: profile
     // Byte 5: level
     let profile = bytes[4]
     let level = bytes[5]
-    
+
     let profileName: String
     switch profile {
     case 0: profileName = "Profile 0 (8-bit 4:2:0)"
@@ -267,7 +267,7 @@ func parseVP9Profile(_ data: Data) -> String? {
     case 3: profileName = "Profile 3 (10/12-bit 4:2:2/4:4:4)"
     default: profileName = "Profile \(profile)"
     }
-    
+
     return "\(profileName) Level \(level)"
 }
 
@@ -285,17 +285,17 @@ func parseVP9Profile(_ data: Data) -> String? {
 func parseContainerFormatProfile(url: URL) -> String? {
     guard let fileHandle = FileHandle(forReadingAtPath: url.path) else { return nil }
     defer { fileHandle.closeFile() }
-    
+
     // Try reading from offset 0 first (standard MP4)
     if let profile = parseFtypAtom(fileHandle: fileHandle, offset: 0) {
         return profile
     }
-    
+
     // Try offset 4 for QuickTime files
     if let profile = parseFtypAtom(fileHandle: fileHandle, offset: 4) {
         return profile
     }
-    
+
     return nil
 }
 
@@ -305,24 +305,24 @@ private func parseFtypAtom(fileHandle: FileHandle, offset: UInt64) -> String? {
         try fileHandle.seek(toOffset: offset)
         guard let headerData = try? fileHandle.read(upToCount: 8) else { return nil }
         guard headerData.count == 8 else { return nil }
-        
+
         let bytes = [UInt8](headerData)
         let size = (UInt32(bytes[0]) << 24) | (UInt32(bytes[1]) << 16) | (UInt32(bytes[2]) << 8) | UInt32(bytes[3])
         let type = String(bytes: [bytes[4], bytes[5], bytes[6], bytes[7]], encoding: .ascii) ?? ""
-        
+
         // Check if this is an ftyp atom
         guard type == "ftyp" else { return nil }
-        
+
         // Read ftyp atom content
         let atomSize = Int(size)
         guard atomSize >= 16, atomSize <= 1024 else { return nil } // Reasonable size limit
-        
+
         guard let ftypData = try? fileHandle.read(upToCount: atomSize - 8) else { return nil }
         guard ftypData.count >= 8 else { return nil }
-        
+
         let ftypBytes = [UInt8](ftypData)
         let majorBrand = String(bytes: [ftypBytes[0], ftypBytes[1], ftypBytes[2], ftypBytes[3]], encoding: .ascii) ?? ""
-        
+
         var compatibleBrands: [String] = []
         var brandOffset = 8
         while brandOffset + 4 <= ftypData.count {
@@ -332,7 +332,7 @@ private func parseFtypAtom(fileHandle: FileHandle, offset: UInt64) -> String? {
             }
             brandOffset += 4
         }
-        
+
         // Format as "MajorBrand (CompatibleBrand1, CompatibleBrand2, ...)"
         if !compatibleBrands.isEmpty {
             return "\(majorBrand) (\(compatibleBrands.joined(separator: ", ")))"
@@ -340,8 +340,11 @@ private func parseFtypAtom(fileHandle: FileHandle, offset: UInt64) -> String? {
             return majorBrand
         }
     } catch {
+        #if DEBUG
+        print("FormatUtils: Failed to parse ftyp atom at offset \(offset) - \(error.localizedDescription)")
+        #endif
         return nil
     }
-    
+
     return nil
 }
