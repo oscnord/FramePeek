@@ -7,7 +7,7 @@ enum FrameType: String, Sendable, Codable {
     case unknown = "?"
 }
 
-enum GOPStructureType: Equatable, Sendable {
+enum GOPStructureType: Equatable, Sendable, Codable {
     case unknown
     case fixed(frameCount: Int)
     case variable
@@ -20,6 +20,39 @@ enum GOPStructureType: Equatable, Sendable {
     var fixedFrameCount: Int? {
         if case .fixed(let count) = self { return count }
         return nil
+    }
+    
+    // MARK: - Codable
+    
+    private enum CodingKeys: String, CodingKey {
+        case type, frameCount
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        switch type {
+        case "fixed":
+            let count = try container.decode(Int.self, forKey: .frameCount)
+            self = .fixed(frameCount: count)
+        case "variable":
+            self = .variable
+        default:
+            self = .unknown
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .unknown:
+            try container.encode("unknown", forKey: .type)
+        case .fixed(let count):
+            try container.encode("fixed", forKey: .type)
+            try container.encode(count, forKey: .frameCount)
+        case .variable:
+            try container.encode("variable", forKey: .type)
+        }
     }
 }
 

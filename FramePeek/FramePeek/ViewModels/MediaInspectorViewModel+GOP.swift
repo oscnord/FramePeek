@@ -2,38 +2,45 @@ import AVFoundation
 import SwiftUI
 
 extension FramePeekViewModel {
-    func startGOPPreview(asset: AVAsset) {
-        startGOPAnalysis(asset: asset, options: .preview(detectFixedStructure: true))
+    func startGOPPreview(asset: AVAsset, forceRefresh: Bool = false) {
+        startGOPAnalysis(asset: asset, options: .preview(detectFixedStructure: true), forceRefresh: forceRefresh)
     }
 
-    func analyzeGOPFullFile(detectFrameTypes: Bool = true) {
+    func analyzeGOPFullFile(detectFrameTypes: Bool = true, forceRefresh: Bool = false) {
         guard let url = currentVideoURL else { return }
         let asset = AVURLAsset(url: url)
-        startGOPAnalysis(asset: asset, options: .fullFile(detectFrameTypes: detectFrameTypes, detectFixedStructure: false))
+        startGOPAnalysis(asset: asset, options: .fullFile(detectFrameTypes: detectFrameTypes, detectFixedStructure: false), forceRefresh: forceRefresh)
     }
 
-    func analyzeGOPFullFileOverride(detectFrameTypes: Bool = true) {
+    func analyzeGOPFullFileOverride(detectFrameTypes: Bool = true, forceRefresh: Bool = false) {
         guard let url = currentVideoURL else { return }
         let asset = AVURLAsset(url: url)
-        startGOPAnalysis(asset: asset, options: .fullFile(detectFrameTypes: detectFrameTypes, detectFixedStructure: false))
+        startGOPAnalysis(asset: asset, options: .fullFile(detectFrameTypes: detectFrameTypes, detectFixedStructure: false), forceRefresh: forceRefresh)
     }
 
-    func analyzeGOPWithFrameTypes() {
+    func analyzeGOPWithFrameTypes(forceRefresh: Bool = false) {
         guard let url = currentVideoURL else { return }
         let asset = AVURLAsset(url: url)
-        startGOPAnalysis(asset: asset, options: .fullFile(detectFrameTypes: true, detectFixedStructure: true))
+        startGOPAnalysis(asset: asset, options: .fullFile(detectFrameTypes: true, detectFixedStructure: true), forceRefresh: forceRefresh)
     }
 
-    func analyzeGOPTimeRange(_ range: ClosedRange<Double>, detectFrameTypes: Bool = true) {
+    func analyzeGOPTimeRange(_ range: ClosedRange<Double>, detectFrameTypes: Bool = true, forceRefresh: Bool = false) {
         guard let url = currentVideoURL else { return }
         let asset = AVURLAsset(url: url)
-        startGOPAnalysis(asset: asset, options: .timeRange(range, detectFrameTypes: detectFrameTypes))
+        startGOPAnalysis(asset: asset, options: .timeRange(range, detectFrameTypes: detectFrameTypes), forceRefresh: forceRefresh)
     }
 
     func cancelGOPAnalysis() {
         gopTask?.cancel()
         gopTask = nil
         isAnalyzingGOP = false
+    }
+    
+    /// Force refresh GOP analysis, bypassing cache
+    func refreshGOPAnalysis() {
+        guard let url = currentVideoURL else { return }
+        let asset = AVURLAsset(url: url)
+        startGOPAnalysis(asset: asset, options: .preview(detectFixedStructure: true), forceRefresh: true)
     }
 
     func selectGOP(at index: Int) {
@@ -201,10 +208,11 @@ extension FramePeekViewModel {
         codecSupportsFrameTypes = true
     }
 
-    private func startGOPAnalysis(asset: AVAsset, options: GOPOptions) {
+    private func startGOPAnalysis(asset: AVAsset, options: GOPOptions, forceRefresh: Bool = false) {
         gopTask?.cancel()
         gopAnalysis = nil
         isAnalyzingGOP = true
+        gopLoadedFromCache = false
         
         // Clear frame details cache when starting new analysis
         clearGOPFrameDetailsCache()
@@ -214,15 +222,55 @@ extension FramePeekViewModel {
             let codecFourCC = await getVideoCodecFourCC(from: asset)
             codecSupportsFrameTypes = FrameDetailExtractor.codecSupportsFrameTypeDetection(codecFourCC)
         }
+        
+        guard let url = currentVideoURL else {
+            isAnalyzingGOP = false
+            return
+        }
 
         gopTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
+            
+            // Check cache first (unless force refresh)
+            if !forceRefresh {
+                if let cached = await CacheManager.shared.loadGOPCache(for: url) {
+                    let segments = await CacheManager.shared.convertCachedGOPSegments(cached.segments)
+                    
+                    // Get representative GOP from index
+                    let representativeGOP: GOPSegment? = cached.representativeGOPIndex.flatMap { index in
+                        index < segments.count ? segments[index] : nil
+                    }
+                    
+                    await MainActor.run {
+                        self.gopAnalysis = GOPAnalysisResult(
+                            segments: segments,
+                            isPreview: cached.isPreview,
+                            scannedUntilSeconds: cached.scannedUntilSeconds,
+                            isFinished: !cached.isPartial,
+                            structureType: cached.structureType,
+                            representativeGOP: representativeGOP
+                        )
+                        self.gopLoadedFromCache = true
+                        
+                        if !cached.isPartial {
+                            self.isAnalyzingGOP = false
+                        }
+                    }
+                    
+                    // If not partial, we're done
+                    if !cached.isPartial {
+                        return
+                    }
+                    // If partial, continue with fresh analysis below
+                }
+            }
 
             var allSegments: [GOPSegment] = []
             allSegments.reserveCapacity(256)
 
             var latestStructureType: GOPStructureType = .unknown
             var latestRepresentativeGOP: GOPSegment?
+            var latestRepresentativeGOPIndex: Int?
 
             for await update in extractGOPSegments(asset: asset, options: options) {
                 if Task.isCancelled { return }
@@ -234,6 +282,10 @@ extension FramePeekViewModel {
                 latestStructureType = update.structureType
                 if let repGOP = update.representativeGOP {
                     latestRepresentativeGOP = repGOP
+                    // Find index of representative GOP
+                    latestRepresentativeGOPIndex = allSegments.firstIndex(where: {
+                        $0.startTime == repGOP.startTime && $0.endTime == repGOP.endTime
+                    })
                 }
 
                 let segmentsSnapshot = allSegments
@@ -252,13 +304,27 @@ extension FramePeekViewModel {
                         structureType: structureType,
                         representativeGOP: representativeGOP
                     )
+                    self.gopLoadedFromCache = false  // No longer from cache
 
                     if isFinished {
                         self.isAnalyzingGOP = false
                     }
                 }
 
-                if isFinished { break }
+                if isFinished {
+                    // Save to cache when analysis completes
+                    await CacheManager.shared.saveGOPCache(
+                        for: url,
+                        segments: allSegments,
+                        isPartial: false,
+                        partialDurationSeconds: nil,
+                        isPreview: isPreview,
+                        scannedUntilSeconds: scannedUntilSeconds,
+                        structureType: latestStructureType,
+                        representativeGOPIndex: latestRepresentativeGOPIndex
+                    )
+                    break
+                }
             }
         }
     }

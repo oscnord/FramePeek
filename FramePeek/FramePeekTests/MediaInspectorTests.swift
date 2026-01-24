@@ -714,3 +714,425 @@ struct TimeFormattingTests {
         #expect(result == "00:00:01:00")
     }
 }
+
+// MARK: - HDR Utils Tests
+
+struct HDRUtilsTests {
+    
+    @Test func pqToLinear_convertsZero() {
+        #expect(pqToLinear(0) == 0)
+    }
+    
+    @Test func pqToLinear_convertsMaximum() {
+        #expect(pqToLinear(1) == 1)
+    }
+    
+    @Test func pqToLinear_convertsMidRange() {
+        // PQ 0.5 should be somewhere in the middle (but not 0.5 linear due to curve)
+        let result = pqToLinear(0.5)
+        #expect(result > 0 && result < 1)
+        // PQ is heavily weighted toward shadows, so 0.5 PQ is actually quite low
+        #expect(result < 0.1)
+    }
+    
+    @Test func pqToNits_convertsCorrectly() {
+        // PQ 0 = 0 nits, PQ 1 = 10000 nits
+        #expect(pqToNits(0) == 0)
+        #expect(pqToNits(1) == 10000)
+    }
+    
+    @Test func linearToPQ_isInverseOfPqToLinear() {
+        for testValue in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            let linear = pqToLinear(testValue)
+            let backToPQ = linearToPQ(linear)
+            #expect(abs(backToPQ - testValue) < 0.001)
+        }
+    }
+    
+    @Test func hlgOETFInverse_convertsZero() {
+        #expect(hlgOETFInverse(0) == 0)
+    }
+    
+    @Test func hlgOETFInverse_convertsMidRange() {
+        // HLG has a split at 0.5
+        let lowResult = hlgOETFInverse(0.25)
+        let highResult = hlgOETFInverse(0.75)
+        
+        #expect(lowResult >= 0)
+        #expect(highResult > lowResult)
+    }
+    
+    @Test func hlgToNits_convertsToExpectedRange() {
+        // At 0, should be 0 nits
+        #expect(hlgToNits(0) == 0)
+        
+        // At 1, should be at or near peak luminance
+        let peak = hlgToNits(1.0, peakLuminance: 1000)
+        // HLG OOTF with gamma 1.2 may not give exactly 1000, so allow some tolerance
+        #expect(peak >= 900 && peak <= 1100)
+    }
+    
+    @Test func sdrToLinear_appliesGamma() {
+        #expect(sdrToLinear(0) == 0)
+        // SDR uses ~2.4 gamma, so 0.5 -> 0.5^2.4 ≈ 0.14
+        let result = sdrToLinear(0.5)
+        #expect(result > 0.1 && result < 0.2)
+    }
+    
+    @Test func linearToSDR_isInverseOfSdrToLinear() {
+        for testValue in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            let linear = sdrToLinear(testValue)
+            let backToSDR = linearToSDR(linear)
+            #expect(abs(backToSDR - testValue) < 0.001)
+        }
+    }
+    
+    @Test func normalizedToIRE_convertsCorrectly() {
+        #expect(normalizedToIRE(0) == 0)
+        #expect(normalizedToIRE(1) == 100)
+        #expect(normalizedToIRE(0.5) == 50)
+    }
+    
+    @Test func ireToNormalized_isInverse() {
+        for ire in [0.0, 25.0, 50.0, 75.0, 100.0] {
+            let normalized = ireToNormalized(ire)
+            let backToIRE = normalizedToIRE(normalized)
+            #expect(abs(backToIRE - ire) < 0.001)
+        }
+    }
+    
+    @Test func detectHDRContentType_detectsDolbyVision() {
+        let result = detectHDRContentType(
+            transferFunction: "ITU_R_2100_PQ",
+            colorPrimaries: "ITU_R_2020",
+            hasDolbyVision: true
+        )
+        #expect(result == .dolbyVision)
+    }
+    
+    @Test func detectHDRContentType_detectsHDR10() {
+        let result = detectHDRContentType(
+            transferFunction: "ITU_R_2100_PQ",
+            colorPrimaries: "ITU_R_2020",
+            hasDolbyVision: false
+        )
+        #expect(result == .hdr10)
+    }
+    
+    @Test func detectHDRContentType_detectsHLG() {
+        let result = detectHDRContentType(
+            transferFunction: "ITU_R_2100_HLG",
+            colorPrimaries: nil,
+            hasDolbyVision: false
+        )
+        #expect(result == .hlg)
+    }
+    
+    @Test func detectHDRContentType_detectsSDR() {
+        let result = detectHDRContentType(
+            transferFunction: "ITU_R_709_2",
+            colorPrimaries: "ITU_R_709_2",
+            hasDolbyVision: false
+        )
+        #expect(result == .sdr)
+    }
+    
+    @Test func detectHDRContentType_returnsSDRForNilTransfer() {
+        let result = detectHDRContentType(
+            transferFunction: nil,
+            colorPrimaries: nil,
+            hasDolbyVision: false
+        )
+        #expect(result == .sdr)
+    }
+}
+
+// MARK: - CCT Calculator Tests
+
+struct CCTCalculatorTests {
+    
+    @Test func chromaticityXY_calculatesCCT() {
+        // D65 white point (x=0.31271, y=0.32902) should be ~6504K
+        let d65 = ChromaticityXY(x: 0.31271, y: 0.32902)
+        let result = d65.calculateCCT()
+        
+        #expect(result != nil)
+        #expect(result!.cct > 6000 && result!.cct < 7000)
+    }
+    
+    @Test func chromaticityXY_calculatesCCTForTungsten() {
+        // Tungsten-like chromaticity (warmer) around x=0.45, y=0.41
+        let warm = ChromaticityXY(x: 0.45, y: 0.41)
+        let result = warm.calculateCCT()
+        
+        #expect(result != nil)
+        #expect(result!.cct > 2000 && result!.cct < 4000)
+    }
+    
+    @Test func chromaticityXY_hasConfidenceProperty() {
+        // D65 white point should return a result with confidence
+        let d65 = ChromaticityXY(x: 0.31271, y: 0.32902)
+        let result = d65.calculateCCT()
+        
+        #expect(result != nil)
+        // Just verify confidence is within valid range 0-1
+        #expect(result!.confidence >= 0 && result!.confidence <= 1)
+    }
+    
+    @Test func rgbToXYZ_convertsCorrectly() {
+        // Pure red in BT.709 should have X >> Y, Z ≈ 0
+        let redXYZ = rgbToXYZ(r: 1, g: 0, b: 0)
+        #expect(redXYZ.x > redXYZ.y)
+        #expect(redXYZ.z < 0.1)
+        
+        // Pure green should have Y as dominant
+        let greenXYZ = rgbToXYZ(r: 0, g: 1, b: 0)
+        #expect(greenXYZ.y > greenXYZ.x)
+        #expect(greenXYZ.y > greenXYZ.z)
+        
+        // Pure blue should have Z as dominant
+        let blueXYZ = rgbToXYZ(r: 0, g: 0, b: 1)
+        #expect(blueXYZ.z > blueXYZ.x)
+        #expect(blueXYZ.z > blueXYZ.y)
+    }
+    
+    @Test func xyzToChromacity_convertsWhite() {
+        // D65 white in XYZ (roughly)
+        let result = xyzToChromacity(X: 0.95047, Y: 1.0, Z: 1.08883)
+        
+        #expect(result != nil)
+        // D65 is approximately x=0.31271, y=0.32902
+        #expect(abs(result!.x - 0.31) < 0.02)
+        #expect(abs(result!.y - 0.33) < 0.02)
+    }
+    
+    @Test func xyzToChromacity_returnsNilForZeroSum() {
+        let result = xyzToChromacity(X: 0, Y: 0, Z: 0)
+        #expect(result == nil)
+    }
+    
+    @Test func calculateCCTFromRGB_returnsValueForNeutralGray() {
+        let result = calculateCCTFromRGB(r: 0.5, g: 0.5, b: 0.5)
+        
+        #expect(result != nil)
+        // Neutral gray should have moderate CCT around daylight
+        #expect(result!.cct > 4000 && result!.cct < 8000)
+    }
+    
+    @Test func calculateCCTFromRGB_warmerForRedTint() {
+        let neutral = calculateCCTFromRGB(r: 0.5, g: 0.5, b: 0.5)
+        let warm = calculateCCTFromRGB(r: 0.6, g: 0.45, b: 0.4)
+        
+        #expect(neutral != nil && warm != nil)
+        #expect(warm!.cct < neutral!.cct)  // Warmer = lower CCT
+    }
+    
+    @Test func calculateCCTFromRGB_coolerForBlueTint() {
+        let neutral = calculateCCTFromRGB(r: 0.5, g: 0.5, b: 0.5)
+        // Use moderately cool values that stay within valid CCT range (1800-20000K)
+        // More subtle blue tint: slightly less red, slightly more blue
+        let cool = calculateCCTFromRGB(r: 0.48, g: 0.50, b: 0.54)
+        
+        #expect(neutral != nil && cool != nil)
+        #expect(cool!.cct > neutral!.cct)  // Cooler = higher CCT
+    }
+    
+    @Test func colorSpace_fromColorPrimaries() {
+        #expect(ColorSpace.from(colorPrimaries: "ITU_R_2020") == .bt2020)
+        #expect(ColorSpace.from(colorPrimaries: "P3_D65") == .p3)
+        #expect(ColorSpace.from(colorPrimaries: "ITU_R_709_2") == .bt709)
+        #expect(ColorSpace.from(colorPrimaries: nil) == .bt709)
+    }
+}
+
+// MARK: - Exposure Status Tests
+
+struct ExposureStatusTests {
+    
+    @Test func exposureStatus_hasCorrectSymbols() {
+        #expect(ExposureStatus.underexposed.symbolName == "moon.fill")
+        #expect(ExposureStatus.properlyExposed.symbolName == "checkmark.circle.fill")
+        #expect(ExposureStatus.clipped.symbolName == "exclamationmark.triangle.fill")
+    }
+    
+    @Test func exposureStatus_hasDisplayNames() {
+        for status in ExposureStatus.allCases {
+            #expect(!status.displayName.isEmpty)
+        }
+    }
+}
+
+// MARK: - Luminance Data Tests
+
+struct LuminanceDataTests {
+    
+    @Test func luminanceData_contrastRatio_calculatesCorrectly() {
+        let data = LuminanceData(
+            min: 0.1,
+            max: 1.0,
+            average: 0.5,
+            percentile98: 0.95,
+            percentile02: 0.15
+        )
+        
+        // Contrast ratio = max / min = 1.0 / 0.1 = 10:1
+        #expect(data.contrastRatio == 10)
+    }
+    
+    @Test func luminanceData_contrastRatio_avoidsZeroDivision() {
+        let data = LuminanceData(
+            min: 0.0,
+            max: 1.0,
+            average: 0.5,
+            percentile98: 0.95,
+            percentile02: 0.0
+        )
+        
+        // Should use 0.001 minimum, so CR = 1.0 / 0.001 = 1000
+        #expect(data.contrastRatio == 1000)
+    }
+}
+
+// MARK: - Color Temperature Data Tests
+
+struct ColorTemperatureDataTests {
+    
+    @Test func colorTemperatureData_description_warm() {
+        let data = ColorTemperatureData(cct: 2700, duv: 0.001, confidence: 0.9)
+        #expect(data.description.contains("Tungsten") || data.description.contains("Warm"))
+    }
+    
+    @Test func colorTemperatureData_description_daylight() {
+        let data = ColorTemperatureData(cct: 5600, duv: 0.001, confidence: 0.9)
+        #expect(data.description.contains("Daylight") || data.description.contains("Neutral"))
+    }
+    
+    @Test func colorTemperatureData_description_cool() {
+        let data = ColorTemperatureData(cct: 8000, duv: 0.001, confidence: 0.9)
+        #expect(data.description.contains("Cool"))
+    }
+    
+    @Test func colorTemperatureData_tintDescription_none() {
+        let data = ColorTemperatureData(cct: 5500, duv: 0.001, confidence: 0.9)
+        #expect(data.tintDescription == nil)
+    }
+    
+    @Test func colorTemperatureData_tintDescription_green() {
+        let data = ColorTemperatureData(cct: 5500, duv: 0.01, confidence: 0.9)
+        #expect(data.tintDescription?.contains("Green") == true)
+    }
+    
+    @Test func colorTemperatureData_tintDescription_magenta() {
+        let data = ColorTemperatureData(cct: 5500, duv: -0.01, confidence: 0.9)
+        #expect(data.tintDescription?.contains("Magenta") == true)
+    }
+}
+
+// MARK: - Waveform Scale Tests
+
+struct WaveformScaleTests {
+    
+    @Test func waveformScale_suitableForSDR() {
+        #expect(WaveformScale.ire.isSuitableForSDR == true)
+        #expect(WaveformScale.percentage.isSuitableForSDR == true)
+        #expect(WaveformScale.nits.isSuitableForSDR == false)
+        #expect(WaveformScale.logNits.isSuitableForSDR == false)
+    }
+    
+    @Test func waveformScale_maxValues() {
+        #expect(WaveformScale.ire.maxValueSDR == 109.0)
+        #expect(WaveformScale.percentage.maxValueSDR == 100.0)
+        #expect(WaveformScale.nits.maxValueHDR == 10000.0)
+    }
+}
+
+// MARK: - HDR Content Type Tests
+
+struct HDRContentTypeTests {
+    
+    @Test func hdrContentType_isHDR() {
+        #expect(HDRContentType.sdr.isHDR == false)
+        #expect(HDRContentType.hdr10.isHDR == true)
+        #expect(HDRContentType.hlg.isHDR == true)
+        #expect(HDRContentType.dolbyVision.isHDR == true)
+    }
+    
+    @Test func hdrContentType_usesPQ() {
+        #expect(HDRContentType.sdr.usesPQ == false)
+        #expect(HDRContentType.hdr10.usesPQ == true)
+        #expect(HDRContentType.hlg.usesPQ == false)
+        #expect(HDRContentType.dolbyVision.usesPQ == true)
+    }
+    
+    @Test func hdrContentType_usesHLG() {
+        #expect(HDRContentType.hlg.usesHLG == true)
+        #expect(HDRContentType.hdr10.usesHLG == false)
+    }
+    
+    @Test func hdrContentType_maxNits() {
+        #expect(HDRContentType.sdr.maxNits == 100)
+        #expect(HDRContentType.hdr10.maxNits == 10000)
+        #expect(HDRContentType.hlg.maxNits == 1000)
+    }
+}
+
+// MARK: - Dolby Vision Config Tests
+
+struct DolbyVisionConfigTests {
+    
+    @Test func dolbyVisionConfig_profileDescription() {
+        let config = DolbyVisionConfig(
+            profile: 8,
+            level: 9,
+            blSignalCompatibility: 0,
+            rpuPresent: true,
+            elPresent: false,
+            blPresent: true
+        )
+        
+        #expect(config.profileDescription.contains("dvhe"))
+        #expect(config.profileDescription.contains("Compatible"))
+    }
+    
+    @Test func dolbyVisionConfig_hdr10Compatibility() {
+        let profile7 = DolbyVisionConfig(profile: 7, level: 6, blSignalCompatibility: 0, rpuPresent: true, elPresent: false, blPresent: true)
+        let profile8 = DolbyVisionConfig(profile: 8, level: 6, blSignalCompatibility: 0, rpuPresent: true, elPresent: false, blPresent: true)
+        let profile5 = DolbyVisionConfig(profile: 5, level: 6, blSignalCompatibility: 0, rpuPresent: true, elPresent: false, blPresent: true)
+        
+        #expect(profile7.isHDR10Compatible == true)
+        #expect(profile8.isHDR10Compatible == true)
+        #expect(profile5.isHDR10Compatible == false)
+    }
+    
+    @Test func dolbyVisionConfig_codecString() {
+        let config = DolbyVisionConfig(
+            profile: 8,
+            level: 9,
+            blSignalCompatibility: 0,
+            rpuPresent: true,
+            elPresent: false,
+            blPresent: true
+        )
+        
+        #expect(config.codecString == "dvhe.08.09")
+    }
+    
+    @Test func parseDolbyVisionConfig_parsesValidData() {
+        // Simulate dvcC data: version=1, profile=8, level=6
+        var data = Data(count: 24)
+        data[0] = 1  // version
+        data[1] = 0  // version major/minor
+        data[2] = 0b0001_0000  // profile 8 (shifted)
+        data[3] = 0b0011_0100  // level 6 + flags
+        data[4] = 0  // bl_signal_compatibility_id
+        
+        let config = parseDolbyVisionConfig(data: data)
+        #expect(config != nil)
+    }
+    
+    @Test func parseDolbyVisionConfig_returnsNilForShortData() {
+        let data = Data([0x01, 0x00, 0x00])
+        let config = parseDolbyVisionConfig(data: data)
+        #expect(config == nil)
+    }
+}

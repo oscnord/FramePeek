@@ -30,6 +30,11 @@ struct CachedGOPData: Codable {
     let isPartial: Bool
     let partialDurationSeconds: Double?
     let createdAt: Date
+    // Additional fields for full GOPAnalysisResult reconstruction
+    let isPreview: Bool
+    let scannedUntilSeconds: Double
+    let structureType: GOPStructureType
+    let representativeGOPIndex: Int?  // Index into segments array
 }
 
 /// Simplified GOP segment for caching (without non-Codable properties)
@@ -197,7 +202,11 @@ final class CacheManager: ObservableObject {
         for url: URL,
         segments: [GOPSegment],
         isPartial: Bool = false,
-        partialDurationSeconds: Double? = nil
+        partialDurationSeconds: Double? = nil,
+        isPreview: Bool = false,
+        scannedUntilSeconds: Double = 0,
+        structureType: GOPStructureType = .unknown,
+        representativeGOPIndex: Int? = nil
     ) async {
         guard let key = await cacheKey(for: url),
               let cacheURL = gopCacheURL else { return }
@@ -219,7 +228,11 @@ final class CacheManager: ObservableObject {
             segments: cachedSegments,
             isPartial: isPartial,
             partialDurationSeconds: partialDurationSeconds,
-            createdAt: Date()
+            createdAt: Date(),
+            isPreview: isPreview,
+            scannedUntilSeconds: scannedUntilSeconds,
+            structureType: structureType,
+            representativeGOPIndex: representativeGOPIndex
         )
 
         let fileURL = cacheURL.appendingPathComponent("\(key).\(CacheConfig.gopFileExtension)")

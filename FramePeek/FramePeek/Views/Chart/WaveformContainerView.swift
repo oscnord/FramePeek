@@ -60,6 +60,29 @@ struct WaveformContainerView: View {
                 Text("(\(audioTracks.count))")
                     .font(.caption)
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                
+                // Cache indicator with refresh button
+                if viewModel.waveformLoadedFromCache {
+                    Button {
+                        viewModel.refreshWaveforms()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 9))
+                            Text("Cached")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(Color.secondary.opacity(0.1))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "Data loaded from cache. Click to refresh."))
+                }
             }
 
             Spacer()

@@ -4,6 +4,13 @@ import AVFoundation
 
 struct ColorAnalysisView: View {
     @ObservedObject var viewModel: FramePeekViewModel
+    
+    @AppStorage("waveformScale") private var waveformScaleRaw: String = WaveformScale.percentage.rawValue
+    @AppStorage("vectorscopeShowReferenceBoxes") private var showReferenceBoxes: Bool = true
+    @AppStorage("generateWaveformData") private var generateWaveformData: Bool = true
+    @AppStorage("generateVectorscopeData") private var generateVectorscopeData: Bool = true
+    
+
 
     private var displaySamples: [ColorSample] {
         let filteredSamples: [ColorSample]
@@ -14,33 +21,25 @@ struct ColorAnalysisView: View {
         }
         return filteredSamples
     }
+    
+    private var waveformScale: WaveformScale {
+        WaveformScale(rawValue: waveformScaleRaw) ?? .percentage
+    }
 
     // MARK: - HDR Detection
 
     private var isHDRContent: Bool {
-        viewModel.extendedInfo?.hdrFormat != nil
+        viewModel.hdrContentType.isHDR
     }
 
     private var isDolbyVision: Bool {
-        viewModel.extendedInfo?.hdrFormat == "Dolby Vision"
+        viewModel.hdrContentType == .dolbyVision
     }
 
-    // MARK: - Statistics
+    // MARK: - Statistics from Professional Analysis
 
-    private var brightnessStats: (min: Double, max: Double, avg: Double)? {
-        guard !displaySamples.isEmpty else { return nil }
-        let brightnesses = displaySamples.map { $0.brightness }
-        guard let min = brightnesses.min(), let max = brightnesses.max() else { return nil }
-        let avg = brightnesses.reduce(0, +) / Double(brightnesses.count)
-        return (min: min, max: max, avg: avg)
-    }
-
-    private var temperatureStats: (min: Double, max: Double, avg: Double)? {
-        let validTemps = displaySamples.compactMap { $0.colorTemperature }
-        guard !validTemps.isEmpty else { return nil }
-        guard let min = validTemps.min(), let max = validTemps.max() else { return nil }
-        let avg = validTemps.reduce(0, +) / Double(validTemps.count)
-        return (min: min, max: max, avg: avg)
+    private var professionalStats: AggregatedColorStats? {
+        viewModel.aggregatedColorStats
     }
 
     private var aggregatedHistogram: ColorHistogram? {
@@ -91,23 +90,34 @@ struct ColorAnalysisView: View {
                     )
             )
             .padding(DesignSystem.Padding.lg)
+            .task {
+                // Detect HDR type when view appears
+                await viewModel.detectHDRType()
+            }
         }
     }
 
     private var headerSection: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                Text("Color Analysis")
-                    .font(.headline)
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Text("Color Analysis")
+                        .font(.headline)
+                    
+                    if isHDRContent {
+                        hdrBadge
+                    }
+                }
+                
                 if !viewModel.colorSamples.isEmpty {
-                    Text("Analyzes brightness, color temperature, and RGB distribution")
+                    Text("Color metrics, scopes, and distribution")
                         .font(.caption2)
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 }
             }
             Spacer()
 
-            if viewModel.colorSamples.isEmpty {
+            if !viewModel.isAnalyzingColor && viewModel.colorSamples.isEmpty {
                 Button {
                     if let url = viewModel.currentVideoURL {
                         let asset = AVURLAsset(url: url)
@@ -119,27 +129,55 @@ struct ColorAnalysisView: View {
                         Text("Analyze")
                     }
                 }
-                .disabled(viewModel.isAnalyzingColor)
-                .opacity(viewModel.isAnalyzingColor ? 0.5 : 1.0)
             }
         }
         .padding(.horizontal, DesignSystem.Padding.lg)
         .padding(.top, DesignSystem.Padding.lg)
         .padding(.bottom, DesignSystem.Padding.md)
     }
+    
+    private var hdrBadge: some View {
+        Text(viewModel.hdrContentType.displayName)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isDolbyVision ? Color.purple : Color.orange)
+            )
+    }
 
     private var loadingSection: some View {
-        ColorAnalysisSkeletonView()
-            .padding(.horizontal, DesignSystem.Padding.lg)
-            .padding(.bottom, DesignSystem.Padding.lg)
+        HStack {
+            Spacer()
+            LoadingView(
+                message: String(localized: "Analyzing..."),
+                progress: viewModel.colorAnalysisProgress
+            )
+            Spacer()
+        }
+        .padding(.vertical, DesignSystem.Padding.lg)
     }
 
     private var emptySection: some View {
-        Text("Click Analyze to start color analysis")
-            .font(.subheadline)
-            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, DesignSystem.Padding.xxl)
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Image(systemName: "waveform.and.magnifyingglass")
+                .font(.largeTitle)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.5))
+            
+            Text("Click Analyze to start color analysis")
+                .font(.subheadline)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+            
+            if generateWaveformData || generateVectorscopeData {
+                Text("Includes waveform, vectorscope, and color metrics")
+                    .font(.caption)
+                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.7))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DesignSystem.Padding.xxl)
     }
 
     @ViewBuilder
@@ -147,8 +185,16 @@ struct ColorAnalysisView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
             if isHDRContent {
                 hdrWarningBanner
-            } else if let brightnessStats = brightnessStats {
-                statisticsSummarySection(brightnessStats: brightnessStats)
+            }
+            
+            // Professional metrics
+            if let stats = professionalStats {
+                professionalMetricsSection(stats: stats)
+            }
+            
+            // Scopes section (Waveform & Vectorscope)
+            if generateWaveformData || generateVectorscopeData {
+                scopesSection
             }
 
             chartsSection
@@ -156,24 +202,176 @@ struct ColorAnalysisView: View {
         .padding(.horizontal, DesignSystem.Padding.lg)
         .padding(.bottom, DesignSystem.Padding.lg)
     }
+    
+    // MARK: - Metrics Section
+    
+    @ViewBuilder
+    private func professionalMetricsSection(stats: AggregatedColorStats) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Text("Color Metrics")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.primary)
 
-    private var chartsSection: some View {
-        VStack(spacing: DesignSystem.Spacing.md) {
-            BrightnessChartView(samples: displaySamples, frameRate: viewModel.effectiveFPS)
-                .overlay(alignment: .topTrailing) {
-                    if isHDRContent {
-                        hdrChartWarning
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: DesignSystem.Spacing.md) {
+                ColorSummaryItem(
+                    label: String(localized: "Luminance"),
+                    value: String(format: "%.1f%%", stats.luminanceAvg * 100),
+                    icon: "sun.max",
+                    detail: String(format: String(localized: "%.0f%% - %.0f%%"), stats.luminanceMin * 100, stats.luminanceMax * 100)
+                )
+                
+                ColorSummaryItem(
+                    label: String(localized: "Contrast"),
+                    value: formatContrastRatio(stats.contrastRatio),
+                    icon: "circle.lefthalf.filled",
+                    detail: nil
+                )
+                
+                ColorSummaryItem(
+                    label: String(localized: "Saturation"),
+                    value: String(format: "%.0f%%", stats.saturationAvg * 100),
+                    icon: "paintpalette",
+                    detail: nil
+                )
+                
+                if let cctAvg = stats.cctAvg, !isHDRContent {
+                    ColorSummaryItem(
+                        label: String(localized: "CCT"),
+                        value: String(format: "%.0f K", cctAvg),
+                        icon: "thermometer",
+                        detail: cctDescription(cctAvg)
+                    )
+                } else {
+                    ColorSummaryItem(
+                        label: String(localized: "CCT"),
+                        value: isHDRContent ? "N/A" : "-",
+                        icon: "thermometer",
+                        detail: isHDRContent ? String(localized: "HDR") : nil
+                    )
+                }
+            }
+        }
+    }
+    
+    private func formatContrastRatio(_ ratio: Double) -> String {
+        if ratio >= 1000 {
+            return String(format: "%.1fK:1", ratio / 1000)
+        } else if ratio >= 100 {
+            return String(format: "%.0f:1", ratio)
+        } else {
+            return String(format: "%.1f:1", ratio)
+        }
+    }
+    
+    private func cctDescription(_ cct: Double) -> String? {
+        if cct < 3500 {
+            return String(localized: "Warm")
+        } else if cct < 5000 {
+            return String(localized: "Neutral")
+        } else if cct < 6500 {
+            return String(localized: "Daylight")
+        } else {
+            return String(localized: "Cool")
+        }
+    }
+    
+    // MARK: - Scopes Section
+    
+    private var scopesSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Text("Scopes")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+            
+            // Side-by-side Waveform and Vectorscope
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                // Waveform (flexible width - takes remaining space)
+                if generateWaveformData {
+                    if let waveformData = viewModel.latestWaveformData {
+                        WaveformScopeView(
+                            waveformData: waveformData,
+                            scale: waveformScale,
+                            isHDR: isHDRContent,
+                            height: 200
+                        )
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        scopeNoDataView(type: "Waveform")
+                            .frame(maxWidth: .infinity)
                     }
                 }
-            ColorTemperatureChartView(samples: displaySamples, frameRate: viewModel.effectiveFPS)
-                .overlay(alignment: .topTrailing) {
-                    if isHDRContent {
-                        hdrChartWarning
+                
+                // Vectorscope (fixed square)
+                if generateVectorscopeData {
+                    if let vectorscopeData = viewModel.latestVectorscopeData {
+                        VectorscopeView(
+                            vectorscopeData: vectorscopeData,
+                            showReferenceBoxes: showReferenceBoxes,
+                            size: 200
+                        )
+                    } else {
+                        scopeNoDataView(type: "Vectorscope")
+                            .frame(width: 200, height: 200)
                     }
                 }
-
+            }
+            
+            // Histogram below
             if let histogram = aggregatedHistogram {
                 RGBHistogramView(histogram: histogram, isHDRContent: isHDRContent, isDolbyVision: isDolbyVision)
+            }
+        }
+    }
+    
+    private func scopeDisabledView(type: String) -> some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: "gear")
+                .font(.title2)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.5))
+            Text("\(type) generation is disabled in settings")
+                .font(.caption)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 150)
+    }
+    
+    private func scopeNoDataView(type: String) -> some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: "waveform.slash")
+                .font(.title2)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.5))
+            Text("No \(type.lowercased()) data available")
+                .font(.caption)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 150)
+    }
+
+    private var chartsSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Text("Timeline")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+            
+            VStack(spacing: DesignSystem.Spacing.md) {
+                BrightnessChartView(samples: displaySamples, frameRate: viewModel.effectiveFPS)
+                    .overlay(alignment: .topTrailing) {
+                        if isHDRContent {
+                            hdrChartWarning
+                        }
+                    }
+                
+                if !isHDRContent {
+                    ColorTemperatureChartView(samples: displaySamples, frameRate: viewModel.effectiveFPS)
+                }
             }
         }
     }
@@ -185,12 +383,19 @@ struct ColorAnalysisView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 2) {
-                Text(isDolbyVision ? String(localized: "Dolby Vision Detected") : String(localized: "HDR Content Detected"))
+                Text(isDolbyVision ? String(localized: "Dolby Vision Content") : String(localized: "HDR Content"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                Text(String(localized: "Color analysis may be inaccurate for HDR content. Thumbnail colors do not accurately represent HDR video."))
+                Text(String(localized: "Some analysis features are limited. Color temperature is unavailable. Scopes show tone-mapped representation."))
                     .font(.caption)
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                
+                if let dvConfig = viewModel.dolbyVisionConfig {
+                    Text("Profile \(dvConfig.profile) • Level \(dvConfig.level) • \(dvConfig.codecString)")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.purple)
+                }
             }
             Spacer()
         }
@@ -210,47 +415,11 @@ struct ColorAnalysisView: View {
             .font(.caption)
             .foregroundStyle(.orange.opacity(0.7))
             .padding(DesignSystem.Padding.xs)
-            .help(String(localized: "Color data may be inaccurate for HDR content"))
-    }
-
-    @ViewBuilder
-    private func statisticsSummarySection(brightnessStats: (min: Double, max: Double, avg: Double)) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Text("Color Metrics")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.primary)
-
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: DesignSystem.Spacing.md) {
-                if let tempStats = temperatureStats {
-                    ColorSummaryItem(
-                        label: String(localized: "Brightness"),
-                        value: String(format: "%.1f%%", brightnessStats.avg * 100),
-                        icon: "sun.max",
-                        detail: String(format: String(localized: "Min: %.1f%% • Max: %.1f%%"), brightnessStats.min * 100, brightnessStats.max * 100)
-                    )
-                    ColorSummaryItem(
-                        label: String(localized: "Temperature"),
-                        value: String(format: "%.0f K", tempStats.avg),
-                        icon: "thermometer",
-                        detail: String(format: String(localized: "Min: %.0f K • Max: %.0f K"), tempStats.min, tempStats.max)
-                    )
-                } else {
-                    ColorSummaryItem(
-                        label: String(localized: "Brightness"),
-                        value: String(format: "%.1f%%", brightnessStats.avg * 100),
-                        icon: "sun.max",
-                        detail: String(format: String(localized: "Min: %.1f%% • Max: %.1f%%"), brightnessStats.min * 100, brightnessStats.max * 100)
-                    )
-                }
-            }
-        }
+            .help(String(localized: "Data from tone-mapped representation"))
     }
 }
+
+
 
 // MARK: - Color Summary Item with Detail
 
@@ -311,19 +480,23 @@ private struct ColorAnalysisSkeletonView: View {
                 LazyVGrid(columns: [
                     GridItem(.flexible()),
                     GridItem(.flexible()),
+                    GridItem(.flexible()),
                     GridItem(.flexible())
                 ], spacing: DesignSystem.Spacing.md) {
+                    SkeletonCard(width: nil, height: 70)
                     SkeletonCard(width: nil, height: 70)
                     SkeletonCard(width: nil, height: 70)
                     SkeletonCard(width: nil, height: 70)
                 }
             }
 
+            // Scopes skeleton
+            SkeletonChart(height: 220)
+            
             // Charts skeleton
             VStack(spacing: DesignSystem.Spacing.md) {
-                SkeletonChart(height: 200)
-                SkeletonChart(height: 200)
-                SkeletonChart(height: 200)
+                SkeletonChart(height: 150)
+                SkeletonChart(height: 150)
             }
         }
     }

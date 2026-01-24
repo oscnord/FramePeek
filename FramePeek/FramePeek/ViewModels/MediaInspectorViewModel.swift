@@ -23,6 +23,7 @@ final class FramePeekViewModel: ObservableObject {
     @Published var gopAnalysis: GOPAnalysisResult?
     @Published var isAnalyzingGOP: Bool = false
     @Published var selectedGOPIndex: Int? // Selected GOP for details view
+    @Published var gopLoadedFromCache: Bool = false  // Cache status indicator
     
     // GOP frame detail extraction (on-demand loading)
     @Published var selectedGOPFrameDetails: [FrameInfo]?
@@ -64,15 +65,23 @@ final class FramePeekViewModel: ObservableObject {
     @Published var isExtractingWaveforms: Bool = false
     @Published var expandedWaveformTracks: Set<Int> = [] // Tracks that are expanded/visible
     @Published var waveformHeight: WaveformHeight = .normal
+    @Published var waveformLoadedFromCache: Bool = false  // Cache status indicator
 
     // Sync analysis
     @Published var syncAnalysisResult: SyncAnalysisResult?
     @Published var frameTimingSamples: [FrameTimingSample] = []
     @Published var isAnalyzingSync: Bool = false
 
-    // Color analysis
+    // Color analysis (legacy)
     @Published var colorSamples: [ColorSample] = []
     @Published var isAnalyzingColor: Bool = false
+    
+    // Professional color analysis
+    @Published var professionalColorAnalysis: [FrameColorAnalysis] = []
+    @Published var colorAnalysisProgress: Double = 0
+    @Published var currentFrameAnalysis: FrameColorAnalysis?  // For real-time overlay
+    @Published var hdrContentType: HDRContentType = .sdr
+    @Published var dolbyVisionConfig: DolbyVisionConfig?
 
     // Playback position
     @Published var currentPlaybackTime: Double?

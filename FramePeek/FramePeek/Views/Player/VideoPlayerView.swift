@@ -516,8 +516,34 @@ struct VideoPlayerView: View {
                 }
             }
 
-            // Brightness + Color temperature
-            if let viewModel = viewModel, let colorSample = getColorSampleAtTime(currentTime, samples: viewModel.colorSamples) {
+            // Luminance and color temperature display
+            if let viewModel = viewModel,
+               let analysis = viewModel.frameAnalysisAtTime(currentTime) {
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    // Luminance percentage
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "sun.max")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                        Text(String(format: "%.0f%%", analysis.luminance.average * 100))
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
+                    
+                    // CCT if available
+                    if let cct = analysis.colorTemperature?.cct {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(systemName: "thermometer.medium")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                            Text(String(format: "%.0fK", cct))
+                                .font(.caption)
+                                .monospacedDigit()
+                        }
+                    }
+                }
+            } else if let viewModel = viewModel, let colorSample = getColorSampleAtTime(currentTime, samples: viewModel.colorSamples) {
+                // Fallback to legacy brightness/temperature if no professional analysis
                 HStack(spacing: DesignSystem.Spacing.md) {
                     HStack(spacing: DesignSystem.Spacing.xs) {
                         Image(systemName: "sun.max")

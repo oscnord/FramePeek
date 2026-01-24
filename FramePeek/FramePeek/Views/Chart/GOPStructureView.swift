@@ -118,6 +118,29 @@ struct GOPStructureView: View {
                         .popover(isPresented: $showGOPInfoPopover, arrowEdge: .top) {
                             gopInfoPopoverContent
                         }
+                        
+                        // Cache indicator with refresh button
+                        if viewModel.gopLoadedFromCache {
+                            Button {
+                                viewModel.refreshGOPAnalysis()
+                            } label: {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 9))
+                                    Text("Cached")
+                                        .font(.system(size: 10))
+                                }
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                        .fill(Color.secondary.opacity(0.1))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .help(String(localized: "Data loaded from cache. Click to refresh."))
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
