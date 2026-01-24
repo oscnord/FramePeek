@@ -4,6 +4,19 @@ struct GOPDetailsPanel: View {
     let segment: GOPSegment
     let index: Int
     @ObservedObject var viewModel: FramePeekViewModel
+    
+    /// Frame details - uses ViewModel state (on-demand loaded) with fallback to segment.frames
+    private var frameDetails: [FrameInfo]? {
+        // First try ViewModel's on-demand loaded frames
+        if let frames = viewModel.selectedGOPFrameDetails, !frames.isEmpty {
+            return frames
+        }
+        // Fallback to segment's pre-loaded frames (if any)
+        if let frames = segment.frames, !frames.isEmpty {
+            return frames
+        }
+        return nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -27,26 +40,53 @@ struct GOPDetailsPanel: View {
 
             // Metrics
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                metricRow(label: "Start Time", value: formatTime(segment.startTime))
-                metricRow(label: "End Time", value: formatTime(segment.endTime))
-                metricRow(label: "Duration", value: String(format: "%.3f s", segment.duration))
+                metricRow(label: String(localized: "Start Time"), value: formatTime(segment.startTime))
+                metricRow(label: String(localized: "End Time"), value: formatTime(segment.endTime))
+                metricRow(label: String(localized: "Duration"), value: String(format: "%.3f s", segment.duration))
 
                 if let frameCount = segment.frameCount {
-                    metricRow(label: "Frame Count", value: "\(frameCount)")
-                    metricRow(label: "Avg Frame Duration", value: String(format: "%.3f s", segment.duration / Double(frameCount)))
+                    metricRow(label: String(localized: "Frame Count"), value: "\(frameCount)")
+                    metricRow(label: String(localized: "Avg Frame Duration"), value: String(format: "%.3f s", segment.duration / Double(frameCount)))
                 }
             }
 
-            // Frame details (if available)
-            if let frames = segment.frames, !frames.isEmpty {
-                Divider()
-                    .padding(.vertical, DesignSystem.Padding.xs)
+            // Frame details section
+            Divider()
+                .padding(.vertical, DesignSystem.Padding.xs)
 
-                Text("Frames")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .padding(.bottom, DesignSystem.Padding.xs)
-
+            Text(String(localized: "Frames"))
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .padding(.bottom, DesignSystem.Padding.xs)
+            
+            // Loading state
+            if viewModel.isLoadingGOPFrameDetails {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text(String(localized: "Loading frame details..."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, DesignSystem.Padding.md)
+            }
+            // Codec not supported state
+            else if !viewModel.codecSupportsFrameTypes {
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.title3)
+                        .foregroundStyle(.tertiary)
+                    Text(String(localized: "Frame type detection not available for this codec"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, DesignSystem.Padding.md)
+            }
+            // Frame details available
+            else if let frames = frameDetails {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         ForEach(Array(frames.enumerated()), id: \.offset) { frameIdx, frame in
@@ -55,6 +95,14 @@ struct GOPDetailsPanel: View {
                     }
                 }
                 .frame(maxHeight: 200)
+            }
+            // No frame details yet
+            else {
+                Text(String(localized: "No frame details available"))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, DesignSystem.Padding.md)
             }
         }
         .padding(DesignSystem.Padding.lg)

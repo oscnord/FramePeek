@@ -1,6 +1,6 @@
 import Foundation
 
-enum FrameType: String, Sendable {
+enum FrameType: String, Sendable, Codable {
     case i = "I"
     case p = "P"
     case b = "B"
@@ -23,11 +23,18 @@ enum GOPStructureType: Equatable, Sendable {
     }
 }
 
-struct FrameInfo: Identifiable, Sendable {
-    let id = UUID()
+struct FrameInfo: Identifiable, Sendable, Codable {
+    let id: UUID
     let time: Double
     let type: FrameType
     let size: Int64?
+    
+    init(id: UUID = UUID(), time: Double, type: FrameType, size: Int64? = nil) {
+        self.id = id
+        self.time = time
+        self.type = type
+        self.size = size
+    }
 }
 
 struct GOPSegment: Identifiable, Equatable, Sendable {

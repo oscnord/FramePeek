@@ -141,54 +141,47 @@ struct GOPStructureView: View {
 
                 Spacer()
 
-                if let analysis {
-                    HStack(spacing: DesignSystem.Spacing.md) {
-                        StatPill(title: "GOPs", value: "\(analysis.stats.gopCount)")
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    if let analysis {
+                        StatPill(title: String(localized: "GOPs"), value: "\(analysis.stats.gopCount)")
                         if let avg = analysis.stats.avgDuration {
-                            StatPill(title: "Avg", value: String(format: "%.2fs", avg))
+                            StatPill(title: String(localized: "Avg"), value: String(format: "%.2fs", avg))
                         }
                         if let pattern = patternInfo(stats: analysis.stats) {
-                            StatPill(title: "Pattern", value: pattern.label)
+                            StatPill(title: String(localized: "Pattern"), value: pattern.label)
                         }
                     }
                 }
             }
 
-            // Frame type legend (if frame types are shown)
-            if hasFrameTypes {
-                frameTypeLegend
+            // Legends section
+            HStack(spacing: DesignSystem.Spacing.lg) {
+                // I-frame indicator explanation
+                HStack(spacing: 4) {
+                    Rectangle()
+                        .fill(Color(red: 0.0, green: 0.48, blue: 1.0))
+                        .frame(width: 3, height: 12)
+                    Text(String(localized: "I-frame"))
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                }
+                
+                // GOP duration legend
+                ColorLegendView(preset: .gopDuration, showTitle: true, compact: false)
+                
+                // Frame type legend (if frame types are available)
+                if hasFrameTypes {
+                    Divider()
+                        .frame(height: 12)
+                    ColorLegendView(preset: .frameTypes, showTitle: true, compact: false)
+                }
+                
+                Spacer()
             }
         }
         .padding(.horizontal, DesignSystem.Padding.lg)
         .padding(.top, DesignSystem.Padding.lg)
         .padding(.bottom, DesignSystem.Padding.md)
-    }
-
-    @ViewBuilder
-    private var frameTypeLegend: some View {
-        HStack(spacing: DesignSystem.Spacing.lg) {
-            Text("Frame Types:")
-                .font(.caption2)
-                    .foregroundStyle(.secondary)
-
-            frameTypeLegendItem(type: .i, color: Color(red: 0.0, green: 0.48, blue: 1.0))
-            frameTypeLegendItem(type: .p, color: Color(red: 1.0, green: 0.58, blue: 0.0))
-            frameTypeLegendItem(type: .b, color: Color(red: 1.0, green: 0.23, blue: 0.19))
-
-            Spacer()
-        }
-    }
-
-    @ViewBuilder
-    private func frameTypeLegendItem(type: FrameType, color: Color) -> some View {
-        HStack(spacing: 4) {
-                        Circle()
-                .fill(color)
-                            .frame(width: 8, height: 8)
-            Text(type.rawValue)
-                .font(.caption2)
-                            .fontWeight(.medium)
-                    }
     }
 
     private func patternInfo(stats: GOPAnalysisStats) -> (label: String, color: Color)? {
@@ -246,20 +239,16 @@ struct GOPStructureView: View {
     private var contentSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg2) {
             if let analysis {
-                // Visual guide
-                GOPVisualGuide()
-
-                // Main timeline visualization
-                GOPTimelineView(
+                // Main visualization - heatmap only
+                GOPHeatmapView(
                     segments: analysis.segments,
                     domainSeconds: domainSeconds,
                     visibleTimeRange: viewModel.visibleTimeRange,
-                    showFrameTypes: hasFrameTypes,
                     viewModel: viewModel
                 ) { index in
                     viewModel.selectGOP(at: index)
                 }
-                .frame(height: 180)
+                .frame(height: 200)
 
                 // Selected GOP details panel
                 if let selectedIndex = viewModel.selectedGOPIndex,

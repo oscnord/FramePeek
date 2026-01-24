@@ -11,6 +11,7 @@ final class FramePeekViewModel: ObservableObject {
     @Published var minInterval: Double?
     @Published var maxInterval: Double?
     @Published var hoveredSample: BitrateSample?
+    @Published var hoveredTimestamp: Double?  // Shared hover state for cross-chart sync
     @Published var isAnalyzing: Bool = false
     @Published var durationSeconds: Double = 0
     @Published var keyframeThumbs: [KeyframeThumbnail] = []
@@ -22,6 +23,14 @@ final class FramePeekViewModel: ObservableObject {
     @Published var gopAnalysis: GOPAnalysisResult?
     @Published var isAnalyzingGOP: Bool = false
     @Published var selectedGOPIndex: Int? // Selected GOP for details view
+    
+    // GOP frame detail extraction (on-demand loading)
+    @Published var selectedGOPFrameDetails: [FrameInfo]?
+    @Published var isLoadingGOPFrameDetails: Bool = false
+    @Published var gopFrameDetailsCache: [UUID: [FrameInfo]] = [:]
+    @Published var preloadingGOPIndices: Set<Int> = []
+    @Published var codecSupportsFrameTypes: Bool = true
+    var frameDetailPreloadTask: Task<Void, Never>?
 
     // UI
     @Published var showAboutView: Bool = false

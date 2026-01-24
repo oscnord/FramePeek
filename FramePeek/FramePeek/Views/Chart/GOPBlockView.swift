@@ -26,43 +26,65 @@ struct GOPBlockView: View {
         guard maxFrameCount > 0 else { return 0.5 }
         return min(1.0, Double(frameCount) / Double(maxFrameCount))
     }
+    
+    // Frame type statistics
+    private var frameTypeStats: (i: Int, p: Int, b: Int, unknown: Int)? {
+        guard let frames = segment.frames, !frames.isEmpty else { return nil }
+        let i = frames.filter { $0.type == .i }.count
+        let p = frames.filter { $0.type == .p }.count
+        let b = frames.filter { $0.type == .b }.count
+        let unknown = frames.filter { $0.type == .unknown }.count
+        return (i, p, b, unknown)
+    }
+    
+    private var hasFrameTypes: Bool {
+        if let stats = frameTypeStats {
+            return stats.i > 0 || stats.p > 0 || stats.b > 0
+        }
+        return false
+    }
 
     var body: some View {
         ZStack(alignment: .leading) {
-            // GOP block
-            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.accentColor.opacity(0.3 + frameDensity * 0.2),
-                            Color.accentColor.opacity(0.2 + frameDensity * 0.15)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-                        .strokeBorder(
-                            isSelected ? Color.accentColor : patternColor,
-                            lineWidth: isSelected ? 2.5 : 1.5
+            // GOP block with frame type gradient if available
+            if hasFrameTypes, let stats = frameTypeStats {
+                frameTypeGradientBlock(stats: stats)
+            } else {
+                // Default gradient block
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.accentColor.opacity(0.3 + frameDensity * 0.2),
+                                Color.accentColor.opacity(0.2 + frameDensity * 0.15)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
+                    )
+            }
+            
+            // Border overlay
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+                .strokeBorder(
+                    isSelected ? Color.accentColor : patternColor,
+                    lineWidth: isSelected ? 2.5 : 1.5
                 )
                 .shadow(color: .black.opacity(isSelected ? 0.15 : 0.05), radius: isSelected ? 4 : 2, y: 1)
 
             // I-frame marker at start
             VStack {
                 Circle()
-                    .fill(Color.blue)
+                    .fill(FrameTypeColor.i)
                     .frame(width: 6, height: 6)
                     .offset(x: -3)
                 Spacer()
             }
             .frame(height: height)
 
-            // Frame count badge (always show if there's space)
-            if height > 35 {
-                VStack {
+            // Frame count badge and frame type indicators
+            VStack(spacing: 0) {
+                if height > 35 {
                     HStack {
                         VStack(alignment: .leading, spacing: 1) {
                             Text("\(frameCount)")
@@ -85,11 +107,7 @@ struct GOPBlockView: View {
                         Spacer()
                     }
                     .padding(6)
-                    Spacer()
-                }
-            } else if height > 25 {
-                // Compact version for smaller blocks
-                VStack {
+                } else if height > 25 {
                     HStack {
                         Text("\(frameCount)")
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
@@ -103,7 +121,15 @@ struct GOPBlockView: View {
                         Spacer()
                     }
                     .padding(4)
-                    Spacer()
+                }
+                
+                Spacer()
+                
+                // Frame type distribution bar at bottom
+                if hasFrameTypes, let stats = frameTypeStats, height > 30 {
+                    frameTypeDistributionBar(stats: stats)
+                        .padding(.horizontal, 4)
+                        .padding(.bottom, 4)
                 }
             }
         }
@@ -119,6 +145,79 @@ struct GOPBlockView: View {
         }
         .help(tooltipText)
     }
+    
+    // MARK: - Frame Type Gradient Block
+    
+    @ViewBuilder
+    private func frameTypeGradientBlock(stats: (i: Int, p: Int, b: Int, unknown: Int)) -> some View {
+        let total = max(1, stats.i + stats.p + stats.b + stats.unknown)
+        let iRatio = CGFloat(stats.i) / CGFloat(total)
+        let pRatio = CGFloat(stats.p) / CGFloat(total)
+        let bRatio = CGFloat(stats.b) / CGFloat(total)
+        
+        // Create a gradient that represents the frame type composition
+        let iColor = FrameTypeColor.i.opacity(0.6)
+        let pColor = FrameTypeColor.p.opacity(0.5)
+        let bColor = FrameTypeColor.b.opacity(0.5)
+        let baseColor = Color.accentColor.opacity(0.25)
+        
+        // Blend colors based on frame type ratios
+        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
+            .fill(
+                LinearGradient(
+                    stops: [
+                        .init(color: iColor, location: 0),
+                        .init(color: iRatio > 0.1 ? iColor : pColor, location: iRatio),
+                        .init(color: pColor, location: iRatio + pRatio * 0.5),
+                        .init(color: bRatio > 0.1 ? bColor : pColor, location: iRatio + pRatio),
+                        .init(color: bColor, location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+    }
+    
+    // MARK: - Frame Type Distribution Bar
+    
+    @ViewBuilder
+    private func frameTypeDistributionBar(stats: (i: Int, p: Int, b: Int, unknown: Int)) -> some View {
+        let total = max(1, stats.i + stats.p + stats.b + stats.unknown)
+        
+        GeometryReader { geo in
+            HStack(spacing: 0) {
+                // I-frames (blue)
+                if stats.i > 0 {
+                    Rectangle()
+                        .fill(FrameTypeColor.i)
+                        .frame(width: geo.size.width * CGFloat(stats.i) / CGFloat(total))
+                }
+                
+                // P-frames (orange)
+                if stats.p > 0 {
+                    Rectangle()
+                        .fill(FrameTypeColor.p)
+                        .frame(width: geo.size.width * CGFloat(stats.p) / CGFloat(total))
+                }
+                
+                // B-frames (red)
+                if stats.b > 0 {
+                    Rectangle()
+                        .fill(FrameTypeColor.b)
+                        .frame(width: geo.size.width * CGFloat(stats.b) / CGFloat(total))
+                }
+                
+                // Unknown (gray)
+                if stats.unknown > 0 {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.5))
+                        .frame(width: geo.size.width * CGFloat(stats.unknown) / CGFloat(total))
+                }
+            }
+            .clipShape(Capsule())
+        }
+        .frame(height: 4)
+    }
 
     private var tooltipText: String {
         var parts: [String] = []
@@ -128,11 +227,24 @@ struct GOPBlockView: View {
         }
         parts.append(String(format: "%.2fs", segment.duration))
 
-        if let frames = segment.frames, !frames.isEmpty {
-            let frameTypes = frames.map { $0.type.rawValue }.joined(separator: "-")
-            parts.append("(\(frameTypes))")
+        if let stats = frameTypeStats {
+            var typeInfo: [String] = []
+            if stats.i > 0 { typeInfo.append("\(stats.i)I") }
+            if stats.p > 0 { typeInfo.append("\(stats.p)P") }
+            if stats.b > 0 { typeInfo.append("\(stats.b)B") }
+            if !typeInfo.isEmpty {
+                parts.append("(" + typeInfo.joined(separator: "/") + ")")
+            }
         }
 
         return parts.joined(separator: ", ")
     }
+}
+
+// MARK: - Frame Type Colors
+
+private enum FrameTypeColor {
+    static let i = Color(red: 0.0, green: 0.48, blue: 1.0)   // Blue
+    static let p = Color(red: 1.0, green: 0.58, blue: 0.0)   // Orange
+    static let b = Color(red: 1.0, green: 0.23, blue: 0.19)  // Red
 }

@@ -16,6 +16,16 @@ struct AudioWaveformView: View {
         }
         return filteredSamples
     }
+    
+    /// Time domain for the current view
+    private var timeDomain: (start: Double, end: Double) {
+        if let range = viewModel.visibleTimeRange {
+            return (range.lowerBound, range.upperBound)
+        }
+        let minTime = samples.first?.time ?? 0
+        let maxTime = samples.last?.time ?? duration
+        return (minTime, maxTime)
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -49,10 +59,35 @@ struct AudioWaveformView: View {
                             )
                         )
                 }
+                
+                // Cross-chart sync indicator line
+                if let syncTime = viewModel.hoveredTimestamp {
+                    crossChartSyncIndicator(time: syncTime, width: geometry.size.width, height: calculatedHeight)
+                }
             }
             .frame(height: calculatedHeight)
         }
         .frame(height: 80) // Minimum height fallback
+    }
+    
+    // MARK: - Cross-Chart Sync Indicator
+    
+    @ViewBuilder
+    private func crossChartSyncIndicator(time: Double, width: CGFloat, height: CGFloat) -> some View {
+        let domain = timeDomain
+        let domainDuration = max(0.001, domain.end - domain.start)
+        
+        // Only show if time is within visible range
+        if time >= domain.start && time <= domain.end {
+            let ratio = (time - domain.start) / domainDuration
+            let x = CGFloat(ratio) * width
+            
+            Rectangle()
+                .fill(DesignSystem.Colors.Chart.hoveredLine)
+                .frame(width: 2, height: height)
+                .position(x: x, y: height / 2)
+                .allowsHitTesting(false)
+        }
     }
 }
 

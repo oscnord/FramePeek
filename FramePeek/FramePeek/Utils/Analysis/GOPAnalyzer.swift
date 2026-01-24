@@ -8,7 +8,147 @@ private func detectFixedGOPPattern(_ frameCounts: [Int], tolerance: Int) -> Int?
     return allWithinTolerance ? median : nil
 }
 
+// MARK: - Fast GOP Extraction (MP4/MOV only)
+
+/// Attempts fast GOP extraction using MP4 atom parsing.
+/// Falls back to standard extraction if fast path is unavailable.
+func extractGOPSegmentsFast(
+    asset: AVAsset,
+    url: URL,
+    options: GOPOptions
+) -> AsyncStream<GOPUpdate> {
+    AsyncStream { continuation in
+        let task = Task.detached(priority: .userInitiated) {
+            let isPreview = options.maxScanSeconds != nil || options.maxGOPs != nil
+            
+            // Try fast path for MP4/MOV files
+            if SyncSampleParser.canUseFastParsing(for: url),
+               let syncResult = await SyncSampleParser.parseSyncSamples(from: url) {
+                
+                let keyframes = SyncSampleParser.keyframeTimestamps(from: syncResult)
+                
+                // Build GOP segments from keyframe timestamps
+                var segments: [GOPSegment] = []
+                segments.reserveCapacity(keyframes.count)
+                
+                let totalSamples = Int(syncResult.totalSampleCount)
+                let avgFramesPerGOP = keyframes.count > 1 ? totalSamples / keyframes.count : totalSamples
+                
+                for i in 0..<keyframes.count {
+                    let startTime = keyframes[i].timestamp
+                    let endTime: Double
+                    let frameCount: Int
+                    
+                    if i + 1 < keyframes.count {
+                        endTime = keyframes[i + 1].timestamp
+                        // Estimate frame count based on sample indices
+                        let startIdx = Int(keyframes[i].sampleIndex)
+                        let endIdx = Int(keyframes[i + 1].sampleIndex)
+                        frameCount = endIdx - startIdx
+                    } else {
+                        // Last GOP - estimate from total duration/samples
+                        let duration = (try? await asset.load(.duration).seconds) ?? startTime + 1.0
+                        endTime = duration
+                        frameCount = totalSamples - Int(keyframes[i].sampleIndex) + 1
+                    }
+                    
+                    // Apply time range filter if specified
+                    if let range = options.timeRange {
+                        if endTime < range.lowerBound { continue }
+                        if startTime > range.upperBound { break }
+                    }
+                    
+                    // Apply maxScanSeconds filter
+                    if let maxSeconds = options.maxScanSeconds, startTime > maxSeconds {
+                        break
+                    }
+                    
+                    segments.append(GOPSegment(
+                        startTime: startTime,
+                        endTime: endTime,
+                        frameCount: frameCount,
+                        frames: nil // Fast path doesn't detect frame types
+                    ))
+                    
+                    // Apply maxGOPs filter
+                    if let maxGOPs = options.maxGOPs, segments.count >= maxGOPs {
+                        break
+                    }
+                    
+                    // Emit batches for progressive updates
+                    if segments.count % options.emitEveryNGOPs == 0 {
+                        let scannedUntil = segments.last?.endTime ?? 0
+                        continuation.yield(GOPUpdate(
+                            appendedSegments: Array(segments.suffix(options.emitEveryNGOPs)),
+                            scannedUntilSeconds: scannedUntil,
+                            isFinished: false,
+                            isPreview: isPreview
+                        ))
+                    }
+                }
+                
+                // Detect pattern
+                var structureType: GOPStructureType = .unknown
+                let frameCounts = segments.compactMap(\.frameCount)
+                if options.detectFixedStructure && frameCounts.count >= options.minGOPsForFixedDetection {
+                    if let fixedCount = detectFixedGOPPattern(frameCounts, tolerance: options.fixedFrameTolerance) {
+                        structureType = .fixed(frameCount: fixedCount)
+                    } else {
+                        structureType = .variable
+                    }
+                }
+                
+                let remainingSegments = segments.suffix(segments.count % options.emitEveryNGOPs)
+                let scannedUntil = segments.last?.endTime ?? 0
+                
+                if !remainingSegments.isEmpty {
+                    continuation.yield(GOPUpdate(
+                        appendedSegments: Array(remainingSegments),
+                        scannedUntilSeconds: scannedUntil,
+                        isFinished: false,
+                        isPreview: isPreview,
+                        structureType: structureType
+                    ))
+                }
+                
+                continuation.yield(GOPUpdate(
+                    appendedSegments: [],
+                    scannedUntilSeconds: scannedUntil,
+                    isFinished: true,
+                    isPreview: isPreview,
+                    structureType: structureType
+                ))
+                continuation.finish()
+                return
+            }
+            
+            // Fast path not available, fall back to standard extraction
+            // (This happens for fMP4, TS, or files where parsing failed)
+            for await update in extractGOPSegmentsStandard(asset: asset, options: options) {
+                continuation.yield(update)
+                if update.isFinished { break }
+            }
+            continuation.finish()
+        }
+        
+        continuation.onTermination = { _ in task.cancel() }
+    }
+}
+
+// MARK: - Standard GOP Extraction (works with all formats)
+
 func extractGOPSegments(
+    asset: AVAsset,
+    options: GOPOptions
+) -> AsyncStream<GOPUpdate> {
+    // Try to get URL for fast path
+    if let urlAsset = asset as? AVURLAsset {
+        return extractGOPSegmentsFast(asset: asset, url: urlAsset.url, options: options)
+    }
+    return extractGOPSegmentsStandard(asset: asset, options: options)
+}
+
+private func extractGOPSegmentsStandard(
     asset: AVAsset,
     options: GOPOptions
 ) -> AsyncStream<GOPUpdate> {

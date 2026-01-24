@@ -45,7 +45,8 @@ extension FramePeekViewModel {
 
                     var accumulatedSamples: [WaveformSample] = []
 
-                    for await update in extractWaveform(
+                    // Use fast waveform extraction (8kHz sample rate with skipping)
+                    for await update in extractWaveformFast(
                         asset: assetForWaveform,
                         audioTrack: audioTrack,
                         durationSeconds: duration,
@@ -118,7 +119,8 @@ extension FramePeekViewModel {
 
             var accumulatedSamples: [WaveformSample] = []
 
-            for await update in extractWaveform(
+            // Use fast waveform extraction (8kHz sample rate with skipping)
+            for await update in extractWaveformFast(
                 asset: asset,
                 audioTrack: audioTrack,
                 durationSeconds: duration,

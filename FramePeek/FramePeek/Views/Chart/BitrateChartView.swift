@@ -154,8 +154,7 @@ struct BitrateChartView: View {
 
             VStack(spacing: DesignSystem.Spacing.md2) {
                 ChartHeaderRow(
-                    hoveredSample: viewModel.hoveredSample,
-                    maxBitrateKbps: statistics.maxBitrateKbps,
+                    viewModel: viewModel,
                     visibleTimeRange: $viewModel.visibleTimeRange
                 )
                 .padding(.horizontal, DesignSystem.Padding.lg)
@@ -242,8 +241,8 @@ struct BitrateChartView: View {
                     }
             }
 
-            if let hovered = viewModel.hoveredSample {
-                RuleMark(x: .value("Time (s)", hovered.time))
+            if let time = viewModel.hoveredTimestamp {
+                RuleMark(x: .value("Time (s)", time))
                     .foregroundStyle(DesignSystem.Colors.Chart.hoveredLine)
                     .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.medium, dash: [4, 4]))
             }
@@ -293,72 +292,38 @@ struct BitrateChartView: View {
                 .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
         }
         .chartOverlay { proxy in
-            GeometryReader { _ in
+            GeometryReader { geo in
                 Rectangle()
                     .fill(.clear)
                     .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                let location = value.location
-                                if let time: Double = proxy.value(atX: location.x) {
-                                    if let nearest = viewModel.samples.min(by: {
-                                        abs($0.time - time) < abs($1.time - time)
-                                    }) {
-                                        viewModel.hoveredSample = nearest
-                                    }
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active(let location):
+                            if let time: Double = proxy.value(atX: location.x) {
+                                // Find nearest sample
+                                if let nearest = viewModel.samples.min(by: {
+                                    abs($0.time - time) < abs($1.time - time)
+                                }) {
+                                    viewModel.hoveredSample = nearest
                                 }
+                                // Set shared timestamp for cross-chart sync
+                                viewModel.hoveredTimestamp = time
                             }
-                            .onEnded { value in
-                                // On tap (minimal drag), seek to that time
-                                if value.translation.width < 5 && value.translation.height < 5 {
-                                    let location = value.location
-                                    if let time: Double = proxy.value(atX: location.x) {
-                                        PlayerViewModelManager.shared.seekToTime(time)
-                                    }
-                                }
-                                viewModel.hoveredSample = nil
-                            }
-                    )
+                        case .ended:
+                            viewModel.hoveredSample = nil
+                            viewModel.hoveredTimestamp = nil
+                        }
+                    }
+                    .onTapGesture { location in
+                        // Seek on click
+                        if let time: Double = proxy.value(atX: location.x) {
+                            PlayerViewModelManager.shared.seekToTime(time)
+                        }
+                    }
             }
         }
         .drawingGroup()
         .frame(minHeight: 400)
-        .overlay(alignment: .topLeading) {
-            tooltipOverlay
-        }
-    }
-
-    // MARK: - Tooltip Overlay
-
-    @ViewBuilder
-    private var tooltipOverlay: some View {
-        GeometryReader { geometry in
-            let tooltipSample: BitrateSample? = {
-                if let sample = viewModel.hoveredSample {
-                    return sample
-                } else if let keyframeTime = viewModel.hoveredKeyframeTime {
-                    return viewModel.samples.min(by: { abs($0.time - keyframeTime) < abs($1.time - keyframeTime) })
-                }
-                return nil
-            }()
-
-            if let sample = tooltipSample {
-                let startTime = viewModel.visibleTimeRange?.lowerBound ?? 0
-                let endTime = viewModel.visibleTimeRange?.upperBound ?? statistics.maxTime
-                let duration = endTime - startTime
-
-                if duration > 0 && sample.time >= startTime && sample.time <= endTime {
-                    let timeRatio = (sample.time - startTime) / duration
-                    let chartWidth = geometry.size.width
-                    let xPos = timeRatio * chartWidth
-                    let clampedX = min(max(xPos, 80), chartWidth - 80)
-
-                    Tooltip(sample: sample, maxBitrateKbps: statistics.maxBitrateKbps)
-                        .position(x: clampedX, y: 50)
-                }
-            }
-        }
     }
 
     // MARK: - Overlay
