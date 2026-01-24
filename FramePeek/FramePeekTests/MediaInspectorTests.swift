@@ -2,6 +2,410 @@ import Testing
 import Foundation
 @testable import FramePeek
 
+// MARK: - ExtendedVideoInfo Tests
+
+struct ExtendedVideoInfoTests {
+
+    // Helper to create a minimal ExtendedVideoInfo for testing
+    private func makeVideoInfo(
+        frameRate: String = "23.976 fps",
+        duration: String = "120.5",
+        resolution: String = "1920x1080",
+        hdrFormat: String? = nil,
+        colorPrimaries: String? = nil
+    ) -> ExtendedVideoInfo {
+        ExtendedVideoInfo(
+            fileName: "test.mp4",
+            fileSize: "100 MB",
+            fileSizeBytes: 100_000_000,
+            overallBitrate: "10 Mb/s",
+            duration: duration,
+            durationFormatted: "2m 00s",
+            containerFormat: "MP4",
+            containerFormatProfile: nil,
+            codecIdRaw: "avc1",
+            resolution: resolution,
+            displayAspectRatio: "16:9",
+            frameRate: frameRate,
+            codec: "H.264",
+            codecProfile: "High@L4.0",
+            codecIdInfo: nil,
+            orientationDegrees: nil,
+            trackBitrate: nil,
+            maxBitrate: nil,
+            minBitrate: nil,
+            pixelAspectRatio: nil,
+            cleanAperture: nil,
+            scanType: nil,
+            frameRateMode: "CFR",
+            colorSpace: nil,
+            chromaSubsampling: "4:2:0",
+            bitsPerPixelFrame: nil,
+            videoStreamSize: nil,
+            colorPrimaries: colorPrimaries,
+            transferFunction: nil,
+            matrixCoefficients: nil,
+            colorRange: nil,
+            bitDepth: "8-bit",
+            hdrFormat: hdrFormat,
+            av1CSize: nil,
+            av1Profile: nil,
+            av1Level: nil,
+            av1ChromaSubsampling: nil,
+            av1FullRange: nil,
+            creationDate: nil,
+            metadataTitle: nil,
+            metadataArtist: nil,
+            metadataEncoder: nil,
+            metadataDescription: nil,
+            audioTracks: []
+        )
+    }
+
+    @Test func nominalFrameRate_parsesStandardFormats() {
+        #expect(makeVideoInfo(frameRate: "23.976 fps").nominalFrameRate == 23.976)
+        #expect(makeVideoInfo(frameRate: "29.97 fps").nominalFrameRate == 29.97)
+        #expect(makeVideoInfo(frameRate: "30 fps").nominalFrameRate == 30)
+        #expect(makeVideoInfo(frameRate: "60 fps").nominalFrameRate == 60)
+        #expect(makeVideoInfo(frameRate: "24 fps").nominalFrameRate == 24)
+    }
+
+    @Test func nominalFrameRate_handlesVariousFormats() {
+        #expect(makeVideoInfo(frameRate: "25").nominalFrameRate == 25)
+        #expect(makeVideoInfo(frameRate: "  30 fps  ").nominalFrameRate == 30)
+    }
+
+    @Test func nominalFrameRate_returnsNilForInvalid() {
+        #expect(makeVideoInfo(frameRate: "").nominalFrameRate == nil)
+        #expect(makeVideoInfo(frameRate: "fps").nominalFrameRate == nil)
+        #expect(makeVideoInfo(frameRate: "variable").nominalFrameRate == nil)
+    }
+
+    @Test func durationSeconds_parsesValidDurations() {
+        #expect(makeVideoInfo(duration: "120.5").durationSeconds == 120.5)
+        #expect(makeVideoInfo(duration: "0").durationSeconds == 0)
+        #expect(makeVideoInfo(duration: "3600").durationSeconds == 3600)
+    }
+
+    @Test func durationSeconds_returnsNilForInvalid() {
+        #expect(makeVideoInfo(duration: "").durationSeconds == nil)
+        #expect(makeVideoInfo(duration: "invalid").durationSeconds == nil)
+    }
+
+    @Test func resolutionComponents_parsesStandardFormats() {
+        let info1 = makeVideoInfo(resolution: "1920x1080")
+        #expect(info1.resolutionComponents?.width == 1920)
+        #expect(info1.resolutionComponents?.height == 1080)
+
+        let info2 = makeVideoInfo(resolution: "3840x2160")
+        #expect(info2.resolutionComponents?.width == 3840)
+        #expect(info2.resolutionComponents?.height == 2160)
+    }
+
+    @Test func resolutionComponents_handlesUnicodeMultiply() {
+        let info = makeVideoInfo(resolution: "1920×1080")
+        #expect(info.resolutionComponents?.width == 1920)
+        #expect(info.resolutionComponents?.height == 1080)
+    }
+
+    @Test func resolutionComponents_handlesSpaces() {
+        let info = makeVideoInfo(resolution: " 1920 x 1080 ")
+        #expect(info.resolutionComponents?.width == 1920)
+        #expect(info.resolutionComponents?.height == 1080)
+    }
+
+    @Test func resolutionComponents_returnsNilForInvalid() {
+        #expect(makeVideoInfo(resolution: "").resolutionComponents == nil)
+        #expect(makeVideoInfo(resolution: "1920").resolutionComponents == nil)
+        #expect(makeVideoInfo(resolution: "invalid").resolutionComponents == nil)
+    }
+
+    @Test func isHDR_detectsHDRFormats() {
+        #expect(makeVideoInfo(hdrFormat: "HDR10").isHDR == true)
+        #expect(makeVideoInfo(hdrFormat: "Dolby Vision").isHDR == true)
+        #expect(makeVideoInfo(hdrFormat: "HLG").isHDR == true)
+    }
+
+    @Test func isHDR_returnsFalseForSDR() {
+        #expect(makeVideoInfo(hdrFormat: nil).isHDR == false)
+        #expect(makeVideoInfo(hdrFormat: "").isHDR == false)
+    }
+
+    @Test func isWideGamut_detectsBT2020() {
+        #expect(makeVideoInfo(colorPrimaries: "BT.2020").isWideGamut == true)
+        #expect(makeVideoInfo(colorPrimaries: "bt2020").isWideGamut == true)
+        #expect(makeVideoInfo(colorPrimaries: "ITU-R BT.2020").isWideGamut == true)
+    }
+
+    @Test func isWideGamut_detectsP3() {
+        #expect(makeVideoInfo(colorPrimaries: "Display P3").isWideGamut == true)
+        #expect(makeVideoInfo(colorPrimaries: "DCI-P3").isWideGamut == true)
+    }
+
+    @Test func isWideGamut_returnsFalseForStandardGamut() {
+        #expect(makeVideoInfo(colorPrimaries: "BT.709").isWideGamut == false)
+        #expect(makeVideoInfo(colorPrimaries: nil).isWideGamut == false)
+    }
+}
+
+// MARK: - GOPStructureType Tests
+
+struct GOPStructureTypeTests {
+
+    @Test func isFixed_returnsTrueForFixed() {
+        let fixed = GOPStructureType.fixed(frameCount: 60)
+        #expect(fixed.isFixed == true)
+    }
+
+    @Test func isFixed_returnsFalseForVariable() {
+        #expect(GOPStructureType.variable.isFixed == false)
+        #expect(GOPStructureType.unknown.isFixed == false)
+    }
+
+    @Test func fixedFrameCount_returnsCountForFixed() {
+        let fixed = GOPStructureType.fixed(frameCount: 60)
+        #expect(fixed.fixedFrameCount == 60)
+    }
+
+    @Test func fixedFrameCount_returnsNilForNonFixed() {
+        #expect(GOPStructureType.variable.fixedFrameCount == nil)
+        #expect(GOPStructureType.unknown.fixedFrameCount == nil)
+    }
+}
+
+// MARK: - FrameInfo Tests
+
+struct FrameInfoTests {
+
+    @Test func frameInfo_initializesCorrectly() {
+        let frame = FrameInfo(time: 1.5, type: .i)
+        #expect(frame.time == 1.5)
+        #expect(frame.type == .i)
+    }
+
+    @Test func frameType_rawValues() {
+        #expect(FrameType.i.rawValue == "I")
+        #expect(FrameType.p.rawValue == "P")
+        #expect(FrameType.b.rawValue == "B")
+        #expect(FrameType.unknown.rawValue == "?")
+    }
+}
+
+// MARK: - SyncStatus Tests
+
+struct SyncStatusTests {
+
+    @Test func syncStatus_displayNames() {
+        #expect(SyncStatus.inSync.displayName == String(localized: "In Sync"))
+        #expect(SyncStatus.minorOffset.displayName == String(localized: "Minor Offset"))
+        #expect(SyncStatus.significantOffset.displayName == String(localized: "Significant Offset"))
+        #expect(SyncStatus.noAudio.displayName == String(localized: "No Audio"))
+    }
+}
+
+// MARK: - FramePatternUtils Tests
+
+struct FramePatternUtilsTests {
+
+    @Test func synthesizeIBBPFrameType_firstFrameIsI() {
+        #expect(synthesizeIBBPFrameType(at: 0) == .i)
+    }
+
+    @Test func synthesizeIBBPFrameType_followsIBBPPattern() {
+        // Pattern: I B B P B B P B B P ...
+        #expect(synthesizeIBBPFrameType(at: 0) == .i)
+        #expect(synthesizeIBBPFrameType(at: 1) == .b)
+        #expect(synthesizeIBBPFrameType(at: 2) == .b)
+        #expect(synthesizeIBBPFrameType(at: 3) == .p)
+        #expect(synthesizeIBBPFrameType(at: 4) == .b)
+        #expect(synthesizeIBBPFrameType(at: 5) == .b)
+        #expect(synthesizeIBBPFrameType(at: 6) == .p)
+        #expect(synthesizeIBBPFrameType(at: 7) == .b)
+        #expect(synthesizeIBBPFrameType(at: 8) == .b)
+        #expect(synthesizeIBBPFrameType(at: 9) == .p)
+    }
+
+    @Test func synthesizeGOPFrames_generatesCorrectCount() {
+        let frames = synthesizeGOPFrames(startTime: 0, frameCount: 10, gopDuration: 1.0)
+        #expect(frames.count == 10)
+    }
+
+    @Test func synthesizeGOPFrames_firstFrameIsIFrame() {
+        let frames = synthesizeGOPFrames(startTime: 0, frameCount: 10, gopDuration: 1.0)
+        #expect(frames.first?.type == .i)
+    }
+
+    @Test func synthesizeGOPFrames_calculatesCorrectTimes() {
+        let frames = synthesizeGOPFrames(startTime: 0, frameCount: 10, gopDuration: 1.0)
+        // Frame duration = 1.0 / 10 = 0.1 seconds
+        #expect(frames[0].time == 0.0)
+        #expect(abs(frames[1].time - 0.1) < 0.001)
+        #expect(abs(frames[5].time - 0.5) < 0.001)
+        #expect(abs(frames[9].time - 0.9) < 0.001)
+    }
+
+    @Test func synthesizeGOPFrames_handlesOffset() {
+        let frames = synthesizeGOPFrames(startTime: 5.0, frameCount: 10, gopDuration: 1.0)
+        #expect(frames[0].time == 5.0)
+        #expect(abs(frames[9].time - 5.9) < 0.001)
+    }
+
+    @Test func synthesizeGOPFrames_returnsEmptyForInvalidInput() {
+        #expect(synthesizeGOPFrames(startTime: 0, frameCount: 0, gopDuration: 1.0).isEmpty)
+        #expect(synthesizeGOPFrames(startTime: 0, frameCount: 10, gopDuration: 0).isEmpty)
+        #expect(synthesizeGOPFrames(startTime: 0, frameCount: -1, gopDuration: 1.0).isEmpty)
+    }
+
+    @Test func calculateGOPsInWindow_findsCorrectRange() {
+        // 60 second video, 2 second GOPs = 30 GOPs (indices 0-29)
+        let range = calculateGOPsInWindow(
+            windowStart: 5.0,
+            windowEnd: 15.0,
+            gopDuration: 2.0,
+            videoDuration: 60.0
+        )
+        // floor(5/2)=2, ceil(15/2)=8, capped at 29
+        // GOPs 2 (4-6), 3 (6-8), 4 (8-10), 5 (10-12), 6 (12-14), 7 (14-16) overlap
+        #expect(range != nil)
+        #expect(range?.lowerBound == 2)
+        #expect(range?.upperBound == 8)  // ceil(15/2) = 8
+    }
+
+    @Test func calculateGOPsInWindow_handlesStartOfVideo() {
+        let range = calculateGOPsInWindow(
+            windowStart: 0.0,
+            windowEnd: 5.0,
+            gopDuration: 2.0,
+            videoDuration: 60.0
+        )
+        #expect(range?.lowerBound == 0)
+    }
+
+    @Test func calculateGOPsInWindow_handlesEndOfVideo() {
+        let range = calculateGOPsInWindow(
+            windowStart: 55.0,
+            windowEnd: 65.0,  // Past video end
+            gopDuration: 2.0,
+            videoDuration: 60.0
+        )
+        // Should cap at last GOP
+        #expect(range?.upperBound == 29)
+    }
+
+    @Test func calculateGOPsInWindow_returnsNilForInvalidInput() {
+        #expect(calculateGOPsInWindow(windowStart: 0, windowEnd: 10, gopDuration: 0, videoDuration: 60) == nil)
+        #expect(calculateGOPsInWindow(windowStart: 0, windowEnd: 10, gopDuration: 2, videoDuration: 0) == nil)
+    }
+
+    @Test func extrapolateFramesForWindow_generatesFramesInWindow() {
+        let frames = extrapolateFramesForWindow(
+            windowStart: 0.0,
+            windowEnd: 2.0,
+            gopDuration: 2.0,
+            frameCount: 60,
+            videoDuration: 120.0
+        )
+        // Window 0-2 includes GOP 0 (0-2), and maybe partial of GOP 1
+        // Frame duration = 2.0/60 = 0.0333s
+        // Frames at times 0, 0.033, 0.066... up to 1.967 are in window [0, 2)
+        // All 60 frames of GOP 0 have time < 2.0, so they should be included
+        #expect(frames.count >= 60)
+        #expect(frames.count <= 120)  // At most 2 GOPs worth
+    }
+
+    @Test func extrapolateFramesForWindow_framesAreWithinWindow() {
+        let frames = extrapolateFramesForWindow(
+            windowStart: 5.0,
+            windowEnd: 7.0,
+            gopDuration: 2.0,
+            frameCount: 60,
+            videoDuration: 120.0
+        )
+        for frame in frames {
+            #expect(frame.time >= 5.0)
+            #expect(frame.time <= 7.0)
+        }
+    }
+
+    @Test func extrapolateFramesForWindow_respectsVideoDuration() {
+        let frames = extrapolateFramesForWindow(
+            windowStart: 115.0,
+            windowEnd: 125.0,  // Past video end
+            gopDuration: 2.0,
+            frameCount: 60,
+            videoDuration: 120.0
+        )
+        for frame in frames {
+            #expect(frame.time < 120.0)
+        }
+    }
+
+    @Test func extrapolateFramesForWindow_usesProvidedPattern() {
+        // Create a custom pattern: all P-frames except first
+        let customPattern = [
+            FrameInfo(time: 0, type: .i),
+            FrameInfo(time: 0.1, type: .p),
+            FrameInfo(time: 0.2, type: .p),
+            FrameInfo(time: 0.3, type: .p)
+        ]
+
+        let frames = extrapolateFramesForWindow(
+            windowStart: 0.0,
+            windowEnd: 1.0,
+            gopDuration: 1.0,
+            frameCount: 4,
+            videoDuration: 10.0,
+            framePattern: customPattern
+        )
+
+        #expect(frames[0].type == .i)
+        #expect(frames[1].type == .p)
+        #expect(frames[2].type == .p)
+        #expect(frames[3].type == .p)
+    }
+
+    @Test func extrapolateFramesForWindow_returnsEmptyForInvalidInput() {
+        #expect(extrapolateFramesForWindow(
+            windowStart: 0, windowEnd: 10, gopDuration: 0, frameCount: 60, videoDuration: 120
+        ).isEmpty)
+        #expect(extrapolateFramesForWindow(
+            windowStart: 0, windowEnd: 10, gopDuration: 2, frameCount: 0, videoDuration: 120
+        ).isEmpty)
+        #expect(extrapolateFramesForWindow(
+            windowStart: 0, windowEnd: 10, gopDuration: 2, frameCount: 60, videoDuration: 0
+        ).isEmpty)
+    }
+
+    @Test func extrapolateFramesForWindow_framesSortedByTime() {
+        let frames = extrapolateFramesForWindow(
+            windowStart: 0.0,
+            windowEnd: 5.0,
+            gopDuration: 2.0,
+            frameCount: 60,
+            videoDuration: 120.0
+        )
+
+        for i in 1..<frames.count {
+            #expect(frames[i].time >= frames[i-1].time)
+        }
+    }
+}
+
+// MARK: - GOPSegment Tests
+
+struct GOPSegmentTests {
+
+    @Test func gopSegment_duration() {
+        let segment = GOPSegment(startTime: 1.0, endTime: 3.0, frameCount: 60, frames: nil)
+        #expect(segment.duration == 2.0)
+    }
+
+    @Test func gopSegment_durationNeverNegative() {
+        let segment = GOPSegment(startTime: 3.0, endTime: 1.0, frameCount: 60, frames: nil)
+        #expect(segment.duration == 0)
+    }
+}
+
 // MARK: - FormatUtils Tests
 
 struct FormatUtilsTests {

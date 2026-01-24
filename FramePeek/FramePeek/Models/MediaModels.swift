@@ -73,6 +73,45 @@ struct ExtendedVideoInfo {
 
     // Audio
     let audioTracks: [AudioTrackInfo]
+
+    // MARK: - Computed Properties
+
+    /// Parses the numeric frame rate from the frameRate string (e.g., "23.976 fps" -> 23.976)
+    var nominalFrameRate: Double? {
+        // Try to extract the numeric portion from strings like "23.976 fps", "29.97 fps", "60 fps"
+        let trimmed = frameRate.trimmingCharacters(in: .whitespaces)
+        let components = trimmed.components(separatedBy: CharacterSet(charactersIn: " f"))
+        guard let firstComponent = components.first else { return nil }
+        return Double(firstComponent)
+    }
+
+    /// Parses the duration in seconds from the duration string
+    var durationSeconds: Double? {
+        // The duration field stores seconds as a string
+        return Double(duration)
+    }
+
+    /// Parses width and height from resolution string (e.g., "1920x1080" -> (1920, 1080))
+    var resolutionComponents: (width: Int, height: Int)? {
+        let parts = resolution.lowercased().components(separatedBy: CharacterSet(charactersIn: "x×"))
+        guard parts.count == 2,
+              let width = Int(parts[0].trimmingCharacters(in: .whitespaces)),
+              let height = Int(parts[1].trimmingCharacters(in: .whitespaces)) else {
+            return nil
+        }
+        return (width, height)
+    }
+
+    /// Returns true if this is HDR content
+    var isHDR: Bool {
+        hdrFormat != nil && !hdrFormat!.isEmpty
+    }
+
+    /// Returns true if this has wide color gamut (BT.2020)
+    var isWideGamut: Bool {
+        guard let primaries = colorPrimaries?.lowercased() else { return false }
+        return primaries.contains("2020") || primaries.contains("p3")
+    }
 }
 
 // MARK: - Frame Analysis

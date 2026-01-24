@@ -17,6 +17,12 @@ struct VideoPlayerView: View {
     @AppStorage("statisticsOverlayOffsetX") private var savedOffsetX: Double = 0
     @AppStorage("statisticsOverlayOffsetY") private var savedOffsetY: Double = 0
 
+    // Section visibility settings (all expanded by default)
+    @AppStorage("overlayShowVideo") private var showVideoSection: Bool = true
+    @AppStorage("overlayShowPlayback") private var showPlaybackSection: Bool = true
+    @AppStorage("overlayShowAudio") private var showAudioSection: Bool = true
+    @AppStorage("overlayShowAnalysis") private var showAnalysisSection: Bool = true
+
     @State private var player: AVPlayer?
     @State private var currentTime: Double = 0
     @State private var isPlaying: Bool = false
@@ -26,6 +32,15 @@ struct VideoPlayerView: View {
     @State private var overlaySize: CGSize = .zero
     @State private var shouldInitializePosition: Bool = false
     @State private var hasInitializedPosition: Bool = false
+
+    // Section expansion state
+    @State private var videoSectionExpanded: Bool = true
+    @State private var playbackSectionExpanded: Bool = true
+    @State private var audioSectionExpanded: Bool = true
+    @State private var analysisSectionExpanded: Bool = true
+
+    // Selected audio track (0-based index, updated when player selection changes)
+    @State private var selectedAudioTrackIndex: Int = 0
 
     var body: some View {
         ZStack {
@@ -79,6 +94,7 @@ struct VideoPlayerView: View {
                 if playerShowStatistics {
                     GeometryReader { geometry in
                         statisticsOverlay
+                            .fixedSize()
                             .background(
                                 GeometryReader { overlayGeometry in
                                     Color.clear
@@ -162,80 +178,420 @@ struct VideoPlayerView: View {
 
     private var statisticsOverlay: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            if let viewModel = viewModel, let info = viewModel.extendedInfo {
-                // Resolution
+            // Video Section
+            if showVideoSection {
+                videoSection
+            }
+
+            // Playback Section
+            if showPlaybackSection {
+                playbackSection
+            }
+
+            // Audio Section
+            if showAudioSection {
+                audioSection
+            }
+
+            // Analysis Section
+            if showAnalysisSection {
+                analysisSection
+            }
+        }
+        .padding(DesignSystem.Padding.md)
+        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.medium))
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous))
+        .contextMenu {
+            sectionToggleMenu
+        }
+    }
+
+    // MARK: - Video Section
+
+    @ViewBuilder
+    private var videoSection: some View {
+        OverlaySectionView(
+            title: String(localized: "Video"),
+            systemImage: "film",
+            isExpanded: $videoSectionExpanded
+        ) {
+            if let info = viewModel?.extendedInfo {
+                // Resolution + Codec line
                 HStack(spacing: DesignSystem.Spacing.sm) {
-                    Image(systemName: "rectangle")
-                        .font(.caption)
                     Text(info.resolution)
                         .font(.caption)
                         .monospacedDigit()
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text(info.codec)
+                        .font(.caption)
+                    if let profile = info.codecProfile {
+                        Text(profile)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                // Frame rate
+                // Frame rate + mode
                 if !info.frameRate.isEmpty {
                     HStack(spacing: DesignSystem.Spacing.sm) {
-                        Image(systemName: "gauge")
-                            .font(.caption)
                         Text(info.frameRate)
                             .font(.caption)
                             .monospacedDigit()
+                        if let mode = info.frameRateMode {
+                            Text("(\(mode))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                // Bit depth + chroma
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    if let bitDepth = info.bitDepth {
+                        Text(bitDepth)
+                            .font(.caption)
+                    }
+                    if let chroma = info.chromaSubsampling {
+                        Text("·")
+                            .foregroundStyle(.tertiary)
+                        Text(chroma)
+                            .font(.caption)
+                    }
+                }
+
+                // HDR + Color info badges
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    if let hdr = info.hdrFormat, !hdr.isEmpty {
+                        OverlayBadgeRow(text: hdr, color: .purple)
+                    }
+                    if info.isWideGamut, let primaries = info.colorPrimaries {
+                        OverlayBadgeRow(text: primaries, color: .cyan)
                     }
                 }
             }
+        }
+    }
 
-            // Current time
+    // MARK: - Playback Section
+
+    @ViewBuilder
+    private var playbackSection: some View {
+        OverlaySectionView(
+            title: String(localized: "Playback"),
+            systemImage: "play.circle",
+            isExpanded: $playbackSectionExpanded
+        ) {
+            // Current time / Duration / Remaining
             HStack(spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: "clock")
-                    .font(.caption)
                 Text(formatTime(currentTime))
                     .font(.caption)
                     .monospacedDigit()
                 if duration > 0 {
-                    Text("/ \(formatTime(duration))")
+                    Text("/")
+                        .foregroundStyle(.tertiary)
+                    Text(formatTime(duration))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
-                }
-            }
-
-            // Current bitrate
-            if let viewModel = viewModel, let bitrate = getBitrateAtTime(currentTime, samples: viewModel.samples) {
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    Image(systemName: "speedometer")
-                        .font(.caption)
-                    Text(formatBitrate(bitrate))
-                        .font(.caption)
+                    Text("(-\(formatTime(duration - currentTime)))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                         .monospacedDigit()
                 }
             }
 
-            // Color analysis stats
-            if let viewModel = viewModel, let colorSample = getColorSampleAtTime(currentTime, samples: viewModel.colorSamples) {
-                // Brightness
+            // Frame number + SMPTE timecode
+            if let info = viewModel?.extendedInfo, let fps = info.nominalFrameRate, fps > 0 {
                 HStack(spacing: DesignSystem.Spacing.sm) {
-                    Image(systemName: "sun.max")
-                        .font(.caption)
-                    Text(String(format: "%.1f%%", colorSample.brightness * 100))
+                    // Frame number
+                    let frameNumber = Int(currentTime * fps)
+                    let totalFrames = Int(duration * fps)
+                    Text(String(localized: "Frame"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text("\(frameNumber.formatted())")
                         .font(.caption)
                         .monospacedDigit()
+                    if totalFrames > 0 {
+                        Text("/")
+                            .foregroundStyle(.tertiary)
+                        Text("\(totalFrames.formatted())")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
                 }
 
-                // Color temperature
-                if let temperature = colorSample.colorTemperature {
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Image(systemName: "thermometer")
-                            .font(.caption)
-                        Text(String(format: "%.0f K", temperature))
+                // SMPTE Timecode
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Text("TC:")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(formatSMPTETimecode(currentTime, fps: fps))
+                        .font(.system(size: 10, design: .monospaced))
+                }
+            }
+
+            // Bitrate sparkline + current value
+            if let viewModel = viewModel, !viewModel.samples.isEmpty {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    BitrateSparklineView(
+                        samples: viewModel.samples,
+                        currentTime: currentTime,
+                        windowSeconds: 15,
+                        width: 70,
+                        height: 18
+                    )
+
+                    if let bitrate = getBitrateAtTime(currentTime, samples: viewModel.samples) {
+                        Text(formatBitrateMbps(bitrate))
                             .font(.caption)
                             .monospacedDigit()
                     }
                 }
             }
         }
-        .padding(DesignSystem.Padding.md)
-        .liquidGlassBackground(in: .rect(cornerRadius: DesignSystem.CornerRadius.medium))
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous))
+    }
+
+    // MARK: - Audio Section
+
+    @ViewBuilder
+    private var audioSection: some View {
+        OverlaySectionView(
+            title: String(localized: "Audio"),
+            systemImage: "speaker.wave.2",
+            isExpanded: $audioSectionExpanded
+        ) {
+            if let info = viewModel?.extendedInfo, !info.audioTracks.isEmpty {
+                // Get the currently selected audio track (fallback to first if index out of bounds)
+                let trackIndex = min(selectedAudioTrackIndex, info.audioTracks.count - 1)
+                let audioTrack = info.audioTracks[trackIndex]
+
+                // Track indicator (if multiple tracks)
+                if info.audioTracks.count > 1 {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Text(String(localized: "Track"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("\(trackIndex + 1)/\(info.audioTracks.count)")
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
+                }
+
+                // Audio track info
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Text(audioTrack.codecDisplayName)
+                        .font(.caption)
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text(audioTrack.channelLayout)
+                        .font(.caption)
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text(formatSampleRate(audioTrack.sampleRateHz))
+                        .font(.caption)
+                        .monospacedDigit()
+                }
+
+                // Bitrate + language
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    if let bitrate = audioTrack.bitrateKbps {
+                        Text("\(Int(bitrate)) kbps")
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
+                    if let lang = audioTrack.languageCode, lang != "und" {
+                        Text("·")
+                            .foregroundStyle(.tertiary)
+                        Text(formatLanguage(lang))
+                            .font(.caption)
+                    }
+                }
+
+                // Audio level meter (if waveform data available for this track)
+                // Note: waveformData is keyed by audioTrack.index, not array position
+                if let viewModel = viewModel,
+                   let waveformSamples = viewModel.waveformData[audioTrack.index],
+                   let amplitude = getAmplitudeAtTime(currentTime, samples: waveformSamples) {
+                    AudioLevelMeterView(
+                        amplitude: amplitude,
+                        width: 70,
+                        height: 6,
+                        showDecibels: true
+                    )
+                }
+            } else {
+                Text(String(localized: "No audio"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Analysis Section
+
+    @ViewBuilder
+    private var analysisSection: some View {
+        OverlaySectionView(
+            title: String(localized: "Analysis"),
+            systemImage: "waveform.badge.magnifyingglass",
+            isExpanded: $analysisSectionExpanded
+        ) {
+            // GOP info + frame type timeline
+            if let viewModel = viewModel, let gopAnalysis = viewModel.gopAnalysis, !gopAnalysis.segments.isEmpty {
+                // GOP position row
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Text("GOP")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if let (gopIndex, totalGOPs) = getGOPAtTime(currentTime, analysis: gopAnalysis) {
+                        Text("\(gopIndex + 1)/\(totalGOPs)")
+                            .font(.caption)
+                            .monospacedDigit()
+                    } else {
+                        Text("-/-")
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    // Current frame type badge (with fixed width to prevent jumping)
+                    if let frameType = getFrameTypeAtTime(currentTime, analysis: gopAnalysis) {
+                        FrameTypeBadge(frameType: frameType)
+                    } else {
+                        // Reserve space for badge
+                        Text("?")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, DesignSystem.Spacing.sm)
+                            .padding(.vertical, DesignSystem.Spacing.xs)
+                            .background(Color.gray.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small))
+                    }
+                }
+
+                // Frame type timeline (rolling visualization)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        FrameTypeTimelineView(
+                            segments: gopAnalysis.segments,
+                            currentTime: currentTime,
+                            windowSeconds: 10,
+                            width: 80,
+                            height: 16,
+                            representativeGOP: gopAnalysis.representativeGOP,
+                            structureType: gopAnalysis.structureType,
+                            videoDuration: duration > 0 ? duration : nil
+                        )
+                        FrameTypeLegend()
+                    }
+
+                    // Show indicator when using extrapolated/predicted pattern
+                    if gopAnalysis.structureType.isFixed {
+                        Text(String(localized: "~ Constant GOP pattern"))
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+
+            // A/V Sync status
+            if let viewModel = viewModel, let syncResult = viewModel.syncAnalysisResult {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Text(String(localized: "Sync:"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    SyncStatusIndicator(
+                        status: syncResult.overallSyncStatus,
+                        offsetMs: syncResult.primaryTrackSyncOffsetMs,
+                        showLabel: true
+                    )
+
+                    // VFR warning
+                    if syncResult.isVariableFrameRate {
+                        OverlayBadgeRow(text: "VFR", color: .orange)
+                    }
+                }
+            }
+
+            // Brightness + Color temperature
+            if let viewModel = viewModel, let colorSample = getColorSampleAtTime(currentTime, samples: viewModel.colorSamples) {
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "sun.max")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                        Text(String(format: "%.0f%%", colorSample.brightness * 100))
+                            .font(.caption)
+                            .monospacedDigit()
+                    }
+
+                    if let temperature = colorSample.colorTemperature {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(systemName: "thermometer.medium")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                            Text(String(format: "%.0fK", temperature))
+                                .font(.caption)
+                                .monospacedDigit()
+                        }
+                    }
+                }
+            }
+
+            // Keyframe distance
+            if let viewModel = viewModel, !viewModel.keyframeThumbs.isEmpty {
+                if let (prevDistance, nextDistance) = getKeyframeDistances(currentTime, keyframes: viewModel.keyframeThumbs) {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        if let prev = prevDistance {
+                            Text("◀ \(String(format: "%.1fs", prev))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Image(systemName: "key")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.orange)
+                        if let next = nextDistance {
+                            Text("\(String(format: "%.1fs", next)) ▶")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Section Toggle Menu
+
+    private var sectionToggleMenu: some View {
+        Group {
+            Toggle(String(localized: "Video"), isOn: $showVideoSection)
+            Toggle(String(localized: "Playback"), isOn: $showPlaybackSection)
+            Toggle(String(localized: "Audio"), isOn: $showAudioSection)
+            Toggle(String(localized: "Analysis"), isOn: $showAnalysisSection)
+            Divider()
+            Button(String(localized: "Show All")) {
+                showVideoSection = true
+                showPlaybackSection = true
+                showAudioSection = true
+                showAnalysisSection = true
+            }
+            Button(String(localized: "Collapse All")) {
+                videoSectionExpanded = false
+                playbackSectionExpanded = false
+                audioSectionExpanded = false
+                analysisSectionExpanded = false
+            }
+            Button(String(localized: "Expand All")) {
+                videoSectionExpanded = true
+                playbackSectionExpanded = true
+                audioSectionExpanded = true
+                analysisSectionExpanded = true
+            }
+        }
     }
 
     // MARK: - Overlay Position
@@ -277,16 +633,22 @@ struct VideoPlayerView: View {
         let newPlayer = AVPlayer(url: url)
         self.player = newPlayer
 
-        // Load duration
+        // Reset audio track selection
+        selectedAudioTrackIndex = 0
+
+        // Load duration and detect initial audio track
         Task {
             if let duration = try? await newPlayer.currentItem?.asset.load(.duration) {
                 await MainActor.run {
                     self.duration = CMTimeGetSeconds(duration)
                 }
             }
+
+            // Get initial selected audio track index
+            await updateSelectedAudioTrack()
         }
 
-        // Observe time updates
+        // Observe time updates and audio track changes
         let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
         timeObserver = newPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak newPlayer] time in
             guard let player = newPlayer else { return }
@@ -299,6 +661,11 @@ struct VideoPlayerView: View {
                 }
             }
             isPlaying = player.rate > 0
+
+            // Periodically check for audio track changes (user may change via system controls)
+            Task { @MainActor in
+                await updateSelectedAudioTrack()
+            }
         }
 
         // Set mute state
@@ -307,6 +674,30 @@ struct VideoPlayerView: View {
         // Auto-play if enabled
         if playerAutoPlay {
             newPlayer.play()
+        }
+    }
+
+    /// Updates the selected audio track index based on the player's current media selection
+    private func updateSelectedAudioTrack() async {
+        guard let playerItem = player?.currentItem else { return }
+
+        do {
+            let asset = playerItem.asset
+
+            // Get the audible characteristic group
+            if let group = try await asset.loadMediaSelectionGroup(for: .audible) {
+                let currentSelection = playerItem.currentMediaSelection
+                if let selectedOption = currentSelection.selectedMediaOption(in: group) {
+                    // Find the index of the selected option
+                    if let index = group.options.firstIndex(of: selectedOption) {
+                        if selectedAudioTrackIndex != index {
+                            selectedAudioTrackIndex = index
+                        }
+                    }
+                }
+            }
+        } catch {
+            // Silently ignore - some assets don't support media selection
         }
     }
 
@@ -340,6 +731,123 @@ struct VideoPlayerView: View {
     private func formatBitrate(_ bitrate: Double) -> String {
         let kbps = bitrate / 1000.0
         return String(format: "%.0f kb/s", kbps)
+    }
+
+    private func formatBitrateMbps(_ bitrate: Double) -> String {
+        let mbps = bitrate / 1_000_000.0
+        return String(format: "%.1f Mb/s", mbps)
+    }
+
+    private func formatSMPTETimecode(_ seconds: Double, fps: Double) -> String {
+        let totalFrames = Int(seconds * fps)
+        let roundedFPS = Int(fps.rounded())
+        guard roundedFPS > 0 else { return "00:00:00:00" }
+
+        let frames = totalFrames % roundedFPS
+        let totalSeconds = totalFrames / roundedFPS
+        let secs = totalSeconds % 60
+        let mins = (totalSeconds / 60) % 60
+        let hours = totalSeconds / 3600
+
+        return String(format: "%02d:%02d:%02d:%02d", hours, mins, secs, frames)
+    }
+
+    private func formatSampleRate(_ hz: Double) -> String {
+        if hz >= 1000 {
+            return String(format: "%.1f kHz", hz / 1000.0)
+        }
+        return String(format: "%.0f Hz", hz)
+    }
+
+    private func formatLanguage(_ code: String) -> String {
+        let locale = Locale.current
+        return locale.localizedString(forLanguageCode: code) ?? code.uppercased()
+    }
+
+    /// Gets the amplitude at the current time from waveform samples
+    private func getAmplitudeAtTime(_ time: Double, samples: [WaveformSample]) -> Double? {
+        guard !samples.isEmpty else { return nil }
+
+        let sortedSamples = samples.sorted { $0.time < $1.time }
+
+        // Find closest sample
+        var closestSample = sortedSamples.first!
+        var minDistance = abs(closestSample.time - time)
+
+        for sample in sortedSamples {
+            let distance = abs(sample.time - time)
+            if distance < minDistance {
+                minDistance = distance
+                closestSample = sample
+            }
+        }
+
+        return closestSample.amplitude
+    }
+
+    /// Gets the current GOP index and total GOPs
+    private func getGOPAtTime(_ time: Double, analysis: GOPAnalysisResult) -> (index: Int, total: Int)? {
+        guard !analysis.segments.isEmpty else { return nil }
+
+        for (index, segment) in analysis.segments.enumerated() {
+            if time >= segment.startTime && time < segment.endTime {
+                return (index, analysis.segments.count)
+            }
+        }
+
+        // If past all segments, return last one
+        if time >= (analysis.segments.last?.endTime ?? 0) {
+            return (analysis.segments.count - 1, analysis.segments.count)
+        }
+
+        return nil
+    }
+
+    /// Gets the frame type at the current time
+    private func getFrameTypeAtTime(_ time: Double, analysis: GOPAnalysisResult) -> FrameType? {
+        guard !analysis.segments.isEmpty else { return nil }
+
+        // Find the GOP containing this time
+        for segment in analysis.segments {
+            if time >= segment.startTime && time < segment.endTime {
+                // Find frame within this GOP
+                if let frames = segment.frames {
+                    for (index, frame) in frames.enumerated() {
+                        let nextFrameTime = index + 1 < frames.count ? frames[index + 1].time : segment.endTime
+                        if time >= frame.time && time < nextFrameTime {
+                            return frame.type
+                        }
+                    }
+                }
+                // If no frames data, assume first frame is I-frame
+                if time < segment.startTime + 0.1 {
+                    return .i
+                }
+                return nil
+            }
+        }
+
+        return nil
+    }
+
+    /// Gets distances to previous and next keyframes
+    private func getKeyframeDistances(_ time: Double, keyframes: [KeyframeThumbnail]) -> (prev: Double?, next: Double?)? {
+        guard !keyframes.isEmpty else { return nil }
+
+        let sortedKeyframes = keyframes.sorted { $0.time < $1.time }
+        var prevDistance: Double?
+        var nextDistance: Double?
+
+        for keyframe in sortedKeyframes {
+            if keyframe.time <= time {
+                prevDistance = time - keyframe.time
+            } else {
+                nextDistance = keyframe.time - time
+                break
+            }
+        }
+
+        return (prevDistance, nextDistance)
     }
 
     /// Finds the bitrate at a given time by finding the nearest sample or interpolating
