@@ -26,14 +26,17 @@ struct SidebarTabBarView: View {
                 return nil
             },
             set: { newValue in
-                switch newValue {
-                case .tab(let id):
-                    showServerTab = false
-                    tabManager.switchToTab(id: id)
-                case .server:
-                    showServerTab = true
-                case .none:
-                    break
+                // Defer state changes to avoid "Publishing changes from within view updates" warning
+                Task { @MainActor in
+                    switch newValue {
+                    case .tab(let id):
+                        showServerTab = false
+                        tabManager.switchToTab(id: id)
+                    case .server:
+                        showServerTab = true
+                    case .none:
+                        break
+                    }
                 }
             }
         )
@@ -66,7 +69,9 @@ struct SidebarTabBarView: View {
                 isRunning: serverManager.isRunning,
                 activeJobCount: serverManager.jobQueue.activeJobs.count,
                 onSelect: {
-                    showServerTab = true
+                    Task { @MainActor in
+                        showServerTab = true
+                    }
                 }
             )
             .padding(.horizontal, DesignSystem.Padding.sm)
