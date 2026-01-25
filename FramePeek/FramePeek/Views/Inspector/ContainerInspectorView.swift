@@ -19,21 +19,16 @@ struct ContainerInspectorView: View {
                 .padding(.vertical, DesignSystem.Spacing.sm)
 
             // Atom tree
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
-                    ForEach(result.atoms) { atom in
-                        AtomRowView(
-                            atom: atom,
-                            depth: 0,
-                            expandedAtoms: $expandedAtoms,
-                            hoveredAtom: $hoveredAtom
-                        )
-                    }
-                }
-                .padding(.horizontal, DesignSystem.Padding.md)
-                .padding(.bottom, DesignSystem.Padding.lg)
+            ForEach(result.atoms) { atom in
+                AtomRowView(
+                    atom: atom,
+                    depth: 0,
+                    expandedAtoms: $expandedAtoms,
+                    hoveredAtom: $hoveredAtom
+                )
             }
         }
+        .padding(.horizontal, DesignSystem.Padding.md)
     }
 
     // MARK: - Header
@@ -108,30 +103,28 @@ private struct AtomRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 2) {
             // Row content
             HStack(spacing: 6) {
                 // Indentation
                 if depth > 0 {
                     HStack(spacing: 0) {
                         ForEach(0..<depth, id: \.self) { _ in
-                            Rectangle()
-                                .fill(Color.secondary.opacity(0.2))
-                                .frame(width: 1)
+                            Color.secondary.opacity(0.2)
+                                .frame(width: 1, height: 20)
                                 .padding(.horizontal, 8)
                         }
                     }
+                    .fixedSize()
                 }
 
                 // Expand/collapse button for containers
                 if atom.isContainer {
                     Button {
-                        withAnimation(.snappy(duration: 0.15)) {
-                            if isExpanded {
-                                expandedAtoms.remove(atom.id)
-                            } else {
-                                expandedAtoms.insert(atom.id)
-                            }
+                        if isExpanded {
+                            expandedAtoms.remove(atom.id)
+                        } else {
+                            expandedAtoms.insert(atom.id)
                         }
                     } label: {
                         Image(systemName: "chevron.right")
@@ -139,6 +132,7 @@ private struct AtomRowView: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(.secondary)
                             .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                            .animation(.snappy(duration: 0.15), value: isExpanded)
                             .frame(width: 12, height: 12)
                     }
                     .buttonStyle(.plain)

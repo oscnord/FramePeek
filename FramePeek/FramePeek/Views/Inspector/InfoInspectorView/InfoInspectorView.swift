@@ -136,7 +136,6 @@ struct InfoInspectorView: View {
                                     isLoading: viewModel.isAnalyzingContainer
                                 ) {
                                     ContainerInspectorView(result: containerResult)
-                                        .frame(maxHeight: 400)
                                 }
                             } else if viewModel.isAnalyzingContainer {
                                 CollapsibleSection(
