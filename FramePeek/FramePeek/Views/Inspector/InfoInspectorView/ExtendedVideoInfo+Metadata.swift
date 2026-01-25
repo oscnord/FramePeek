@@ -1,5 +1,5 @@
-
 import Foundation
+import FramePeekCore
 
 extension ExtendedVideoInfo {
     var hasMetadata: Bool {

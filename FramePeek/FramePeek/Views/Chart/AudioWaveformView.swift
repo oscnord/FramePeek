@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct AudioWaveformView: View {
     let trackIndex: Int
@@ -6,7 +7,7 @@ struct AudioWaveformView: View {
     let samples: [WaveformSample]
     let duration: Double
     @ObservedObject var viewModel: FramePeekViewModel
-    
+
     private var displaySamples: [WaveformSample] {
         let filteredSamples: [WaveformSample]
         if let range = viewModel.visibleTimeRange {
@@ -17,10 +18,20 @@ struct AudioWaveformView: View {
         return filteredSamples
     }
     
+    /// Time domain for the current view
+    private var timeDomain: (start: Double, end: Double) {
+        if let range = viewModel.visibleTimeRange {
+            return (range.lowerBound, range.upperBound)
+        }
+        let minTime = samples.first?.time ?? 0
+        let maxTime = samples.last?.time ?? duration
+        return (minTime, maxTime)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let calculatedHeight = max(geometry.size.width * 0.08, 80) // 8% of width, min 80
-            
+
             ZStack(alignment: .center) {
                 // Background with subtle grid
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
@@ -29,96 +40,111 @@ struct AudioWaveformView: View {
                         WaveformGrid(rect: geometry.frame(in: .local))
                             .stroke(DesignSystem.Colors.Chart.grid.opacity(0.3), lineWidth: 0.5)
                     )
-                
+
                 if displaySamples.isEmpty {
                     // Empty state
                     Text("No waveform data")
                         .font(.caption)
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 } else {
-                    // Waveform path
+                    // Waveform path - gradient from bottom (darker) to top (lighter)
                     WaveformShape(samples: displaySamples, height: calculatedHeight)
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    DesignSystem.Colors.Chart.primary.opacity(0.8),
-                                    DesignSystem.Colors.Chart.primary.opacity(0.4)
+                                    DesignSystem.Colors.Chart.primary.opacity(0.9),
+                                    DesignSystem.Colors.Chart.primary.opacity(0.5)
                                 ],
-                                startPoint: .top,
-                                endPoint: .bottom
+                                startPoint: .bottom,
+                                endPoint: .top
                             )
                         )
+                }
+                
+                // Cross-chart sync indicator line
+                if let syncTime = viewModel.hoveredTimestamp {
+                    crossChartSyncIndicator(time: syncTime, width: geometry.size.width, height: calculatedHeight)
                 }
             }
             .frame(height: calculatedHeight)
         }
         .frame(height: 80) // Minimum height fallback
     }
+    
+    // MARK: - Cross-Chart Sync Indicator
+    
+    @ViewBuilder
+    private func crossChartSyncIndicator(time: Double, width: CGFloat, height: CGFloat) -> some View {
+        let domain = timeDomain
+        let domainDuration = max(0.001, domain.end - domain.start)
+        
+        // Only show if time is within visible range
+        if time >= domain.start && time <= domain.end {
+            let ratio = (time - domain.start) / domainDuration
+            let x = CGFloat(ratio) * width
+            
+            Rectangle()
+                .fill(DesignSystem.Colors.Chart.hoveredLine)
+                .frame(width: 2, height: height)
+                .position(x: x, y: height / 2)
+                .allowsHitTesting(false)
+        }
+    }
 }
 
 struct WaveformShape: Shape {
     let samples: [WaveformSample]
     let height: CGFloat
-    
+
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        
+
         guard !samples.isEmpty, rect.width > 0, rect.height > 0 else {
             return path
         }
+
+        // Get all amplitude values for scaling
+        let amplitudes = samples.map { max($0.amplitude, $0.maxAmplitude) }
+        guard let maxAmp = amplitudes.max(), maxAmp > 0 else {
+            return path
+        }
         
-        let centerY = rect.midY
-        let maxAmplitude = samples.map { max($0.amplitude, $0.maxAmplitude) }.max() ?? 1.0
-        let scale = maxAmplitude > 0 ? (rect.height / 2.0) / maxAmplitude : rect.height / 2.0
+        // Use a small padding from edges
+        let padding: CGFloat = 4
+        let drawHeight = rect.height - (padding * 2)
         
+        // Scale factor: map amplitude (0-1) to available height
+        // Waveform goes from bottom (0) to top (max amplitude)
+        let scale = drawHeight / maxAmp
+
         // Find time range
         let minTime = samples.first?.time ?? 0
         let maxTime = samples.last?.time ?? 1
         let timeRange = max(maxTime - minTime, 0.001)
-        
-        // Draw waveform as filled area
-        // Top half (positive amplitude)
-        var topPoints: [CGPoint] = []
-        topPoints.reserveCapacity(samples.count)
-        
+
+        // Start at bottom-left
+        let baselineY = rect.maxY - padding
+        path.move(to: CGPoint(x: rect.minX, y: baselineY))
+
+        // Draw line along bottom to first sample
+        let firstX = rect.minX + CGFloat((samples[0].time - minTime) / timeRange) * rect.width
+        path.addLine(to: CGPoint(x: firstX, y: baselineY))
+
+        // Draw waveform as filled area from baseline
         for sample in samples {
             let x = rect.minX + CGFloat((sample.time - minTime) / timeRange) * rect.width
-            let amplitude = sample.maxAmplitude > 0 ? sample.maxAmplitude : sample.amplitude
-            let y = centerY - CGFloat(amplitude * scale)
-            topPoints.append(CGPoint(x: x, y: y))
+            let amplitude = max(sample.amplitude, sample.maxAmplitude)
+            let scaledHeight = CGFloat(amplitude * scale)
+            let y = baselineY - scaledHeight
+            path.addLine(to: CGPoint(x: x, y: y))
         }
-        
-        // Bottom half (mirrored)
-        var bottomPoints: [CGPoint] = []
-        bottomPoints.reserveCapacity(samples.count)
-        
-        for sample in samples.reversed() {
-            let x = rect.minX + CGFloat((sample.time - minTime) / timeRange) * rect.width
-            let amplitude = sample.minAmplitude > 0 ? sample.minAmplitude : sample.amplitude
-            let y = centerY + CGFloat(amplitude * scale)
-            bottomPoints.append(CGPoint(x: x, y: y))
-        }
-        
-        // Create closed path
-        if let firstTop = topPoints.first {
-            path.move(to: firstTop)
-            
-            // Draw top curve
-            for point in topPoints.dropFirst() {
-                path.addLine(to: point)
-            }
-            
-            // Draw bottom curve (reversed)
-            if let firstBottom = bottomPoints.first {
-                path.addLine(to: firstBottom)
-                for point in bottomPoints.dropFirst() {
-                    path.addLine(to: point)
-                }
-            }
-            
-            path.closeSubpath()
-        }
-        
+
+        // Close path back to baseline
+        let lastX = rect.minX + CGFloat((samples.last!.time - minTime) / timeRange) * rect.width
+        path.addLine(to: CGPoint(x: lastX, y: baselineY))
+        path.addLine(to: CGPoint(x: rect.minX, y: baselineY))
+        path.closeSubpath()
+
         return path
     }
 }
@@ -127,35 +153,25 @@ struct WaveformShape: Shape {
 
 struct WaveformGrid: Shape {
     let rect: CGRect
-    
+
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        
-        let centerY = rect.midY
-        
-        // Draw center line
-        path.move(to: CGPoint(x: rect.minX, y: centerY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: centerY))
-        
-        // Draw a few horizontal reference lines at equal intervals
-        let lineCount = 3
-        for i in 1..<lineCount {
-            let offset = CGFloat(i) / CGFloat(lineCount) * (rect.height / 2.0)
-            let yTop = centerY - offset
-            let yBottom = centerY + offset
-            
-            if yTop >= rect.minY {
-                path.move(to: CGPoint(x: rect.minX, y: yTop))
-                path.addLine(to: CGPoint(x: rect.maxX, y: yTop))
-            }
-            
-            if yBottom <= rect.maxY {
-                path.move(to: CGPoint(x: rect.minX, y: yBottom))
-                path.addLine(to: CGPoint(x: rect.maxX, y: yBottom))
-            }
+
+        let padding: CGFloat = 4
+        let baselineY = rect.maxY - padding
+
+        // Draw baseline
+        path.move(to: CGPoint(x: rect.minX, y: baselineY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: baselineY))
+
+        // Draw horizontal reference lines at 25%, 50%, 75%
+        let drawHeight = rect.height - (padding * 2)
+        for level in [0.25, 0.5, 0.75] {
+            let y = baselineY - (drawHeight * CGFloat(level))
+            path.move(to: CGPoint(x: rect.minX, y: y))
+            path.addLine(to: CGPoint(x: rect.maxX, y: y))
         }
-        
+
         return path
     }
 }
-

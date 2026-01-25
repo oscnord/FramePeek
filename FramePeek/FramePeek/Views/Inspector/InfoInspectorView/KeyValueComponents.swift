@@ -1,7 +1,6 @@
-
 import SwiftUI
 
-struct KV: View {
+struct KVRow: View {
     let key: String
     let value: String
     let monospace: Bool
@@ -18,7 +17,7 @@ struct KV: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 90, alignment: .leading)
-            
+
             Text(value)
                 .font(.caption)
                 .foregroundStyle(.primary)
@@ -55,8 +54,8 @@ struct KVMultiline: View {
 
 #Preview {
     VStack {
-        KV("Key", "Value")
-        KV("Monospace", "0.123456", monospace: true)
+        KVRow("Key", "Value")
+        KVRow("Monospace", "0.123456", monospace: true)
         KVMultiline("Multiline", "This is a longer value that may wrap to multiple lines")
     }
     .padding()

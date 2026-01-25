@@ -4,7 +4,7 @@ import CoreMedia
 /// Extracts bitrate samples efficiently using AVSampleCursor when possible,
 /// falling back to AVAssetReader.
 /// Routes to format-specific extractors based on detected container format.
-func extractBitratesFast(
+public func extractBitratesFast(
     asset: AVAsset,
     options: FrameSamplingOptions
 ) -> AsyncStream<FrameAnalysisUpdate> {
@@ -32,7 +32,7 @@ func extractBitratesFast(
             let url: URL? = (asset as? AVURLAsset)?.url
 
             let format = await detectContainerFormat(asset: asset, url: url ?? URL(fileURLWithPath: "/"))
-            
+
             switch format {
             case .fragmentedMP4, .cmaf:
                 await extractFragmentedMP4(
@@ -44,7 +44,7 @@ func extractBitratesFast(
                     continuation: continuation
                 )
                 return
-                
+
             case .mpegTS:
                 await extractTS(
                     asset: asset,
@@ -55,7 +55,7 @@ func extractBitratesFast(
                     continuation: continuation
                 )
                 return
-                
+
             default:
                 if options.preferAccuracy {
                     await extractWithReader(
@@ -96,4 +96,3 @@ func extractBitratesFast(
         continuation.onTermination = { _ in task.cancel() }
     }
 }
-

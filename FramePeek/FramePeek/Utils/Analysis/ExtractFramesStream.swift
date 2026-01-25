@@ -1,16 +1,25 @@
 import AVFoundation
 import CoreMedia
 
-struct FrameAnalysisUpdate {
-    var appendedSamples: [BitrateSample] = []
-    var rawFrames: [RawFrame] = []  // Raw frame data for re-aggregation
-    var averageFPS: Double? = nil
-    var minInterval: Double? = nil
-    var maxInterval: Double? = nil
-    var isFinished: Bool = false
+public struct FrameAnalysisUpdate {
+    public var appendedSamples: [BitrateSample] = []
+    public var rawFrames: [RawFrame] = []  // Raw frame data for re-aggregation
+    public var averageFPS: Double?
+    public var minInterval: Double?
+    public var maxInterval: Double?
+    public var isFinished: Bool = false
+    
+    public init(appendedSamples: [BitrateSample] = [], rawFrames: [RawFrame] = [], averageFPS: Double? = nil, minInterval: Double? = nil, maxInterval: Double? = nil, isFinished: Bool = false) {
+        self.appendedSamples = appendedSamples
+        self.rawFrames = rawFrames
+        self.averageFPS = averageFPS
+        self.minInterval = minInterval
+        self.maxInterval = maxInterval
+        self.isFinished = isFinished
+    }
 }
 
-func extractFramesStream(
+public func extractFramesStream(
     asset: AVAsset,
     options: FrameSamplingOptions
 ) -> AsyncStream<FrameAnalysisUpdate> {
@@ -41,7 +50,7 @@ func extractFramesStream(
             let duration = (try? await asset.load(.duration)) ?? .zero
             let durationSeconds = duration.seconds
             let nominalFrameRate = (try? await videoTrack.load(.nominalFrameRate)) ?? 30.0
-            
+
             guard durationSeconds.isFinite, durationSeconds > 0 else {
                 continuation.yield(finish)
                 continuation.finish()
@@ -53,11 +62,11 @@ func extractFramesStream(
             // when it will actually save significant time
             let estimatedFrameCount = durationSeconds * Double(nominalFrameRate)
             let samplesNeeded = options.maxSamples
-            let seekingWorthIt = options.minEmitIntervalSeconds != nil 
-                && options.minEmitIntervalSeconds! >= 0.5 
+            let seekingWorthIt = options.minEmitIntervalSeconds != nil
+                && options.minEmitIntervalSeconds! >= 0.5
                 && estimatedFrameCount > 10000
                 && Double(samplesNeeded) < estimatedFrameCount / 10
-            
+
             if seekingWorthIt {
                 // FAST PATH: Sample at intervals by seeking (skips most frames)
                 await extractWithSeeking(
@@ -95,7 +104,7 @@ private func extractWithSeeking(
 ) async {
     let finish = FrameAnalysisUpdate(appendedSamples: [], isFinished: true)
     let interval = options.minEmitIntervalSeconds ?? 1.0
-    
+
     // Calculate sample times
     var sampleTimes: [Double] = []
     var t = 0.0
@@ -103,21 +112,21 @@ private func extractWithSeeking(
         sampleTimes.append(t)
         t += interval
     }
-    
+
     guard !sampleTimes.isEmpty else {
         continuation.yield(finish)
         continuation.finish()
         return
     }
-    
+
     var pending: [BitrateSample] = []
     pending.reserveCapacity(options.emitEveryNSamples)
     var totalEmitted = 0
-    
+
     // Estimated FPS from nominal rate
     let estimatedFPS = nominalFrameRate > 0 ? nominalFrameRate : 30.0
     let frameDuration = 1.0 / estimatedFPS
-    
+
     func makeUpdate(isFinished: Bool = false) -> FrameAnalysisUpdate {
         return FrameAnalysisUpdate(
             appendedSamples: pending,
@@ -128,49 +137,49 @@ private func extractWithSeeking(
             isFinished: isFinished
         )
     }
-    
+
     for sampleTime in sampleTimes {
         if Task.isCancelled { break }
-        
+
         // Create a reader for a small time range around our sample point
         // We need to read enough frames to get a meaningful bitrate average
         let windowSize = max(interval, 0.5) // At least 0.5 seconds window
         let startTime = CMTime(seconds: max(0, sampleTime), preferredTimescale: 600)
         let endTime = CMTime(seconds: min(durationSeconds, sampleTime + windowSize), preferredTimescale: 600)
         let timeRange = CMTimeRange(start: startTime, end: endTime)
-        
+
         guard let reader = try? AVAssetReader(asset: asset) else { continue }
         reader.timeRange = timeRange
-        
+
         let output = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: nil)
         output.alwaysCopiesSampleData = false
-        
+
         guard reader.canAdd(output) else { continue }
         reader.add(output)
-        
+
         guard reader.startReading() else { continue }
-        
+
         // Read frames in this window to calculate average bitrate
         var totalSize = 0
         var firstTime: Double?
         var lastTime: Double?
         var frameCount = 0
         let maxFramesToRead = Int(windowSize * estimatedFPS) + 5 // Read frames for the window duration
-        
+
         while let sampleBuffer = output.copyNextSampleBuffer(), frameCount < maxFramesToRead {
             autoreleasepool {
                 let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
                 let size = CMSampleBufferGetTotalSampleSize(sampleBuffer)
-                
+
                 if firstTime == nil { firstTime = pts }
                 lastTime = pts
                 totalSize += size
                 frameCount += 1
             }
         }
-        
+
         reader.cancelReading()
-        
+
         // Calculate bitrate from the frames we read
         if frameCount > 0, let first = firstTime {
             let measuredDuration: Double
@@ -187,28 +196,28 @@ private func extractWithSeeking(
                 // Single frame - use frame duration
                 measuredDuration = frameDuration
             }
-            
+
             let bitrate = (Double(totalSize) * 8.0) / measuredDuration
-            
+
             pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: measuredDuration))
             totalEmitted += 1
-            
+
             if pending.count >= options.emitEveryNSamples {
                 continuation.yield(makeUpdate())
                 pending.removeAll(keepingCapacity: true)
             }
         }
-        
+
         // Yield to other tasks periodically
         if totalEmitted % 20 == 0 {
             await Task.yield()
         }
     }
-    
+
     if !pending.isEmpty {
         continuation.yield(makeUpdate())
     }
-    
+
     continuation.yield(makeUpdate(isFinished: true))
     continuation.finish()
 }
@@ -222,7 +231,7 @@ private func extractEveryFrame(
     continuation: AsyncStream<FrameAnalysisUpdate>.Continuation
 ) async {
     let finish = FrameAnalysisUpdate(appendedSamples: [], isFinished: true)
-    
+
     let reader: AVAssetReader
     do {
         reader = try AVAssetReader(asset: asset)
@@ -262,7 +271,7 @@ private func extractEveryFrame(
     var maxIntervalVal = 0.0
 
     var totalEmitted = 0
-    
+
     // For windowed bitrate averaging
     var windowStartTime: Double?
     var windowTotalBytes = 0
@@ -294,7 +303,7 @@ private func extractEveryFrame(
             isFinished: isFinished
         )
     }
-    
+
     // Collect raw frames for re-aggregation
     // Reserve capacity based on estimated frame count for better performance
     let duration = (try? await asset.load(.duration)) ?? .zero
@@ -308,7 +317,7 @@ private func extractEveryFrame(
         autoreleasepool {
             let currentTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
             let sampleSize = CMSampleBufferGetTotalSampleSize(sampleBuffer)
-            
+
             // Store raw frame data
             if sampleSize > 0 && currentTime.isFinite {
                 allRawFrames.append((pts: currentTime, size: Int64(sampleSize)))
@@ -328,10 +337,10 @@ private func extractEveryFrame(
             if windowStartTime == nil {
                 windowStartTime = currentTime
             }
-            
+
             // Accumulate bytes for this window
             windowTotalBytes += sampleSize
-            
+
             // Check if we should emit a sample
             let shouldEmit: Bool
             if emitInterval > 0 {
@@ -349,7 +358,7 @@ private func extractEveryFrame(
 
             if shouldEmit, totalEmitted < options.maxSamples, let windowStart = windowStartTime {
                 let windowDuration = currentTime - windowStart
-                
+
                 if windowDuration > 0 {
                     // Calculate average bitrate over the window
                     // Add frame duration to account for the last frame extending beyond its PTS
@@ -359,7 +368,7 @@ private func extractEveryFrame(
                     pending.append(BitrateSample(time: currentTime, bitrate: avgBitrate, duration: effectiveDuration))
                     totalEmitted += 1
                     lastEmittedTime = currentTime
-                    
+
                     // Reset window for next sample
                     windowStartTime = currentTime
                     windowTotalBytes = 0
@@ -380,7 +389,7 @@ private func extractEveryFrame(
                 pending.removeAll(keepingCapacity: true)
             }
         }
-        
+
         // Yield periodically to let other tasks run
         if intervalCount % 500 == 0 {
             await Task.yield()

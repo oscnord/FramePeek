@@ -3,7 +3,7 @@ import CoreMedia
 
 // MARK: - Cursor-based extraction (fast, metadata-only)
 
-func extractWithCursor(
+public func extractWithCursor(
     track: AVAssetTrack,
     durationSeconds: Double,
     nominalFrameRate: Double,
@@ -21,20 +21,18 @@ func extractWithCursor(
     var pending: [BitrateSample] = []
     pending.reserveCapacity(options.emitEveryNSamples)
 
-    var totalEmitted = 0
-
     // FPS stats
     var sumInterval = 0.0
     var intervalCount = 0
     var minInterval = Double.greatestFiniteMagnitude
     var maxInterval = 0.0
-    var previousPTS: Double? = nil
+    var previousPTS: Double?
 
-    var firstPTS: Double? = nil
+    var firstPTS: Double?
 
     var allRawFrames: [RawFrame] = []
     allRawFrames.reserveCapacity(Int(estimatedFPS * durationSeconds) + 1000)
-    
+
     let bucketSize: Double = 1.0
     var bucketFrames: [Int: [(pts: Double, size: Int64)]] = [:]
     var lastEmittedBucket = -1
@@ -64,7 +62,7 @@ func extractWithCursor(
             isFinished: isFinished
         )
     }
-    
+
     func makeFinalUpdate() -> FrameAnalysisUpdate {
         var update = makeUpdate(isFinished: true)
         update.rawFrames = allRawFrames
@@ -83,16 +81,16 @@ func extractWithCursor(
         }
 
         let sampleSize = Int64(cursor.currentSampleStorageRange.length)
-        
+
         if sampleSize > 0 {
             // Store raw frame data
             allRawFrames.append((pts: pts, size: sampleSize))
-            
+
             // Track first PTS
             if firstPTS == nil {
                 firstPTS = pts
             }
-            
+
             if let prev = previousPTS, pts > prev {
                 let dt = pts - prev
                 sumInterval += dt
@@ -113,34 +111,38 @@ func extractWithCursor(
             }
 
             let bucketIndex = Int(floor((pts - startPTS) / bucketSize))
-            
+
             if bucketFrames[bucketIndex] == nil {
                 bucketFrames[bucketIndex] = []
             }
             bucketFrames[bucketIndex]?.append((pts: pts, size: sampleSize))
-            
+
             let prevBucketIndex = bucketIndex - 1
             if prevBucketIndex > lastEmittedBucket {
                 if let frames = bucketFrames[prevBucketIndex], !frames.isEmpty {
                     let bucketStart = startPTS + Double(prevBucketIndex) * bucketSize
                     let totalBytes = frames.reduce(0) { $0 + $1.size }
-                    
+
                     let firstFramePTS = frames.first!.pts
                     let lastFramePTS = frames.last!.pts
                     let actualSpan = lastFramePTS - firstFramePTS
+                    // Add minimum duration guard to prevent inflated bitrate from very small durations
+                    let minDuration = bucketSize * 0.1
                     let actualDuration: Double
                     if actualSpan < bucketSize - defaultFrameDuration {
-                        actualDuration = actualSpan + defaultFrameDuration
+                        actualDuration = max(actualSpan + defaultFrameDuration, minDuration)
                     } else {
                         actualDuration = bucketSize
                     }
-                    
+
                     let bitrate = (Double(totalBytes) * 8.0) / actualDuration
                     let sampleTime = bucketStart + bucketSize / 2.0
-                    
+
                     pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
-                    totalEmitted += 1
                     lastEmittedBucket = prevBucketIndex
+
+                    // Remove emitted bucket to prevent unbounded memory growth
+                    bucketFrames.removeValue(forKey: prevBucketIndex)
 
                     if pending.count >= options.emitEveryNSamples {
                         continuation.yield(makeUpdate())
@@ -171,29 +173,30 @@ func extractWithCursor(
     let endTime = allRawFrames.map(\.pts).max() ?? startPTS
     let totalDuration = endTime - startPTS + defaultFrameDuration
     let numBuckets = Int(ceil(totalDuration / bucketSize))
-    
+
     for bucketIndex in (lastEmittedBucket + 1)..<numBuckets {
         let bucketStart = startPTS + Double(bucketIndex) * bucketSize
-        
+
         let frames = bucketFrames[bucketIndex] ?? []
         let totalBytes = frames.reduce(0) { $0 + $1.size }
-        
+
         if totalBytes > 0 && !frames.isEmpty {
             let firstFramePTS = frames.first!.pts
             let lastFramePTS = frames.last!.pts
             let actualSpan = lastFramePTS - firstFramePTS
+            // Add minimum duration guard to prevent inflated bitrate from very small durations
+            let minDuration = bucketSize * 0.1
             let actualDuration: Double
             if actualSpan < bucketSize - defaultFrameDuration {
-                actualDuration = actualSpan + defaultFrameDuration
+                actualDuration = max(actualSpan + defaultFrameDuration, minDuration)
             } else {
                 actualDuration = bucketSize
             }
-            
+
             let bitrate = (Double(totalBytes) * 8.0) / actualDuration
             let sampleTime = bucketStart + bucketSize / 2.0
-            
+
             pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
-            totalEmitted += 1
 
             if pending.count >= options.emitEveryNSamples {
                 continuation.yield(makeUpdate())

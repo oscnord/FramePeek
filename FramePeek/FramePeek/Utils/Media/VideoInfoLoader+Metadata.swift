@@ -1,29 +1,37 @@
 import Foundation
 import AVFoundation
 
-struct MetadataInfo {
-    let creationDate: String?
-    let title: String?
-    let artist: String?
-    let encoder: String?
-    let description: String?
+public struct MetadataInfo {
+    public let creationDate: String?
+    public let title: String?
+    public let artist: String?
+    public let encoder: String?
+    public let description: String?
+    
+    public init(creationDate: String?, title: String?, artist: String?, encoder: String?, description: String?) {
+        self.creationDate = creationDate
+        self.title = title
+        self.artist = artist
+        self.encoder = encoder
+        self.description = description
+    }
 }
 
-func formatCreationDate(from asset: AVAsset) async -> String? {
+public func formatCreationDate(from asset: AVAsset) async -> String? {
     guard
         let creationItem = try? await asset.load(.creationDate),
         let date = try? await creationItem.load(.dateValue)
     else {
         return nil
     }
-    
+
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
     formatter.timeStyle = .medium
     return formatter.string(from: date)
 }
 
-func extractCommonMetadata(from asset: AVAsset) async -> (
+public func extractCommonMetadata(from asset: AVAsset) async -> (
     title: String?,
     artist: String?,
     encoder: String?,
@@ -33,15 +41,15 @@ func extractCommonMetadata(from asset: AVAsset) async -> (
     var artist: String?
     var encoder: String?
     var description: String?
-    
+
     guard let commonMetadata = try? await asset.load(.commonMetadata) else {
         return (nil, nil, nil, nil)
     }
-    
+
     for item in commonMetadata {
         guard let commonKey = item.commonKey?.rawValue,
               let value = try? await item.load(.stringValue) else { continue }
-        
+
         switch commonKey {
         case "title":
             if title == nil { title = value }
@@ -55,14 +63,14 @@ func extractCommonMetadata(from asset: AVAsset) async -> (
             break
         }
     }
-    
+
     return (title, artist, encoder, description)
 }
 
-func extractMetadataInfo(asset: AVAsset) async -> MetadataInfo {
+public func extractMetadataInfo(asset: AVAsset) async -> MetadataInfo {
     async let creationDate = formatCreationDate(from: asset)
     let commonMetadata = await extractCommonMetadata(from: asset)
-    
+
     return MetadataInfo(
         creationDate: await creationDate,
         title: commonMetadata.title,
@@ -71,5 +79,3 @@ func extractMetadataInfo(asset: AVAsset) async -> MetadataInfo {
         description: commonMetadata.description
     )
 }
-
-

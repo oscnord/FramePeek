@@ -37,6 +37,16 @@ FramePeek is a native macOS application built with SwiftUI that leverages AVFoun
 - **Statistics Overlay**: Real-time display of resolution, frame rate, current time, and bitrate
 - **Customizable Controls**: Toggle controls, auto-play, and mute settings
 
+### CLI Tool
+- **Command-line interface** for batch processing and automation
+- JSON, text, and CSV output formats
+- All analysis capabilities available via CLI
+
+### REST API
+- **Embedded HTTP server** for remote analysis
+- Start/stop from the Server tab in the app
+- Job queue with progress tracking
+
 ## System Requirements
 
 - **macOS**: 15.2 (Sequoia) or later
@@ -60,18 +70,7 @@ FramePeek is a native macOS application built with SwiftUI that leverages AVFoun
 
 3. **Build and run**:
    - Select your target Mac in Xcode
-   - Press `Cmd+R` to build and run, or use Product → Run
-
-### Dependencies
-
-The project uses the following Apple frameworks (included with macOS):
-- **AVFoundation**: Media file inspection and frame extraction
-- **CoreMedia**: Low-level media format handling
-- **SwiftUI**: User interface
-- **AppKit**: macOS-specific features (file dialogs, images)
-- **Charts**: Interactive chart visualization (macOS 15.0+)
-
-No external dependencies or package managers required.
+   - Press `Cmd+R` to build and run
 
 ## Usage
 
@@ -81,26 +80,29 @@ No external dependencies or package managers required.
 2. **Drag and Drop**: Drag a video or audio file onto the main window
 3. **Supported Formats**: MP4, MOV, AVI, MPEG, and other common media formats supported by AVFoundation
 
-### Analysis Settings
+### CLI Usage
 
-Configure sampling options in Settings:
+```bash
+# Basic metadata
+framepeek-cli video.mp4 --info --pretty
 
-- **Automatic Mode**: Automatically determines optimal sampling based on video duration
-- **Fixed Interval**: Sample at regular time intervals (configurable)
-- **Per-Frame Mode**: Sample every frame (for high accuracy)
-- **Visualization Mode**: Choose how to aggregate bitrate data (per second, per frame, or per GOP)
-- **Accuracy Mode**: Balance between performance and accuracy (Performance, Balanced, Accuracy)
+# All analyses
+framepeek-cli video.mp4 --all --pretty
 
-### Interface
+# Bitrate as CSV
+framepeek-cli video.mp4 --bitrate --format csv
 
-- **Main Chart**: Interactive bitrate visualization over time with zoomable timeline
-- **Inspector Panel**: Toggle with `Cmd+I` or the sidebar button
-  - Quick summary card with key metrics
-  - Collapsible sections for detailed metadata
-  - Audio track information
-  - Keyframe thumbnail strip
-- **Video Player**: Separate window for video playback with statistics overlay
-- **Tab Management**: Multiple tabs for analyzing different files simultaneously
+# Multiple files
+framepeek-cli *.mp4 --info --parallel
+```
+
+### REST API
+
+1. Click "Server" in the sidebar
+2. Click "Start Server"
+3. Use the API at `http://127.0.0.1:8080`
+
+See `bruno/` folder for a Bruno collection to test the API.
 
 ### Keyboard Shortcuts
 
@@ -108,91 +110,6 @@ Configure sampling options in Settings:
 - `Cmd+I`: Toggle inspector panel
 - `Cmd+T`: New tab
 - `Cmd+,`: Open settings
-- `Esc`: Cancel ongoing analysis
-
-## Project Structure
-
-```
-FramePeek/
-├── FramePeekApp.swift          # App entry point
-├── FramePeek.swift              # Main window and UI
-├── fileUtils.swift              # File dialog utilities
-│
-├── Models/                      # Data models
-│   ├── BitrateSample.swift      # Bitrate data model
-│   └── MediaModels.swift       # ExtendedVideoInfo, AudioTrackInfo, etc.
-│
-├── ViewModels/                  # ViewModels and extensions
-│   ├── MediaInspectorViewModel.swift           # ViewModel and state management
-│   ├── MediaInspectorViewModel+FileHandling.swift
-│   ├── MediaInspectorViewModel+Sampling.swift
-│   ├── MediaInspectorViewModel+Thumbnails.swift
-│   ├── PlayerViewModelManager.swift
-│   └── TabManager.swift
-│
-├── Views/                       # UI components
-│   ├── Chart/                   # Bitrate chart components
-│   │   ├── BitrateChartView.swift
-│   │   ├── BitrateChartComponents.swift
-│   │   ├── BitrateChartDownsampling.swift
-│   │   └── BitrateChartStatistics.swift
-│   ├── Common/                  # Shared components
-│   │   ├── AboutView.swift
-│   │   ├── LiquidGlassToolbarButton.swift
-│   │   ├── NoTopInsetScrollView.swift
-│   │   ├── ResizeHandle.swift
-│   │   ├── SafeProgressView.swift
-│   │   ├── SettingsView.swift
-│   │   ├── SidebarTabBarView.swift
-│   │   ├── TabChoiceDialog.swift
-│   │   └── TimelineView.swift
-│   ├── Inspector/               # Inspector panel
-│   │   ├── InfoInspectorView/
-│   │   │   ├── InfoInspectorView.swift
-│   │   │   ├── QuickSummaryCard.swift
-│   │   │   ├── CollapsibleSection.swift
-│   │   │   └── ...
-│   │   ├── InfoInspectorView+Copy.swift
-│   │   └── InfoInspectorView+Header.swift
-│   ├── Keyframes/               # Keyframe visualization
-│   │   └── KeyframeThumbnailStrip.swift
-│   └── Player/                  # Video player
-│       └── VideoPlayerView.swift
-│
-└── Utils/                       # Core utilities
-    ├── Analysis/                # Frame and bitrate analysis
-    │   ├── ExtractFramesStream.swift
-    │   ├── FrameAggregation.swift
-    │   └── FrameAnalysis.swift
-    ├── Extraction/              # Bitrate extraction
-    │   ├── FastBitrateExtractor.swift
-    │   ├── FastBitrateExtractor+Cursor.swift
-    │   ├── FastBitrateExtractor+Reader.swift
-    │   ├── FormatDetector.swift
-    │   ├── FragmentedMP4Extractor.swift
-    │   └── TSBitrateExtractor.swift
-    ├── Formatting/              # Formatting utilities
-    │   ├── AspectRatioUtils.swift
-    │   ├── ColorUtils.swift
-    │   ├── DesignSystem.swift
-    │   ├── FormatUtils.swift
-    │   └── VideoUtils.swift
-    ├── Media/                   # Media loading
-    │   ├── AudioInfoLoader.swift
-    │   ├── GenerateKeyframeThumbnails.swift
-    │   ├── VideoInfoLoader.swift
-    │   ├── VideoInfoLoader+AV1.swift
-    │   ├── VideoInfoLoader+BasicInfo.swift
-    │   ├── VideoInfoLoader+Codec.swift
-    │   ├── VideoInfoLoader+Color.swift
-    │   ├── VideoInfoLoader+Duration.swift
-    │   ├── VideoInfoLoader+Metadata.swift
-    │   └── VideoInfoLoader+VideoTrack.swift
-    └── Parsing/                 # Codec parsing
-        ├── AV1Parser.swift
-        ├── KeyframeMarker.swift
-        └── VUIParser.swift
-```
 
 ## Architecture
 
@@ -202,8 +119,6 @@ FramePeek follows a clean architecture pattern:
 - **Business Logic**: Pure utility functions for parsing and analysis
 - **Data Layer**: AVFoundation and CoreMedia for media access
 - **Concurrency**: Swift Concurrency (`async`/`await`) for all async operations
-
-The app uses progressive loading with `AsyncStream` to provide real-time updates during analysis, ensuring a responsive user experience even with large files. Multiple tabs allow analyzing different files simultaneously, and the video player provides a separate window for playback with real-time statistics.
 
 ## Contributing
 
@@ -216,7 +131,3 @@ See [LICENSE](LICENSE) file for details.
 ## Author
 
 Built by Oscar Nord in Stockholm, Sweden
-
----
-
-For detailed technical documentation and contribution guidelines, see [instructions.md](instructions.md).

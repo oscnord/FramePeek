@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import FramePeekCore
 
 extension Notification.Name {
     static let menuOpenFile = Notification.Name("menuOpenFile")
@@ -8,7 +9,7 @@ extension Notification.Name {
 
 struct OpenRecentCommands: Commands {
     @ObservedObject private var fileHistory = FileHistoryManager.shared
-    
+
     var body: some Commands {
         CommandGroup(after: .newItem) {
             Menu("Open Recent") {
@@ -31,12 +32,12 @@ struct OpenRecentCommands: Commands {
 struct FramePeekApp: App {
     @StateObject private var appViewModel = FramePeekViewModel()
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
-    
+
     init() {
         // Disable native macOS window tabbing application-wide
         NSWindow.allowsAutomaticWindowTabbing = false
     }
-    
+
     var body: some Scene {
         WindowGroup {
             FramePeek()
@@ -53,7 +54,7 @@ struct FramePeekApp: App {
                     appViewModel.showAboutView = true
                 }
             }
-            
+
             CommandGroup(after: .appInfo) {
                 Divider()
                 Button("Settings...") {
@@ -61,20 +62,20 @@ struct FramePeekApp: App {
                 }
                 .keyboardShortcut(",", modifiers: [.command])
             }
-            
+
             CommandGroup(after: .newItem) {
                 Button("Open…") {
                     NotificationCenter.default.post(name: .menuOpenFile, object: nil)
                 }
                 .keyboardShortcut("o", modifiers: [.command])
             }
-            
+
             OpenRecentCommands()
-            
+
             InspectorCommands()
             SidebarCommands()
         }
-        
+
         WindowGroup(id: "settings") {
             SettingsView()
                 .preferredColorScheme(appearanceMode.colorScheme)
@@ -82,7 +83,7 @@ struct FramePeekApp: App {
         }
         .windowStyle(.automatic)
         .defaultSize(width: 700, height: 600)
-        
+
         WindowGroup(id: "videoPlayer") {
             VideoPlayerView()
                 .preferredColorScheme(appearanceMode.colorScheme)
@@ -92,4 +93,3 @@ struct FramePeekApp: App {
         .defaultSize(width: 800, height: 600)
     }
 }
-

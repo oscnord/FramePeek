@@ -2,24 +2,41 @@ import Foundation
 import AVFoundation
 import CoreMedia
 
-struct VideoTrackInfo {
-    let resolution: String
-    let videoWidth: Int
-    let videoHeight: Int
-    let frameRate: String
-    let nominalFrameRateValue: Float
-    let orientationDegrees: Int?
-    let trackBitrate: String?
-    let trackBitrateValue: Float
-    let pixelAspectRatio: String?
-    let parH: Int
-    let parV: Int
-    let cleanAperture: String?
-    let scanType: String?
-    let frameRateMode: String?
+public struct VideoTrackInfo {
+    public let resolution: String
+    public let videoWidth: Int
+    public let videoHeight: Int
+    public let frameRate: String
+    public let nominalFrameRateValue: Float
+    public let orientationDegrees: Int?
+    public let trackBitrate: String?
+    public let trackBitrateValue: Float
+    public let pixelAspectRatio: String?
+    public let parH: Int
+    public let parV: Int
+    public let cleanAperture: String?
+    public let scanType: String?
+    public let frameRateMode: String?
+    
+    public init(resolution: String, videoWidth: Int, videoHeight: Int, frameRate: String, nominalFrameRateValue: Float, orientationDegrees: Int?, trackBitrate: String?, trackBitrateValue: Float, pixelAspectRatio: String?, parH: Int, parV: Int, cleanAperture: String?, scanType: String?, frameRateMode: String?) {
+        self.resolution = resolution
+        self.videoWidth = videoWidth
+        self.videoHeight = videoHeight
+        self.frameRate = frameRate
+        self.nominalFrameRateValue = nominalFrameRateValue
+        self.orientationDegrees = orientationDegrees
+        self.trackBitrate = trackBitrate
+        self.trackBitrateValue = trackBitrateValue
+        self.pixelAspectRatio = pixelAspectRatio
+        self.parH = parH
+        self.parV = parV
+        self.cleanAperture = cleanAperture
+        self.scanType = scanType
+        self.frameRateMode = frameRateMode
+    }
 }
 
-func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
+public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
     var videoTrack: AVAssetTrack?
     do {
         let tracks = try await asset.loadTracks(withMediaType: .video)
@@ -28,47 +45,47 @@ func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
         print("Failed to load video tracks: \(error.localizedDescription)")
         return nil
     }
-    
+
     guard let videoTrack = videoTrack else { return nil }
-    
+
     do {
         let naturalSize = try await videoTrack.load(.naturalSize)
         let loadedFrameRate = try await videoTrack.load(.nominalFrameRate)
-        
+
         let w = Int(naturalSize.width)
         let h = Int(naturalSize.height)
         let resolution = "\(w)x\(h)"
         let frameRate = String(format: "%.3f FPS", loadedFrameRate)
-        
+
         // Orientation (preferredTransform)
         let t = (try? await videoTrack.load(.preferredTransform)) ?? CGAffineTransform.identity
         let angle = atan2(t.b, t.a) * 180.0 / .pi
         let normalized = (Int(round(angle)) % 360 + 360) % 360
         let orientationDegrees: Int? = normalized != 0 ? normalized : nil
-        
+
         // Track bitrate
         let estimated = (try? await videoTrack.load(.estimatedDataRate)) ?? 0
         let trackBitrateValue = estimated
         let trackBitrate: String? = estimated > 0 ? String(format: "%.0f kb/s", estimated / 1000.0) : nil
-        
+
         // Format description for PAR and clean aperture
-        var pixelAspectRatio: String? = nil
+        var pixelAspectRatio: String?
         var parH: Int = 1
         var parV: Int = 1
-        var cleanAperture: String? = nil
-        var scanType: String? = nil
-        
+        var cleanAperture: String?
+        var scanType: String?
+
         let formatDescriptions = try await videoTrack.load(.formatDescriptions)
         if let formatDesc = formatDescriptions.first,
            let extDict = CMFormatDescriptionGetExtensions(formatDesc) as? [CFString: Any] {
-            
+
             // Clean aperture
             if let caDict = extDict[kCMFormatDescriptionExtension_CleanAperture] as? [CFString: Any],
                let w = caDict[kCMFormatDescriptionKey_CleanApertureWidth] as? NSNumber,
                let h = caDict[kCMFormatDescriptionKey_CleanApertureHeight] as? NSNumber {
                 cleanAperture = "\(w.intValue)x\(h.intValue)"
             }
-            
+
             // Pixel aspect ratio
             if let parDict = extDict[kCMFormatDescriptionExtension_PixelAspectRatio] as? [CFString: Any],
                let h = parDict[kCMFormatDescriptionKey_PixelAspectRatioHorizontalSpacing] as? NSNumber,
@@ -77,7 +94,7 @@ func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
                 parV = v.intValue
                 pixelAspectRatio = "\(parH):\(parV)"
             }
-            
+
             // Scan type
             if let fieldCount = extDict[kCMFormatDescriptionExtension_FieldCount] as? NSNumber {
                 switch fieldCount.intValue {
@@ -87,7 +104,7 @@ func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
                 }
             }
         }
-        
+
         return VideoTrackInfo(
             resolution: resolution,
             videoWidth: w,
@@ -109,5 +126,3 @@ func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
         return nil
     }
 }
-
-

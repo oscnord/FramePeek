@@ -1,24 +1,25 @@
 import SwiftUI
 import AVFoundation
+import FramePeekCore
 
 struct WaveformContainerView: View {
     @ObservedObject var viewModel: FramePeekViewModel
-    
+
     private var audioTracks: [AudioTrackInfo] {
         viewModel.extendedInfo?.audioTracks ?? []
     }
-    
+
     private var hasTracks: Bool {
         !audioTracks.isEmpty
     }
-    
+
     var body: some View {
         Group {
             if hasTracks {
                 VStack(spacing: DesignSystem.Spacing.sm) {
                     // Header with controls
                     headerView
-                    
+
                     // Scrollable waveform tracks
                     ScrollView(.vertical, showsIndicators: true) {
                         VStack(spacing: DesignSystem.Spacing.sm) {
@@ -48,7 +49,7 @@ struct WaveformContainerView: View {
             }
         }
     }
-    
+
     private var headerView: some View {
         HStack {
             HStack(spacing: DesignSystem.Spacing.md) {
@@ -60,6 +61,31 @@ struct WaveformContainerView: View {
                 Text("(\(audioTracks.count))")
                     .font(.caption)
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                
+                // Refresh button - show when any waveform data exists
+                if !viewModel.waveformData.isEmpty && !viewModel.isExtractingWaveforms {
+                    Button {
+                        viewModel.refreshWaveforms()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 9))
+                            if viewModel.waveformLoadedFromCache {
+                                Text("Cached")
+                                    .font(.system(size: 10))
+                            }
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(Color.secondary.opacity(0.1))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "Refresh waveform data"))
+                }
             }
 
             Spacer()
@@ -67,21 +93,21 @@ struct WaveformContainerView: View {
         .padding(.horizontal, DesignSystem.Padding.lg)
         .padding(.top, DesignSystem.Padding.lg)
     }
-    
+
     private func triggerExtractionForExpandedTracks() {
         guard let url = viewModel.currentVideoURL else { return }
         let asset = AVURLAsset(url: url)
-        
+
         let tracksToExtract = audioTracks.filter { track in
             viewModel.expandedWaveformTracks.contains(track.index) &&
             viewModel.waveformData[track.index] == nil &&
             viewModel.waveformTasks[track.index] == nil
         }
-        
+
         for trackInfo in tracksToExtract {
             Task.detached(priority: .userInitiated) { [weak viewModel] in
                 guard let viewModel else { return }
-                
+
                 do {
                     let tracks = try await asset.loadTracks(withMediaType: AVMediaType.audio)
                     guard let audioTrack = tracks.first(where: { track in
@@ -90,7 +116,7 @@ struct WaveformContainerView: View {
                     }) else {
                         return
                     }
-                    
+
                     await MainActor.run {
                         viewModel.extractWaveformForTrack(
                             trackIndex: trackInfo.index,
@@ -106,4 +132,3 @@ struct WaveformContainerView: View {
         }
     }
 }
-

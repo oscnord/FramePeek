@@ -4,7 +4,7 @@ import AVFoundation
 // MARK: - File Size Utilities
 
 /// Returns formatted file size string (e.g., "123.45 MiB")
-func getFileSizeString(for url: URL) -> String {
+public func getFileSizeString(for url: URL) -> String {
     do {
         let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
         if let size = attrs[.size] as? UInt64 {
@@ -18,7 +18,7 @@ func getFileSizeString(for url: URL) -> String {
 }
 
 /// Returns file size in bytes, or nil on error
-func getFileSizeBytes(for url: URL) -> UInt64? {
+public func getFileSizeBytes(for url: URL) -> UInt64? {
     do {
         let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
         return attrs[.size] as? UInt64
@@ -31,7 +31,7 @@ func getFileSizeBytes(for url: URL) -> UInt64? {
 // MARK: - Bitrate Calculation
 
 /// Calculates overall bitrate from file size and duration
-func getOverallBitrateString(asset: AVAsset, fileURL: URL) async -> String {
+public func getOverallBitrateString(asset: AVAsset, fileURL: URL) async -> String {
     let durationSec: Double
     if let loadedDuration = try? await asset.load(.duration) {
         let seconds = CMTimeGetSeconds(loadedDuration)
@@ -43,7 +43,7 @@ func getOverallBitrateString(asset: AVAsset, fileURL: URL) async -> String {
     } else {
         return "Unknown"
     }
-    
+
     do {
         let attrs = try FileManager.default.attributesOfItem(atPath: fileURL.path)
         if let size = attrs[.size] as? UInt64 {

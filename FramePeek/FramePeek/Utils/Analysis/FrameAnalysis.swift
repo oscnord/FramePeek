@@ -6,27 +6,27 @@ import AVFoundation
 /// Calculates frame rate statistics from an array of frame timestamps
 /// - Parameter times: Array of frame presentation times in seconds
 /// - Returns: Tuple containing average FPS, min interval, and max interval, or nil if insufficient data
-func frameRateStats(from times: [Double]) -> (averageFPS: Double, minInterval: Double, maxInterval: Double)? {
+public func frameRateStats(from times: [Double]) -> (averageFPS: Double, minInterval: Double, maxInterval: Double)? {
     guard times.count > 1 else { return nil }
-    
+
     var intervals: [Double] = []
     intervals.reserveCapacity(times.count - 1)
-    
+
     for i in 1..<times.count {
         let interval = times[i] - times[i - 1]
         if interval > 0 {
             intervals.append(interval)
         }
     }
-    
+
     guard !intervals.isEmpty else { return nil }
-    
+
     let totalDuration = intervals.reduce(0, +)
     let averageInterval = totalDuration / Double(intervals.count)
     let averageFPS = averageInterval > 0 ? 1.0 / averageInterval : 0
     let minInterval = intervals.min() ?? 0
     let maxInterval = intervals.max() ?? 0
-    
+
     return (averageFPS, minInterval, maxInterval)
 }
 
@@ -39,7 +39,7 @@ func frameRateStats(from times: [Double]) -> (averageFPS: Double, minInterval: D
 ///   - emitEveryNSamples: How often to emit updates
 ///   - onUpdate: Callback for each update batch
 /// - Returns: Cancellable Task
-func startFrameExtractionProgressive(
+public func startFrameExtractionProgressive(
     asset: AVAsset,
     maxSamples: Int = 2000,
     emitEveryNSamples: Int = 50,
@@ -69,7 +69,7 @@ func startFrameExtractionProgressive(
 ///   - asset: AVAsset to analyze
 ///   - maxSamples: Maximum number of samples to collect
 ///   - completion: Callback with final analysis result
-func extractFrames(
+public func extractFrames(
     asset: AVAsset,
     maxSamples: Int = 2000,
     completion: @escaping (FrameAnalysisResult) -> Void

@@ -1,21 +1,21 @@
 import SwiftUI
 import AppKit
-
+import FramePeekCore
 
 struct KeyframeThumbnailStrip: View {
     let thumbs: [KeyframeThumbnail]
     let totalKeyframes: Int
     @Binding var hoveredKeyframeTime: Double?
-    var visibleTimeRange: ClosedRange<Double>? = nil
-    var frameRate: Double? = nil
-    @State private var hoveredThumb: KeyframeThumbnail? = nil
-    @State private var hoveredIndex: Int? = nil
-    
+    var visibleTimeRange: ClosedRange<Double>?
+    var frameRate: Double?
+    @State private var hoveredThumb: KeyframeThumbnail?
+    @State private var hoveredIndex: Int?
+
     private var filteredThumbs: [KeyframeThumbnail] {
         guard let range = visibleTimeRange else { return thumbs }
         return thumbs.filter { range.contains($0.time) }
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             HStack(spacing: DesignSystem.Spacing.sm) {
@@ -43,7 +43,7 @@ struct KeyframeThumbnailStrip: View {
                     }
                 }
                 .frame(height: 24, alignment: .leading)
-                
+
                 Spacer()
             }
             .frame(height: 24)
@@ -52,19 +52,19 @@ struct KeyframeThumbnailStrip: View {
             strip
         }
     }
-    
+
     private func formatTime(_ time: Double) -> String {
         formatTimeForChart(time, frameRate: frameRate)
     }
-    
+
     private func gopInterval(for index: Int) -> Double? {
         guard index > 0, index < filteredThumbs.count else { return nil }
         return filteredThumbs[index].time - filteredThumbs[index - 1].time
     }
-    
+
     @State private var canScrollLeft = false
     @State private var canScrollRight = false
-    
+
     private var strip: some View {
         ScrollableThumbnailView(
             thumbs: filteredThumbs,
@@ -116,9 +116,9 @@ private struct ScrollableThumbnailView: View {
     @Binding var hoveredKeyframeTime: Double?
     @Binding var canScrollLeft: Bool
     @Binding var canScrollRight: Bool
-    @State private var hoverUpdateTask: Task<Void, Never>? = nil
+    @State private var hoverUpdateTask: Task<Void, Never>?
     @State private var isScrolling = false
-    
+
     var body: some View {
         ScrollableThumbnailContainer(
             canScrollLeft: $canScrollLeft,
@@ -134,10 +134,10 @@ private struct ScrollableThumbnailView: View {
                     .onHover { isHovering in
                         // Skip hover updates while scrolling
                         guard !isScrolling else { return }
-                        
+
                         // Cancel any pending update
                         hoverUpdateTask?.cancel()
-                        
+
                         if isHovering {
                             // Throttle hover updates to reduce lag
                             hoverUpdateTask = Task { @MainActor in
@@ -170,18 +170,18 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
     @Binding var canScrollRight: Bool
     @Binding var isScrolling: Bool
     let content: Content
-    
+
     init(canScrollLeft: Binding<Bool>, canScrollRight: Binding<Bool>, isScrolling: Binding<Bool>, @ViewBuilder content: () -> Content) {
         self._canScrollLeft = canScrollLeft
         self._canScrollRight = canScrollRight
         self._isScrolling = isScrolling
         self.content = content()
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(canScrollLeft: $canScrollLeft, canScrollRight: $canScrollRight)
     }
-    
+
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         scrollView.hasHorizontalScroller = false
@@ -194,18 +194,18 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
         scrollView.drawsBackground = false
         scrollView.contentView.backgroundColor = .clear
         scrollView.contentView.drawsBackground = false
-        
+
         let hostingView = NSHostingView(rootView: content)
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
-        
+
         scrollView.documentView = hostingView
         scrollView.allowsMagnification = false
-        
+
         context.coordinator.hostingView = hostingView
         context.coordinator.scrollView = scrollView
         context.coordinator.isScrolling = $isScrolling
-        
+
         // Set up scroll tracking
         NotificationCenter.default.addObserver(
             context.coordinator,
@@ -213,11 +213,11 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
             name: NSView.boundsDidChangeNotification,
             object: scrollView.contentView
         )
-        
+
         let panGesture = NSPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
         panGesture.allowedTouchTypes = .direct
         scrollView.addGestureRecognizer(panGesture)
-        
+
         if let documentView = scrollView.documentView {
             NSLayoutConstraint.activate([
                 hostingView.topAnchor.constraint(equalTo: documentView.topAnchor),
@@ -226,22 +226,22 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
                 hostingView.bottomAnchor.constraint(equalTo: documentView.bottomAnchor)
             ])
         }
-        
+
         // Initial update
         DispatchQueue.main.async {
             context.coordinator.updateScrollState()
         }
-        
+
         return scrollView
     }
-    
+
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         if let hostingView = context.coordinator.hostingView {
             hostingView.rootView = content
         }
         context.coordinator.updateScrollState()
     }
-    
+
     class Coordinator: NSObject {
         var hostingView: NSHostingView<Content>?
         var scrollView: NSScrollView?
@@ -250,30 +250,30 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
         var isScrolling: Binding<Bool>?
         @Binding var canScrollLeft: Bool
         @Binding var canScrollRight: Bool
-        
+
         init(canScrollLeft: Binding<Bool>, canScrollRight: Binding<Bool>) {
             self._canScrollLeft = canScrollLeft
             self._canScrollRight = canScrollRight
         }
-        
+
         private var lastUpdateTime: Date = Date()
         private let updateInterval: TimeInterval = 0.05 // Throttle to 20fps for scroll updates
-        
+
         @objc func updateScrollState() {
             let now = Date()
             guard now.timeIntervalSince(lastUpdateTime) >= updateInterval else { return }
             lastUpdateTime = now
-            
+
             guard let scrollView = scrollView else { return }
-            
+
             let documentWidth = scrollView.documentView?.frame.width ?? 0
             let visibleWidth = scrollView.contentView.bounds.width
             let scrollX = scrollView.contentView.bounds.origin.x
             let maxScrollX = max(0, documentWidth - visibleWidth)
-            
+
             let newCanScrollLeft = scrollX > 0.1
             let newCanScrollRight = scrollX < maxScrollX - 0.1
-            
+
             // Only update if changed to avoid unnecessary redraws
             if canScrollLeft != newCanScrollLeft || canScrollRight != newCanScrollRight {
                 DispatchQueue.main.async {
@@ -282,10 +282,10 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
                 }
             }
         }
-        
+
         @objc func handlePan(_ gesture: NSPanGestureRecognizer) {
             guard let scrollView = scrollView else { return }
-            
+
             switch gesture.state {
             case .began:
                 lastScrollOrigin = scrollView.contentView.bounds.origin
@@ -298,15 +298,15 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
                 let translation = gesture.translation(in: scrollView)
                 var newOrigin = lastScrollOrigin
                 newOrigin.x -= translation.x
-                
+
                 let documentWidth = scrollView.documentView?.frame.width ?? 0
                 let visibleWidth = scrollView.contentView.bounds.width
                 let maxX = max(0, documentWidth - visibleWidth)
                 newOrigin.x = max(0, min(newOrigin.x, maxX))
-                
+
                 scrollView.contentView.scroll(to: newOrigin)
                 updateScrollState()
-                
+
                 // Reset scroll timer
                 scrollTimer?.invalidate()
                 scrollTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
@@ -325,7 +325,7 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
                 break
             }
         }
-        
+
         deinit {
             NotificationCenter.default.removeObserver(self)
         }
@@ -335,16 +335,16 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
 private struct DraggableScrollView<Content: View>: NSViewRepresentable {
     let showsIndicators: Bool
     let content: Content
-    
+
     init(showsIndicators: Bool, @ViewBuilder content: () -> Content) {
         self.showsIndicators = showsIndicators
         self.content = content()
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
-    
+
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         scrollView.hasHorizontalScroller = showsIndicators
@@ -357,22 +357,22 @@ private struct DraggableScrollView<Content: View>: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.contentView.backgroundColor = .clear
         scrollView.contentView.drawsBackground = false
-        
+
         let hostingView = NSHostingView(rootView: content)
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
-        
+
         scrollView.documentView = hostingView
-        
+
         scrollView.allowsMagnification = false
-        
+
         context.coordinator.hostingView = hostingView
         context.coordinator.scrollView = scrollView
-        
+
         let panGesture = NSPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
         panGesture.allowedTouchTypes = .direct
         scrollView.addGestureRecognizer(panGesture)
-        
+
         if let documentView = scrollView.documentView {
             NSLayoutConstraint.activate([
                 hostingView.topAnchor.constraint(equalTo: documentView.topAnchor),
@@ -381,26 +381,26 @@ private struct DraggableScrollView<Content: View>: NSViewRepresentable {
                 hostingView.bottomAnchor.constraint(equalTo: documentView.bottomAnchor)
             ])
         }
-        
+
         return scrollView
     }
-    
+
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         nsView.hasHorizontalScroller = showsIndicators
-        
+
         if let hostingView = context.coordinator.hostingView {
             hostingView.rootView = content
         }
     }
-    
+
     class Coordinator: NSObject {
         var hostingView: NSHostingView<Content>?
         var scrollView: NSScrollView?
         var lastScrollOrigin: NSPoint = .zero
-        
+
         @objc func handlePan(_ gesture: NSPanGestureRecognizer) {
             guard let scrollView = scrollView else { return }
-            
+
             switch gesture.state {
             case .began:
                 lastScrollOrigin = scrollView.contentView.bounds.origin
@@ -408,12 +408,12 @@ private struct DraggableScrollView<Content: View>: NSViewRepresentable {
                 let translation = gesture.translation(in: scrollView)
                 var newOrigin = lastScrollOrigin
                 newOrigin.x -= translation.x
-                
+
                 let documentWidth = scrollView.documentView?.frame.width ?? 0
                 let visibleWidth = scrollView.contentView.bounds.width
                 let maxX = max(0, documentWidth - visibleWidth)
                 newOrigin.x = max(0, min(newOrigin.x, maxX))
-                
+
                 scrollView.contentView.scroll(to: newOrigin)
             default:
                 break
@@ -427,13 +427,13 @@ private struct DraggableScrollView<Content: View>: NSViewRepresentable {
 private struct ThumbCell: View {
     let image: NSImage
     let isHovered: Bool
-    
+
     private var aspectRatio: CGFloat {
         let size = image.size
         guard size.height > 0 else { return 16.0 / 10.0 } // Default aspect ratio
         return size.width / size.height
     }
-    
+
     private var thumbnailSize: CGSize {
         let width: CGFloat = 96
         let height = width / aspectRatio
@@ -444,10 +444,10 @@ private struct ThumbCell: View {
         }
         return CGSize(width: width, height: height)
     }
-    
+
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous)
-        
+
         Image(nsImage: image)
             .resizable()
             .scaledToFit()

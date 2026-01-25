@@ -2,53 +2,64 @@ import Foundation
 import AVFoundation
 import CoreMedia
 
-struct ColorInfo {
-    let colorSpace: String?
-    let chromaSubsampling: String?
-    let colorPrimaries: String?
-    let transferFunction: String?
-    let matrixCoefficients: String?
-    let colorRange: String?
-    let inferredBitDepthBpc: Int?
-    let hdrFormat: String?
+public struct ColorInfo {
+    public let colorSpace: String?
+    public let chromaSubsampling: String?
+    public let colorPrimaries: String?
+    public let transferFunction: String?
+    public let matrixCoefficients: String?
+    public let colorRange: String?
+    public let inferredBitDepthBpc: Int?
+    public let hdrFormat: String?
+    
+    public init(colorSpace: String?, chromaSubsampling: String?, colorPrimaries: String?, transferFunction: String?, matrixCoefficients: String?, colorRange: String?, inferredBitDepthBpc: Int?, hdrFormat: String?) {
+        self.colorSpace = colorSpace
+        self.chromaSubsampling = chromaSubsampling
+        self.colorPrimaries = colorPrimaries
+        self.transferFunction = transferFunction
+        self.matrixCoefficients = matrixCoefficients
+        self.colorRange = colorRange
+        self.inferredBitDepthBpc = inferredBitDepthBpc
+        self.hdrFormat = hdrFormat
+    }
 }
 
-func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> ColorInfo? {
+public func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> ColorInfo? {
     do {
         let formatDescriptions = try await videoTrack.load(.formatDescriptions)
         guard let formatDesc = formatDescriptions.first,
               let extDict = CMFormatDescriptionGetExtensions(formatDesc) as? [CFString: Any] else {
             return nil
         }
-        
-        var colorSpace: String? = nil
-        var chromaSubsampling: String? = nil
-        var colorPrimaries: String? = nil
-        var transferFunction: String? = nil
-        var matrixCoefficients: String? = nil
-        var colorRange: String? = nil
-        var inferredBitDepthBpc: Int? = nil
-        
+
+        var colorSpace: String?
+        var chromaSubsampling: String?
+        var colorPrimaries: String?
+        var transferFunction: String?
+        var matrixCoefficients: String?
+        var colorRange: String?
+        var inferredBitDepthBpc: Int?
+
         // Color primaries & transfer function
         colorPrimaries = extDict[kCMFormatDescriptionExtension_ColorPrimaries] as? String
         transferFunction = extDict[kCMFormatDescriptionExtension_TransferFunction] as? String
-        
+
         // Matrix coefficients (indicates YUV color space)
         if let matrix = extDict[kCMFormatDescriptionExtension_YCbCrMatrix] as? String {
             matrixCoefficients = matrix
             colorSpace = "YUV" // If matrix is present, it's YUV
         }
-        
+
         // Color range
         if let fullRangeNumber = extDict[kCMFormatDescriptionExtension_FullRangeVideo] as? NSNumber {
             colorRange = fullRangeNumber.boolValue ? "Full" : "Limited"
         }
-        
+
         // Bit depth
         if let bpc = extDict[kCMFormatDescriptionExtension_BitsPerComponent] as? NSNumber {
             inferredBitDepthBpc = bpc.intValue
         }
-        
+
         // Depth (for chroma subsampling detection)
         if let depth = extDict[kCMFormatDescriptionExtension_Depth] as? NSNumber {
             // 24-bit typically means 4:4:4, 12-bit means 4:2:0
@@ -61,14 +72,14 @@ func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> C
                 }
             }
         }
-        
+
         // Detect HDR format
         let hdrFormat = detectHDRFormat(
             transferFunction: transferFunction,
             colorPrimaries: colorPrimaries,
             hasDolbyVisionConfig: hasDolbyVision
         )
-        
+
         return ColorInfo(
             colorSpace: colorSpace,
             chromaSubsampling: chromaSubsampling,
@@ -84,5 +95,3 @@ func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> C
         return nil
     }
 }
-
-

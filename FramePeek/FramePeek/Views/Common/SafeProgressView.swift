@@ -7,7 +7,7 @@ import AppKit
 /// Uses NSViewRepresentable to bypass SwiftUI's constraint system issues
 struct SafeProgressView: NSViewRepresentable {
     var controlSize: ControlSize = .small
-    
+
     func makeNSView(context: Context) -> NSProgressIndicator {
         let indicator = NSProgressIndicator()
         indicator.style = .spinning
@@ -16,11 +16,11 @@ struct SafeProgressView: NSViewRepresentable {
         indicator.startAnimation(nil)
         return indicator
     }
-    
+
     func updateNSView(_ nsView: NSProgressIndicator, context: Context) {
         // No updates needed
     }
-    
+
     private var nsControlSize: NSControl.ControlSize {
         switch controlSize {
         case .mini:
@@ -32,8 +32,7 @@ struct SafeProgressView: NSViewRepresentable {
         case .large:
             return .large
         @unknown default:
-            return .small
+            return .regular
         }
     }
 }
-

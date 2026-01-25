@@ -1,57 +1,87 @@
 import SwiftUI
+import FramePeekCore
 
 struct GeneralSettingsView: View {
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("fileOpeningBehavior") private var fileOpeningBehavior: FileOpeningBehavior = .prompt
-    
+    @State private var cacheSize: String = "Calculating..."
+    @State private var isClearingCache = false
+
+    private let cacheManager = CacheManager.shared
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
             SettingsSection(title: "Appearance") {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
-                    Picker("", selection: Binding(
-                        get: { appearanceMode },
-                        set: { newValue in
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                appearanceMode = newValue
-                            }
-                        }
-                    )) {
-                        ForEach(AppearanceMode.allCases) { mode in
-                            Text(mode.displayName).tag(mode)
+                Picker("", selection: Binding(
+                    get: { appearanceMode },
+                    set: { newValue in
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            appearanceMode = newValue
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    
-                    Text("Choose how FramePeek should appear. 'System' follows your Mac's appearance setting.")
-                        .font(.system(size: DesignSystem.Typography.footnote))
-                        .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                )) {
+                    ForEach(AppearanceMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
             }
-            
-            SettingsSection(title: "Interface") {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg3) {
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                        HStack {
-                            Text("File Opening Behavior")
-                                .font(.system(size: DesignSystem.Typography.body, weight: .medium))
-                            Spacer()
-                            Picker("", selection: $fileOpeningBehavior) {
-                                ForEach(FileOpeningBehavior.allCases) { behavior in
-                                    Text(behavior.displayName).tag(behavior)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .frame(width: 200)
-                        }
+
+            SettingsSection(title: "File Handling") {
+                Picker("When opening files", selection: $fileOpeningBehavior) {
+                    ForEach(FileOpeningBehavior.allCases) { behavior in
+                        Text(behavior.displayName).tag(behavior)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            SettingsSection(title: "Cache") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                    Text("Waveforms and GOP analysis data are cached locally for faster loading.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    
+                    HStack {
+                        Text("Size")
+                        Spacer()
+                        Text(cacheSize)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
                         
-                        Text("Choose what happens when you open a file while another file is already open in the current tab.")
-                            .font(.system(size: DesignSystem.Typography.footnote))
-                            .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+                        Button {
+                            clearAllCaches()
+                        } label: {
+                            if isClearingCache {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Clear")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isClearingCache)
                     }
                 }
             }
         }
+        .task {
+            await updateCacheSize()
+        }
+    }
+
+    private func updateCacheSize() async {
+        await cacheManager.recalculateCacheSize()
+        cacheSize = cacheManager.formattedCacheSize
+    }
+
+    private func clearAllCaches() {
+        isClearingCache = true
+        Task {
+            await cacheManager.clearAllCaches()
+            await updateCacheSize()
+            isClearingCache = false
+        }
     }
 }
-

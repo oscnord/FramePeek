@@ -1,36 +1,37 @@
 import Foundation
 import AVFoundation
 import SwiftUI
+import FramePeekCore
 
 extension FramePeekViewModel {
     enum TabChoiceAction {
         case currentTab
         case newTab
     }
-    
+
     func handleIncomingFile(url: URL) {
         // Reload settings from UserDefaults in case they changed
         loadSettingsFromUserDefaults()
-        
+
         // Check if a file is already loaded in this tab
         if extendedInfo != nil {
             // File is loaded, check user's preference for file opening behavior
             let behaviorString = UserDefaults.standard.string(forKey: "fileOpeningBehavior") ?? "prompt"
             let behavior = FileOpeningBehavior(rawValue: behaviorString) ?? .prompt
-            
+
             switch behavior {
             case .prompt:
                 // Show dialog to let user choose
                 pendingURLForTabChoice = url
                 showTabChoiceDialog = true
-                
+
             case .newTab:
                 // Signal to open in new tab (FramePeek.swift will handle this)
                 // Clear any pending tab choice dialog state
                 pendingURLForTabChoice = nil
                 showTabChoiceDialog = false
                 shouldOpenInNewTab = url
-                
+
             case .currentTab:
                 // Load in current tab (replaces existing file)
                 pendingURL = url
@@ -42,29 +43,29 @@ extension FramePeekViewModel {
             confirmSamplingAndLoad()
         }
     }
-    
+
     func handleTabChoice(action: TabChoiceAction) {
         guard let url = pendingURLForTabChoice else {
             showTabChoiceDialog = false
             pendingURLForTabChoice = nil
             return
         }
-        
+
         showTabChoiceDialog = false
         pendingURLForTabChoice = nil
-        
+
         switch action {
         case .currentTab:
             // Load in current tab (replaces existing file)
             pendingURL = url
             confirmSamplingAndLoad()
-            
+
         case .newTab:
             // Signal to open in new tab (FramePeek.swift will handle this via onChange observer)
             shouldOpenInNewTab = url
         }
     }
-    
+
     func cancelTabChoice() {
         showTabChoiceDialog = false
         pendingURLForTabChoice = nil
@@ -96,20 +97,21 @@ extension FramePeekViewModel {
     private func loadAsset(url: URL) {
         loadAssetInternal(url: url)
     }
-    
+
     private func loadAssetInternal(url: URL) {
         // Create separate asset instances for each reader to avoid blocking
         // AVAsset can only have one active AVAssetReader at a time
         let assetForInfo = AVURLAsset(url: url)
         let assetForThumbnails = AVURLAsset(url: url)
         let assetForFrames = AVURLAsset(url: url)
+        let assetForGOP = AVURLAsset(url: url)
 
         // cancel in-flight work
         cancelAllTasks()
 
         // reset state for new asset
         resetStateForNewAsset()
-        
+
         // Store current video URL for player window
         currentVideoURL = url
 
@@ -122,7 +124,7 @@ extension FramePeekViewModel {
             await MainActor.run {
                 self.extendedInfo = info
                 self.durationSeconds = duration
-                
+
                 // Initialize expanded tracks (first 3 tracks or all if <= 3)
                 if !info.audioTracks.isEmpty {
                     let trackIndices = Set(info.audioTracks.map { $0.index })
@@ -137,27 +139,31 @@ extension FramePeekViewModel {
                     // Start sync analysis automatically when audio tracks are detected
                     self.startSyncAnalysis(asset: assetForInfo, audioTracks: info.audioTracks)
                 }
-                
+
                 // Update player window if it's open and this is the active ViewModel
                 if PlayerViewModelManager.shared.activeViewModel === self {
                     PlayerViewModelManager.shared.setActiveViewModel(self)
                 }
             }
         }
-        
+
         // Start thumbnail generation (uses evenly distributed times)
         if autoGenerateThumbnails {
             startThumbnailGeneration(asset: assetForThumbnails)
         }
-        
+
         // Start frame analysis
         startFrameAnalysis(asset: assetForFrames)
+
+        // Start fast GOP preview analysis
+        startGOPPreview(asset: assetForGOP)
     }
-    
+
     private func cancelAllTasks() {
         infoTask?.cancel()
         framesTask?.cancel()
         thumbnailTask?.cancel()
+        gopTask?.cancel()
         syncTask?.cancel()
         colorAnalysisTask?.cancel()
         // Cancel all waveform extraction tasks
@@ -168,31 +174,14 @@ extension FramePeekViewModel {
         infoTask = nil
         thumbnailTask = nil
         framesTask = nil
+        gopTask = nil
         syncTask = nil
         colorAnalysisTask = nil
     }
-    
+
     private func resetStateForNewAsset() {
-        samples = []
-        rawFrames = []
-        effectiveFPS = nil
-        minInterval = nil
-        maxInterval = nil
-        hoveredSample = nil
-        extendedInfo = nil
+        resetCommonState()
         isAnalyzing = true
-        keyframeThumbs = []
-        isGeneratingThumbnails = false
-        currentVideoURL = nil
-        waveformData = [:]
-        isExtractingWaveforms = false
-        expandedWaveformTracks = []
-        syncAnalysisResult = nil
-        frameTimingSamples = []
-        isAnalyzingSync = false
-        colorSamples = []
-        isAnalyzingColor = false
-        currentPlaybackTime = nil
     }
 
     func cancelAnalysis() {
@@ -202,6 +191,15 @@ extension FramePeekViewModel {
 
     func reset() {
         cancelAnalysis()
+        resetCommonState()
+        // Additional properties only reset on full reset
+        hoveredKeyframeTime = nil
+        visibleTimeRange = nil
+        durationSeconds = 0
+    }
+
+    /// Resets all common state properties shared between resetStateForNewAsset and reset
+    private func resetCommonState() {
         samples = []
         rawFrames = []
         extendedInfo = nil
@@ -209,11 +207,10 @@ extension FramePeekViewModel {
         minInterval = nil
         maxInterval = nil
         hoveredSample = nil
-        hoveredKeyframeTime = nil
         keyframeThumbs = []
-        visibleTimeRange = nil
-        durationSeconds = 0
         isGeneratingThumbnails = false
+        gopAnalysis = nil
+        isAnalyzingGOP = false
         currentVideoURL = nil
         waveformData = [:]
         isExtractingWaveforms = false
@@ -226,4 +223,3 @@ extension FramePeekViewModel {
         currentPlaybackTime = nil
     }
 }
-

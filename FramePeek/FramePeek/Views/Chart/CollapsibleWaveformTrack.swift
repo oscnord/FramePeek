@@ -1,24 +1,25 @@
 import SwiftUI
 import AVFoundation
+import FramePeekCore
 
 struct CollapsibleWaveformTrack: View {
     let trackInfo: AudioTrackInfo
     let duration: Double
     @ObservedObject var viewModel: FramePeekViewModel
     @Binding var expandedTracks: Set<Int>
-    
+
     private var isExpanded: Bool {
         expandedTracks.contains(trackInfo.index)
     }
-    
+
     private var hasWaveformData: Bool {
         viewModel.waveformData[trackInfo.index] != nil
     }
-    
+
     private var isExtracting: Bool {
         viewModel.waveformTasks[trackInfo.index] != nil && !hasWaveformData
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Track header
@@ -44,19 +45,19 @@ struct CollapsibleWaveformTrack: View {
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         .frame(width: 12, height: 12)
                         .animation(nil, value: isExpanded) // Prevent animation on rotation
-                    
+
                     // Track info
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                         Text("Track \(trackInfo.index)")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                        
+
                         Text(trackInfo.displayString)
                             .font(.caption)
                             .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                             .lineLimit(1)
                     }
-                    
+
                     Spacer()
                 }
                 .padding(.horizontal, DesignSystem.Padding.lg)
@@ -75,22 +76,15 @@ struct CollapsibleWaveformTrack: View {
                     }
                 }
             )
-            
+
             // Waveform content (when expanded)
             if isExpanded {
                 VStack(spacing: 0) {
                     if isExtracting {
                         // Loading state
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                                .controlSize(.small)
-                            Text("Extracting waveform…")
-                                .font(.caption)
-                                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                            Spacer()
-                        }
-                        .padding(.vertical, DesignSystem.Padding.xl)
+                        WaveformSkeletonView()
+                            .padding(.horizontal, DesignSystem.Padding.lg)
+                            .padding(.vertical, DesignSystem.Padding.md)
                     } else if let samples = viewModel.waveformData[trackInfo.index] {
                         // Waveform view
                         AudioWaveformView(
@@ -117,14 +111,14 @@ struct CollapsibleWaveformTrack: View {
             }
         }
     }
-    
+
     private func triggerExtraction() {
         guard let url = viewModel.currentVideoURL else { return }
         let asset = AVURLAsset(url: url)
-        
+
         Task.detached(priority: .userInitiated) { [weak viewModel] in
             guard let viewModel else { return }
-            
+
                 do {
                     let tracks = try await asset.loadTracks(withMediaType: AVMediaType.audio)
                 guard let audioTrack = tracks.first(where: { track in
@@ -133,7 +127,7 @@ struct CollapsibleWaveformTrack: View {
                 }) else {
                     return
                 }
-                
+
                 await MainActor.run {
                     viewModel.extractWaveformForTrack(
                         trackIndex: trackInfo.index,
@@ -149,3 +143,10 @@ struct CollapsibleWaveformTrack: View {
     }
 }
 
+// MARK: - Skeleton View
+
+private struct WaveformSkeletonView: View {
+    var body: some View {
+        SkeletonChart(height: 80)
+    }
+}

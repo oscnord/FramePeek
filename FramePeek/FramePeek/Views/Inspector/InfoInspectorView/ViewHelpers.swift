@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 // MARK: - View Extension

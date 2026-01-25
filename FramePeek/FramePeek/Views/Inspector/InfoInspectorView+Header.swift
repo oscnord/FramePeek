@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 extension InfoInspectorView {
     // MARK: - Header / Actions
@@ -35,4 +36,3 @@ extension InfoInspectorView {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-

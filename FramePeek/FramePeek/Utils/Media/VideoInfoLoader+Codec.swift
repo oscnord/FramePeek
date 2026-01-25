@@ -2,33 +2,43 @@ import Foundation
 import AVFoundation
 import CoreMedia
 
-struct CodecInfo {
-    let codec: String
-    let codecIdRaw: String?
-    let codecProfile: String?
-    let codecIdInfo: String?
-    let chromaSubsampling: String?
-    let hasDolbyVision: Bool
-    let maxBitrate: String?
+public struct CodecInfo {
+    public let codec: String
+    public let codecIdRaw: String?
+    public let codecProfile: String?
+    public let codecIdInfo: String?
+    public let chromaSubsampling: String?
+    public let hasDolbyVision: Bool
+    public let maxBitrate: String?
+    
+    public init(codec: String, codecIdRaw: String?, codecProfile: String?, codecIdInfo: String?, chromaSubsampling: String?, hasDolbyVision: Bool, maxBitrate: String?) {
+        self.codec = codec
+        self.codecIdRaw = codecIdRaw
+        self.codecProfile = codecProfile
+        self.codecIdInfo = codecIdInfo
+        self.chromaSubsampling = chromaSubsampling
+        self.hasDolbyVision = hasDolbyVision
+        self.maxBitrate = maxBitrate
+    }
 }
 
-func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
+public func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
     do {
         let formatDescriptions = try await videoTrack.load(.formatDescriptions)
         guard let formatDesc = formatDescriptions.first else { return nil }
-        
+
         // Codec
         let codecType = CMFormatDescriptionGetMediaSubType(formatDesc)
         let codecID = fourCCToString(codecType)
         let codecIdRaw = codecID.trimmingCharacters(in: .whitespaces)
         let codec = videoCodecName(codecID)
         let codecIdInfo = videoCodecInfo(codecID)
-        
-        var codecProfile: String? = nil
-        var chromaSubsampling: String? = nil
+
+        var codecProfile: String?
+        var chromaSubsampling: String?
         var hasDolbyVision = false
-        var maxBitrate: String? = nil
-        
+        var maxBitrate: String?
+
         if let extDict = CMFormatDescriptionGetExtensions(formatDesc) as? [CFString: Any] {
             // Sample description extension atoms
             if let atoms = extDict[kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms] as? [CFString: Any] {
@@ -36,7 +46,7 @@ func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
                 if atoms["dvcC" as CFString] != nil || atoms["dvvC" as CFString] != nil {
                     hasDolbyVision = true
                 }
-                
+
                 // HEVC config (hvcC)
                 if let hvcCData = atoms["hvcC" as CFString] as? Data {
                     if let profile = parseHEVCProfile(hvcCData) {
@@ -49,7 +59,7 @@ func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
                         chromaSubsampling = "4:2:0"
                     }
                 }
-                
+
                 // AVC config (avcC)
                 if let avcCData = atoms["avcC" as CFString] as? Data {
                     if let profile = parseAVCProfile(avcCData) {
@@ -64,7 +74,7 @@ func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
                         chromaSubsampling = "4:2:0"
                     }
                 }
-                
+
                 // VP9 config
                 if let vpcCData = atoms["vpcC" as CFString] as? Data {
                     if let profile = parseVP9Profile(vpcCData) {
@@ -73,7 +83,7 @@ func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
                 }
             }
         }
-        
+
         return CodecInfo(
             codec: codec,
             codecIdRaw: codecIdRaw,
@@ -88,5 +98,3 @@ func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
         return nil
     }
 }
-
-

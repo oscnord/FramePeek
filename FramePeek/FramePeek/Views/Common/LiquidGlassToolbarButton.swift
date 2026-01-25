@@ -5,10 +5,10 @@ struct LiquidGlassToolbarButton: View {
     let action: () -> Void
     let keyboardShortcut: KeyEquivalent?
     let modifiers: EventModifiers
-    
+
     @Namespace private var namespace
     @State private var isHovered: Bool = false
-    
+
     init(
         systemImage: String,
         action: @escaping () -> Void,
@@ -20,7 +20,7 @@ struct LiquidGlassToolbarButton: View {
         self.keyboardShortcut = keyboardShortcut
         self.modifiers = modifiers
     }
-    
+
     var body: some View {
         if #available(macOS 26.0, *) {
             glassButton
@@ -28,7 +28,7 @@ struct LiquidGlassToolbarButton: View {
             fallbackButton
         }
     }
-    
+
     @available(macOS 26.0, *)
     private var glassButton: some View {
         Button(action: action) {
@@ -47,7 +47,7 @@ struct LiquidGlassToolbarButton: View {
             }
         }
     }
-    
+
     private var fallbackButton: some View {
         Button(action: action) {
             Image(systemName: systemImage)
@@ -85,4 +85,3 @@ extension View {
         transform(self)
     }
 }
-

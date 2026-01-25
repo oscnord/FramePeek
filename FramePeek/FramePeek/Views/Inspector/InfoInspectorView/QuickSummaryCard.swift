@@ -1,9 +1,9 @@
-
 import SwiftUI
+import FramePeekCore
 
 struct QuickSummaryCard: View {
     let info: ExtendedVideoInfo
-    
+
     var body: some View {
         VStack(spacing: 10) {
             LazyVGrid(columns: [
@@ -26,14 +26,14 @@ struct SummaryItem: View {
     let label: String
     let value: String
     let icon: String
-    
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 14)
-            
+
             VStack(alignment: .leading, spacing: 1) {
                 Text(label)
                     .font(.caption2)
@@ -43,7 +43,7 @@ struct SummaryItem: View {
                     .fontWeight(.medium)
                     .lineLimit(1)
             }
-            
+
             Spacer(minLength: 0)
         }
     }

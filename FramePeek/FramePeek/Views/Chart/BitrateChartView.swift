@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import FramePeekCore
 
 struct BitrateChartView: View {
     @ObservedObject var viewModel: FramePeekViewModel
@@ -14,9 +15,9 @@ struct BitrateChartView: View {
         }
         return viewModel.chartMaxDisplayPoints
     }
-    
+
     // MARK: - Statistics
-    
+
     private var statistics: BitrateChartStatistics {
         BitrateChartStatistics(
             samples: viewModel.samples,
@@ -24,7 +25,7 @@ struct BitrateChartView: View {
             effectiveFPS: viewModel.effectiveFPS
         )
     }
-    
+
     /// Downsampled samples for efficient chart rendering using LTTB algorithm
     private var displaySamples: [BitrateSample] {
         let filteredSamples: [BitrateSample]
@@ -39,13 +40,12 @@ struct BitrateChartView: View {
     private var yTickStep: Double {
         statistics.niceStep(forMax: statistics.maxBitrateKbps, targetTicks: 7)
     }
-    
+
     private var xTickStep: Double {
         let duration = (viewModel.visibleTimeRange?.upperBound ?? statistics.maxTime) - (viewModel.visibleTimeRange?.lowerBound ?? 0)
         return statistics.niceStep(forMax: duration, targetTicks: 6)
     }
-    
-    
+
     /// X-axis domain with padding for better visibility of start/end points
     private var xAxisDomain: ClosedRange<Double> {
         if let range = viewModel.visibleTimeRange {
@@ -122,12 +122,22 @@ struct BitrateChartView: View {
                 }
                 .padding()
             } else {
-                ContentUnavailableView(
-                    "No file loaded",
-                    systemImage: "waveform.path.ecg",
-                    description: Text("Open or drop a video file to inspect bitrate.")
-                )
-                .padding()
+                // Check if file is loaded but can't be analyzed
+                if viewModel.extendedInfo != nil {
+                    ContentUnavailableView(
+                        "Unable to Analyze",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text("This file was loaded but FramePeek cannot extract bitrate data. The file may be missing video information or use an unsupported format.")
+                    )
+                    .padding()
+                } else {
+                    ContentUnavailableView(
+                        "No file loaded",
+                        systemImage: "waveform.path.ecg",
+                        description: Text("Open or drop a video file to inspect bitrate.")
+                    )
+                    .padding()
+                }
             }
         }
     }
@@ -145,8 +155,7 @@ struct BitrateChartView: View {
 
             VStack(spacing: DesignSystem.Spacing.md2) {
                 ChartHeaderRow(
-                    hoveredSample: viewModel.hoveredSample,
-                    maxBitrateKbps: statistics.maxBitrateKbps,
+                    viewModel: viewModel,
                     visibleTimeRange: $viewModel.visibleTimeRange
                 )
                 .padding(.horizontal, DesignSystem.Padding.lg)
@@ -155,7 +164,7 @@ struct BitrateChartView: View {
                 chart
                     .padding(.horizontal, DesignSystem.Padding.lg)
                     .padding(.bottom, DesignSystem.Padding.md)
-                
+
                 if viewModel.isGeneratingThumbnails {
                     KeyframeLoadingView(
                         message: "Generating thumbnails...",
@@ -209,7 +218,7 @@ struct BitrateChartView: View {
                     )
                 )
                 .interpolationMethod(.linear)
-                
+
                 LineMark(
                     x: .value("Time (s)", sample.time),
                     y: .value("Bitrate (kbps)", sample.bitrate / 1000.0)
@@ -218,7 +227,7 @@ struct BitrateChartView: View {
                 .interpolationMethod(.linear)
                 .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.medium))
             }
-            
+
             if !viewModel.samples.isEmpty {
                 RuleMark(y: .value("Avg", statistics.avgBitrateKbps))
                     .foregroundStyle(DesignSystem.Colors.Chart.averageOpacity)
@@ -232,19 +241,19 @@ struct BitrateChartView: View {
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small, style: .continuous))
                     }
             }
-            
-            if let hovered = viewModel.hoveredSample {
-                RuleMark(x: .value("Time (s)", hovered.time))
+
+            if let time = viewModel.hoveredTimestamp {
+                RuleMark(x: .value("Time (s)", time))
                     .foregroundStyle(DesignSystem.Colors.Chart.hoveredLine)
                     .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.medium, dash: [4, 4]))
             }
-            
+
             if let keyframeTime = viewModel.hoveredKeyframeTime {
                 RuleMark(x: .value("Keyframe", keyframeTime))
                     .foregroundStyle(DesignSystem.Colors.Chart.keyframeOpacity)
                     .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.thick))
             }
-            
+
             // Playback position indicator
             if let playbackTime = viewModel.currentPlaybackTime {
                 RuleMark(x: .value("Playback", playbackTime))
@@ -284,72 +293,38 @@ struct BitrateChartView: View {
                 .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
         }
         .chartOverlay { proxy in
-            GeometryReader { geometry in
+            GeometryReader { geo in
                 Rectangle()
                     .fill(.clear)
                     .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                let location = value.location
-                                if let time: Double = proxy.value(atX: location.x) {
-                                    if let nearest = viewModel.samples.min(by: {
-                                        abs($0.time - time) < abs($1.time - time)
-                                    }) {
-                                        viewModel.hoveredSample = nearest
-                                    }
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active(let location):
+                            if let time: Double = proxy.value(atX: location.x) {
+                                // Find nearest sample
+                                if let nearest = viewModel.samples.min(by: {
+                                    abs($0.time - time) < abs($1.time - time)
+                                }) {
+                                    viewModel.hoveredSample = nearest
                                 }
+                                // Set shared timestamp for cross-chart sync
+                                viewModel.hoveredTimestamp = time
                             }
-                            .onEnded { value in
-                                // On tap (minimal drag), seek to that time
-                                if value.translation.width < 5 && value.translation.height < 5 {
-                                    let location = value.location
-                                    if let time: Double = proxy.value(atX: location.x) {
-                                        PlayerViewModelManager.shared.seekToTime(time)
-                                    }
-                                }
-                                viewModel.hoveredSample = nil
-                            }
-                    )
+                        case .ended:
+                            viewModel.hoveredSample = nil
+                            viewModel.hoveredTimestamp = nil
+                        }
+                    }
+                    .onTapGesture { location in
+                        // Seek on click
+                        if let time: Double = proxy.value(atX: location.x) {
+                            PlayerViewModelManager.shared.seekToTime(time)
+                        }
+                    }
             }
         }
         .drawingGroup()
         .frame(minHeight: 400)
-        .overlay(alignment: .topLeading) {
-            tooltipOverlay
-        }
-    }
-
-    // MARK: - Tooltip Overlay
-
-    @ViewBuilder
-    private var tooltipOverlay: some View {
-        GeometryReader { geometry in
-            let tooltipSample: BitrateSample? = {
-                if let sample = viewModel.hoveredSample {
-                    return sample
-                } else if let keyframeTime = viewModel.hoveredKeyframeTime {
-                    return viewModel.samples.min(by: { abs($0.time - keyframeTime) < abs($1.time - keyframeTime) })
-                }
-                return nil
-            }()
-            
-            if let sample = tooltipSample {
-                let startTime = viewModel.visibleTimeRange?.lowerBound ?? 0
-                let endTime = viewModel.visibleTimeRange?.upperBound ?? statistics.maxTime
-                let duration = endTime - startTime
-                
-                if duration > 0 && sample.time >= startTime && sample.time <= endTime {
-                    let timeRatio = (sample.time - startTime) / duration
-                    let chartWidth = geometry.size.width
-                    let xPos = timeRatio * chartWidth
-                    let clampedX = min(max(xPos, 80), chartWidth - 80)
-                    
-                    Tooltip(sample: sample, maxBitrateKbps: statistics.maxBitrateKbps)
-                        .position(x: clampedX, y: 50)
-                }
-            }
-        }
     }
 
     // MARK: - Overlay
@@ -383,4 +358,3 @@ struct BitrateChartView: View {
 #Preview {
     BitrateChartView(viewModel: FramePeekViewModel())
 }
-

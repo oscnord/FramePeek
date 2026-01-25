@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 #if canImport(AppKit)
 import AppKit
 #endif
@@ -6,8 +7,8 @@ import AppKit
 struct InfoInspectorView: View {
     @ObservedObject var viewModel: FramePeekViewModel
 
-    @State var copiedBannerText: String? = nil
-    
+    @State var copiedBannerText: String?
+
     // Section expansion state - persisted via AppStorage
     @AppStorage("inspector.fileExpanded") var fileExpanded: Bool = false
     @AppStorage("inspector.metadataExpanded") var metadataExpanded: Bool = false
@@ -15,9 +16,9 @@ struct InfoInspectorView: View {
     @AppStorage("inspector.colorExpanded") var colorExpanded: Bool = false
     @AppStorage("inspector.audioExpanded") var audioExpanded: Bool = false
     @AppStorage("inspector.analysisExpanded") var analysisExpanded: Bool = false
-    
+
     // Track if we've auto-expanded for this video
-    @State private var lastLoadedFileName: String? = nil
+    @State private var lastLoadedFileName: String?
 
     var body: some View {
         Group {
@@ -27,19 +28,19 @@ struct InfoInspectorView: View {
                         // Top padding spacer
                         Color.clear
                             .frame(height: DesignSystem.Padding.lg2)
-                        
+
                         header(info: info)
-                        
+
                         // Quick Summary Card (always visible)
                         QuickSummaryCard(info: info)
-                        
+
                         // Video Preview (thumbnail)
                         VideoPreviewView(viewModel: viewModel)
                             .frame(maxHeight: 300)
                             .frame(maxWidth: .infinity)
-                        
+
                         actionBar(info: info)
-                        
+
                         // Collapsible sections
                         VStack(spacing: 12) {
                             CollapsibleSection(
@@ -47,11 +48,11 @@ struct InfoInspectorView: View {
                                 systemImage: "doc.fill",
                                 isExpanded: $fileExpanded
                             ) {
-                                KV("Name", info.fileName)
-                                if let v = info.containerFormat { KV("Format", v) }
-                                KV("Size", info.fileSize)
-                                KV("Overall Bitrate", info.overallBitrate)
-                                KV("Duration", info.durationFormatted)
+                                KVRow("Name", info.fileName)
+                                if let v = info.containerFormat { KVRow("Format", v) }
+                                KVRow("Size", info.fileSize)
+                                KVRow("Overall Bitrate", info.overallBitrate)
+                                KVRow("Duration", info.durationFormatted)
                             }
 
                             if info.hasMetadata {
@@ -60,10 +61,10 @@ struct InfoInspectorView: View {
                                     systemImage: "tag.fill",
                                     isExpanded: $metadataExpanded
                                 ) {
-                                    if let v = info.creationDate { KV("Created", v) }
-                                    if let v = info.metadataTitle { KV("Title", v) }
-                                    if let v = info.metadataArtist { KV("Artist", v) }
-                                    if let v = info.metadataEncoder { KV("Encoder", v) }
+                                    if let v = info.creationDate { KVRow("Created", v) }
+                                    if let v = info.metadataTitle { KVRow("Title", v) }
+                                    if let v = info.metadataArtist { KVRow("Artist", v) }
+                                    if let v = info.metadataEncoder { KVRow("Encoder", v) }
                                     if let v = info.metadataDescription {
                                         KVMultiline("Description", v)
                                     }
@@ -75,22 +76,22 @@ struct InfoInspectorView: View {
                                 systemImage: "film.fill",
                                 isExpanded: $videoExpanded
                             ) {
-                                KV("Resolution", info.resolution)
-                                if let v = info.displayAspectRatio { KV("Aspect Ratio", v) }
-                                KV("Nominal FPS", info.frameRate)
-                                if let v = info.frameRateMode { KV("Frame Rate Mode", v) }
-                                KV("Codec", info.codec)
-                                if let v = info.codecProfile { KV("Profile", v) }
-                                if let v = info.codecIdRaw { KV("Codec ID", v) }
-                                if let v = info.trackBitrate { KV("Video Bitrate", v) }
-                                if let v = info.maxBitrate { KV("Max Bitrate", v) }
-                                if let v = info.minBitrate { KV("Min Bitrate", v) }
-                                if let v = info.videoStreamSize { KV("Stream Size", v) }
-                                if let v = info.bitsPerPixelFrame { KV("Bits/(Pixel*Frame)", v, monospace: true) }
-                                if let v = info.orientationDegrees { KV("Orientation", "\(v)°") }
-                                if let v = info.pixelAspectRatio { KV("Pixel Aspect Ratio", v) }
-                                if let v = info.cleanAperture { KV("Clean Aperture", v) }
-                                if let v = info.scanType { KV("Scan Type", v) }
+                                KVRow("Resolution", info.resolution)
+                                if let v = info.displayAspectRatio { KVRow("Aspect Ratio", v) }
+                                KVRow("Nominal FPS", info.frameRate)
+                                if let v = info.frameRateMode { KVRow("Frame Rate Mode", v) }
+                                KVRow("Codec", info.codec)
+                                if let v = info.codecProfile { KVRow("Profile", v) }
+                                if let v = info.codecIdRaw { KVRow("Codec ID", v) }
+                                if let v = info.trackBitrate { KVRow("Video Bitrate", v) }
+                                if let v = info.maxBitrate { KVRow("Max Bitrate", v) }
+                                if let v = info.minBitrate { KVRow("Min Bitrate", v) }
+                                if let v = info.videoStreamSize { KVRow("Stream Size", v) }
+                                if let v = info.bitsPerPixelFrame { KVRow("Bits/(Pixel*Frame)", v, monospace: true) }
+                                if let v = info.orientationDegrees { KVRow("Orientation", "\(v)°") }
+                                if let v = info.pixelAspectRatio { KVRow("Pixel Aspect Ratio", v) }
+                                if let v = info.cleanAperture { KVRow("Clean Aperture", v) }
+                                if let v = info.scanType { KVRow("Scan Type", v) }
                             }
 
                             CollapsibleSection(
@@ -98,19 +99,19 @@ struct InfoInspectorView: View {
                                 systemImage: "paintpalette.fill",
                                 isExpanded: $colorExpanded
                             ) {
-                                if let v = info.hdrFormat { KV("HDR Format", v) }
-                                if let v = info.colorSpace { KV("Color Space", v) }
-                                if let v = info.chromaSubsampling { KV("Chroma Subsampling", v) }
-                                if let v = info.colorPrimaries { KV("Primaries", v) }
-                                if let v = info.transferFunction { KV("Transfer", v) }
-                                if let v = info.matrixCoefficients { KV("Matrix", v) }
-                                if let v = info.colorRange { KV("Range", v) }
-                                if let v = info.bitDepth { KV("Bit Depth", v) }
-                                if let v = info.av1CSize { KV("av1C Box", "\(v) bytes", monospace: true) }
-                                if let v = info.av1Profile { KV("AV1 Profile", v) }
-                                if let v = info.av1Level { KV("AV1 Level", v) }
-                                if let v = info.av1ChromaSubsampling { KV("AV1 Chroma", v) }
-                                if let v = info.av1FullRange { KV("AV1 Range", v) }
+                                if let v = info.hdrFormat { KVRow("HDR Format", v) }
+                                if let v = info.colorSpace { KVRow("Color Space", v) }
+                                if let v = info.chromaSubsampling { KVRow("Chroma Subsampling", v) }
+                                if let v = info.colorPrimaries { KVRow("Primaries", v) }
+                                if let v = info.transferFunction { KVRow("Transfer", v) }
+                                if let v = info.matrixCoefficients { KVRow("Matrix", v) }
+                                if let v = info.colorRange { KVRow("Range", v) }
+                                if let v = info.bitDepth { KVRow("Bit Depth", v) }
+                                if let v = info.av1CSize { KVRow("av1C Box", "\(v) bytes", monospace: true) }
+                                if let v = info.av1Profile { KVRow("AV1 Profile", v) }
+                                if let v = info.av1Level { KVRow("AV1 Level", v) }
+                                if let v = info.av1ChromaSubsampling { KVRow("AV1 Chroma", v) }
+                                if let v = info.av1FullRange { KVRow("AV1 Range", v) }
                             }
 
                             if !info.audioTracks.isEmpty {
@@ -120,11 +121,11 @@ struct InfoInspectorView: View {
                                     isExpanded: $audioExpanded
                                 ) {
                                     ForEach(info.audioTracks, id: \.index) { track in
-                                        KV("Track \(track.index)", track.displayString, monospace: true)
+                                        KVRow("Track \(track.index)", track.displayString, monospace: true)
                                     }
                                 }
                             }
-                            
+
                             // Analysis section
                             if viewModel.effectiveFPS != nil || viewModel.minInterval != nil || viewModel.isAnalyzing {
                                 CollapsibleSection(
@@ -134,10 +135,10 @@ struct InfoInspectorView: View {
                                     isLoading: viewModel.isAnalyzing
                                 ) {
                                     if let fps = viewModel.effectiveFPS {
-                                        KV("Effective FPS", String(format: "%.2f", fps), monospace: true)
+                                        KVRow("Effective FPS", String(format: "%.2f", fps), monospace: true)
                                     }
                                     if let min = viewModel.minInterval, let max = viewModel.maxInterval {
-                                        KV("Frame Interval",
+                                        KVRow("Frame Interval",
                                            String(format: "min %.3f s, max %.3f s", min, max),
                                            monospace: true)
                                     }
@@ -183,13 +184,13 @@ struct InfoInspectorView: View {
             }
         }
     }
-    
+
     // MARK: - Auto Expand
-    
+
     private func autoExpandIfNewFile(_ fileName: String) {
         guard lastLoadedFileName != fileName else { return }
         lastLoadedFileName = fileName
-        
+
         // Expand key sections when a new video loads
         withAnimation(.snappy(duration: 0.3)) {
             fileExpanded = true

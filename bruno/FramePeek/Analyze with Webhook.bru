@@ -1,0 +1,79 @@
+meta {
+  name: Analyze with Webhook
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://127.0.0.1:8080/analyze/path
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "path": "/path/to/your/video.mp4",
+    "options": {
+      "info": true,
+      "bitrate": true
+    },
+    "webhook": {
+      "url": "https://webhook.site/your-unique-id",
+      "headers": {
+        "Authorization": "Bearer your-token",
+        "X-Custom-Header": "custom-value"
+      }
+    }
+  }
+}
+
+docs {
+  # Analyze with Webhook
+  
+  Analyze a video file and receive a webhook notification when the job completes.
+  
+  ## Webhook Configuration
+  
+  - `url`: The endpoint to receive the webhook POST request
+  - `headers`: Optional custom headers to include in the webhook request
+  
+  ## Webhook Payload
+  
+  When the job completes (success or failure), FramePeek will POST a JSON payload:
+  
+  ```json
+  {
+    "event": "job.completed",  // or "job.failed"
+    "jobId": "ABC123",
+    "status": "complete",
+    "duration": 45.2,
+    "result": { ... },         // Truncated if too large
+    "truncated": ["bitrate.samples"],  // Fields that were truncated
+    "resultUrl": "/jobs/ABC123",       // Endpoint to fetch full result
+    "error": null
+  }
+  ```
+  
+  ## Truncation Rules
+  
+  Large results are truncated to keep webhook payloads under 1MB:
+  - `bitrate.samples` > 1000 samples: truncated
+  - `waveforms` > 1000 samples per track: truncated
+  - `keyframes` > 500: truncated
+  
+  Use the `resultUrl` to fetch the complete result.
+  
+  ## Retry Logic
+  
+  - Max 3 retries on failure
+  - 30 second timeout per attempt
+  - Exponential backoff: 1s, 2s, 4s delays
+  
+  ## Testing
+  
+  Use https://webhook.site to generate a test URL and view received payloads.
+}

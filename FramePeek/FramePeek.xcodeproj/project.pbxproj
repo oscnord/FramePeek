@@ -12,6 +12,19 @@
 		552AB1482D60CB4400A4C7B5 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1472D60CB4400A4C7B5 /* AppKit.framework */; };
 		555E735C2F11075000EC8F95 /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735B2F11075000EC8F95 /* CoreMedia.framework */; };
 		555E735E2F11076600EC8F95 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735D2F11076600EC8F95 /* MediaPlayer.framework */; };
+		5573F1EF2F2530340056DA23 /* FramePeekCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */; };
+		5573F1F92F2530340056DA23 /* FramePeekCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */; };
+		5573F1FA2F2530340056DA23 /* FramePeekCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5573F2712F25469A0056DA23 /* ArgumentParser in Frameworks */ = {isa = PBXBuildFile; productRef = 5573F2702F25469A0056DA23 /* ArgumentParser */; };
+		5573F2732F25469A0056DA23 /* generate-docc-reference in Frameworks */ = {isa = PBXBuildFile; productRef = 5573F2722F25469A0056DA23 /* generate-docc-reference */; };
+		5573F2752F25469A0056DA23 /* generate-manual in Frameworks */ = {isa = PBXBuildFile; productRef = 5573F2742F25469A0056DA23 /* generate-manual */; };
+		5573F2762F2546D90056DA23 /* FramePeekCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */; };
+		5573F2772F2546D90056DA23 /* FramePeekCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5573FF322F2552020056DA23 /* Hummingbird in Frameworks */ = {isa = PBXBuildFile; productRef = 5573FF312F2552020056DA23 /* Hummingbird */; };
+		5573FF342F2552020056DA23 /* HummingbirdCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5573FF332F2552020056DA23 /* HummingbirdCore */; };
+		5573FF362F2552020056DA23 /* HummingbirdHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = 5573FF352F2552020056DA23 /* HummingbirdHTTP2 */; };
+		5573FF382F2552020056DA23 /* HummingbirdRouter in Frameworks */ = {isa = PBXBuildFile; productRef = 5573FF372F2552020056DA23 /* HummingbirdRouter */; };
+		5573FF3A2F2552020056DA23 /* HummingbirdTLS in Frameworks */ = {isa = PBXBuildFile; productRef = 5573FF392F2552020056DA23 /* HummingbirdTLS */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -29,7 +42,69 @@
 			remoteGlobalIDString = 552AB10F2D60B9FD00A4C7B5;
 			remoteInfo = framepeek;
 		};
+		5573F1F02F2530340056DA23 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 552AB1082D60B9FD00A4C7B5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5573F1E32F2530340056DA23;
+			remoteInfo = FramePeekCore;
+		};
+		5573F1F22F2530340056DA23 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 552AB1082D60B9FD00A4C7B5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 552AB10F2D60B9FD00A4C7B5;
+			remoteInfo = FramePeek;
+		};
+		5573F1F72F2530340056DA23 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 552AB1082D60B9FD00A4C7B5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5573F1E32F2530340056DA23;
+			remoteInfo = FramePeekCore;
+		};
+		5573F2782F2546D90056DA23 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 552AB1082D60B9FD00A4C7B5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5573F1E32F2530340056DA23;
+			remoteInfo = FramePeekCore;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5573F1FE2F2530340056DA23 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				5573F1FA2F2530340056DA23 /* FramePeekCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5573F2522F2546190056DA23 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		5573F27A2F2546D90056DA23 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				5573F2772F2546D90056DA23 /* FramePeekCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		552AB1102D60B9FD00A4C7B5 /* FramePeek.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FramePeek.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -41,6 +116,9 @@
 		552AB1492D60CBEC00A4C7B5 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		555E735B2F11075000EC8F95 /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
 		555E735D2F11076600EC8F95 /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
+		5573F1E42F2530340056DA23 /* FramePeekCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = FramePeekCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		5573F1EE2F2530340056DA23 /* FramePeekCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramePeekCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5573F2542F2546190056DA23 /* framepeek-cli */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "framepeek-cli"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -58,14 +136,108 @@
 			);
 			target = 552AB12A2D60BA0000A4C7B5 /* FramePeekUITests */;
 		};
+		5573F22D2F2534ED0056DA23 /* Exceptions for "FramePeek" folder in "FramePeekCore" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Utils/Analysis/AudioVideoSyncAnalyzer.swift,
+				Utils/Analysis/AudioWaveformExtractor.swift,
+				Utils/Analysis/CCTCalculator.swift,
+				Utils/Analysis/ColorAnalyzer.swift,
+				Utils/Analysis/DolbyVisionAnalyzer.swift,
+				Utils/Analysis/ExtractFramesStream.swift,
+				Utils/Analysis/FrameAggregation.swift,
+				Utils/Analysis/FrameAnalysis.swift,
+				Utils/Analysis/FrameDetailExtractor.swift,
+				Utils/Analysis/FramePatternUtils.swift,
+				Utils/Analysis/GOPAnalyzer.swift,
+				Utils/Analysis/ProfessionalColorAnalyzer.swift,
+				Utils/Cache/CacheManager.swift,
+				Utils/Extraction/FastBitrateExtractor.swift,
+				"Utils/Extraction/FastBitrateExtractor+Cursor.swift",
+				"Utils/Extraction/FastBitrateExtractor+Reader.swift",
+				Utils/Extraction/FastWaveformExtractor.swift,
+				Utils/Extraction/FormatDetector.swift,
+				Utils/Extraction/FragmentedMP4Extractor.swift,
+				Utils/Extraction/TSBitrateExtractor.swift,
+				Utils/Formatting/AspectRatioUtils.swift,
+				Utils/Formatting/ColorUtils.swift,
+				Utils/Formatting/FormatUtils.swift,
+				Utils/Formatting/HDRUtils.swift,
+				Utils/Formatting/VideoUtils.swift,
+				Utils/Media/AudioInfoLoader.swift,
+				Utils/Media/GenerateKeyframeThumbnails.swift,
+				Utils/Media/VideoInfoLoader.swift,
+				"Utils/Media/VideoInfoLoader+AV1.swift",
+				"Utils/Media/VideoInfoLoader+BasicInfo.swift",
+				"Utils/Media/VideoInfoLoader+Codec.swift",
+				"Utils/Media/VideoInfoLoader+Color.swift",
+				"Utils/Media/VideoInfoLoader+Duration.swift",
+				"Utils/Media/VideoInfoLoader+Metadata.swift",
+				"Utils/Media/VideoInfoLoader+VideoTrack.swift",
+				Utils/Parsing/AV1Parser.swift,
+				Utils/Parsing/FrameTypeParser.swift,
+				Utils/Parsing/KeyframeMarker.swift,
+				Utils/Parsing/SyncSampleParser.swift,
+				Utils/Parsing/VUIParser.swift,
+			);
+			target = 5573F1E32F2530340056DA23 /* FramePeekCore */;
+		};
+		5573F22E2F2534EE0056DA23 /* Exceptions for "FramePeek" folder in "FramePeek" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Utils/Analysis/AudioVideoSyncAnalyzer.swift,
+				Utils/Analysis/AudioWaveformExtractor.swift,
+				Utils/Analysis/CCTCalculator.swift,
+				Utils/Analysis/ColorAnalyzer.swift,
+				Utils/Analysis/DolbyVisionAnalyzer.swift,
+				Utils/Analysis/ExtractFramesStream.swift,
+				Utils/Analysis/FrameAggregation.swift,
+				Utils/Analysis/FrameAnalysis.swift,
+				Utils/Analysis/FrameDetailExtractor.swift,
+				Utils/Analysis/FramePatternUtils.swift,
+				Utils/Analysis/GOPAnalyzer.swift,
+				Utils/Analysis/ProfessionalColorAnalyzer.swift,
+				Utils/Cache/CacheManager.swift,
+				Utils/Extraction/FastBitrateExtractor.swift,
+				"Utils/Extraction/FastBitrateExtractor+Cursor.swift",
+				"Utils/Extraction/FastBitrateExtractor+Reader.swift",
+				Utils/Extraction/FastWaveformExtractor.swift,
+				Utils/Extraction/FormatDetector.swift,
+				Utils/Extraction/FragmentedMP4Extractor.swift,
+				Utils/Extraction/TSBitrateExtractor.swift,
+				Utils/Formatting/AspectRatioUtils.swift,
+				Utils/Formatting/ColorUtils.swift,
+				Utils/Formatting/FormatUtils.swift,
+				Utils/Formatting/HDRUtils.swift,
+				Utils/Formatting/VideoUtils.swift,
+				Utils/Media/AudioInfoLoader.swift,
+				Utils/Media/GenerateKeyframeThumbnails.swift,
+				Utils/Media/VideoInfoLoader.swift,
+				"Utils/Media/VideoInfoLoader+AV1.swift",
+				"Utils/Media/VideoInfoLoader+BasicInfo.swift",
+				"Utils/Media/VideoInfoLoader+Codec.swift",
+				"Utils/Media/VideoInfoLoader+Color.swift",
+				"Utils/Media/VideoInfoLoader+Duration.swift",
+				"Utils/Media/VideoInfoLoader+Metadata.swift",
+				"Utils/Media/VideoInfoLoader+VideoTrack.swift",
+				Utils/Parsing/AV1Parser.swift,
+				Utils/Parsing/FrameTypeParser.swift,
+				Utils/Parsing/KeyframeMarker.swift,
+				Utils/Parsing/SyncSampleParser.swift,
+				Utils/Parsing/VUIParser.swift,
+			);
+			target = 552AB10F2D60B9FD00A4C7B5 /* FramePeek */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		552AB1122D60B9FD00A4C7B5 /* FramePeek */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				5573F22E2F2534EE0056DA23 /* Exceptions for "FramePeek" folder in "FramePeek" target */,
 				552715822EFF42820087AD5A /* Exceptions for "FramePeek" folder in "FramePeekTests" target */,
 				552715832EFF42820087AD5A /* Exceptions for "FramePeek" folder in "FramePeekUITests" target */,
+				5573F22D2F2534ED0056DA23 /* Exceptions for "FramePeek" folder in "FramePeekCore" target */,
 			);
 			path = FramePeek;
 			sourceTree = "<group>";
@@ -80,6 +252,21 @@
 			path = FramePeekUITests;
 			sourceTree = "<group>";
 		};
+		5573F1E52F2530340056DA23 /* FramePeekCore */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FramePeekCore;
+			sourceTree = "<group>";
+		};
+		5573F1F42F2530340056DA23 /* FramePeekCoreTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FramePeekCoreTests;
+			sourceTree = "<group>";
+		};
+		5573F2552F2546190056DA23 /* FramePeekCLI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FramePeekCLI;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,9 +276,15 @@
 			files = (
 				552AB1482D60CB4400A4C7B5 /* AppKit.framework in Frameworks */,
 				555E735E2F11076600EC8F95 /* MediaPlayer.framework in Frameworks */,
+				5573F1F92F2530340056DA23 /* FramePeekCore.framework in Frameworks */,
 				552AB1442D60CB1A00A4C7B5 /* AVFoundation.framework in Frameworks */,
 				552AB1462D60CB3B00A4C7B5 /* Charts.framework in Frameworks */,
 				555E735C2F11075000EC8F95 /* CoreMedia.framework in Frameworks */,
+				5573FF382F2552020056DA23 /* HummingbirdRouter in Frameworks */,
+				5573FF342F2552020056DA23 /* HummingbirdCore in Frameworks */,
+				5573FF362F2552020056DA23 /* HummingbirdHTTP2 in Frameworks */,
+				5573FF3A2F2552020056DA23 /* HummingbirdTLS in Frameworks */,
+				5573FF322F2552020056DA23 /* Hummingbird in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -109,6 +302,32 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5573F1E12F2530340056DA23 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5573F1EB2F2530340056DA23 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5573F1EF2F2530340056DA23 /* FramePeekCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5573F2512F2546190056DA23 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5573F2762F2546D90056DA23 /* FramePeekCore.framework in Frameworks */,
+				5573F2732F25469A0056DA23 /* generate-docc-reference in Frameworks */,
+				5573F2712F25469A0056DA23 /* ArgumentParser in Frameworks */,
+				5573F2752F25469A0056DA23 /* generate-manual in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -118,6 +337,9 @@
 				552AB1122D60B9FD00A4C7B5 /* FramePeek */,
 				552AB1242D60BA0000A4C7B5 /* FramePeekTests */,
 				552AB12E2D60BA0000A4C7B5 /* FramePeekUITests */,
+				5573F1E52F2530340056DA23 /* FramePeekCore */,
+				5573F1F42F2530340056DA23 /* FramePeekCoreTests */,
+				5573F2552F2546190056DA23 /* FramePeekCLI */,
 				552AB1422D60CB1A00A4C7B5 /* Frameworks */,
 				552AB1112D60B9FD00A4C7B5 /* Products */,
 			);
@@ -129,6 +351,9 @@
 				552AB1102D60B9FD00A4C7B5 /* FramePeek.app */,
 				552AB1212D60BA0000A4C7B5 /* FramePeekTests.xctest */,
 				552AB12B2D60BA0000A4C7B5 /* FramePeekUITests.xctest */,
+				5573F1E42F2530340056DA23 /* FramePeekCore.framework */,
+				5573F1EE2F2530340056DA23 /* FramePeekCoreTests.xctest */,
+				5573F2542F2546190056DA23 /* framepeek-cli */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -148,6 +373,16 @@
 		};
 /* End PBXGroup section */
 
+/* Begin PBXHeadersBuildPhase section */
+		5573F1DF2F2530340056DA23 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
 /* Begin PBXNativeTarget section */
 		552AB10F2D60B9FD00A4C7B5 /* FramePeek */ = {
 			isa = PBXNativeTarget;
@@ -156,16 +391,23 @@
 				552AB10C2D60B9FD00A4C7B5 /* Sources */,
 				552AB10D2D60B9FD00A4C7B5 /* Frameworks */,
 				552AB10E2D60B9FD00A4C7B5 /* Resources */,
+				5573F1FE2F2530340056DA23 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5573F1F82F2530340056DA23 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				552AB1122D60B9FD00A4C7B5 /* FramePeek */,
 			);
 			name = FramePeek;
 			packageProductDependencies = (
+				5573FF312F2552020056DA23 /* Hummingbird */,
+				5573FF332F2552020056DA23 /* HummingbirdCore */,
+				5573FF352F2552020056DA23 /* HummingbirdHTTP2 */,
+				5573FF372F2552020056DA23 /* HummingbirdRouter */,
+				5573FF392F2552020056DA23 /* HummingbirdTLS */,
 			);
 			productName = framepeek;
 			productReference = 552AB1102D60B9FD00A4C7B5 /* FramePeek.app */;
@@ -217,6 +459,80 @@
 			productReference = 552AB12B2D60BA0000A4C7B5 /* FramePeekUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		5573F1E32F2530340056DA23 /* FramePeekCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5573F1FB2F2530340056DA23 /* Build configuration list for PBXNativeTarget "FramePeekCore" */;
+			buildPhases = (
+				5573F1DF2F2530340056DA23 /* Headers */,
+				5573F1E02F2530340056DA23 /* Sources */,
+				5573F1E12F2530340056DA23 /* Frameworks */,
+				5573F1E22F2530340056DA23 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5573F1E52F2530340056DA23 /* FramePeekCore */,
+			);
+			name = FramePeekCore;
+			packageProductDependencies = (
+			);
+			productName = FramePeekCore;
+			productReference = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		5573F1ED2F2530340056DA23 /* FramePeekCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5573F1FF2F2530340056DA23 /* Build configuration list for PBXNativeTarget "FramePeekCoreTests" */;
+			buildPhases = (
+				5573F1EA2F2530340056DA23 /* Sources */,
+				5573F1EB2F2530340056DA23 /* Frameworks */,
+				5573F1EC2F2530340056DA23 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5573F1F12F2530340056DA23 /* PBXTargetDependency */,
+				5573F1F32F2530340056DA23 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5573F1F42F2530340056DA23 /* FramePeekCoreTests */,
+			);
+			name = FramePeekCoreTests;
+			packageProductDependencies = (
+			);
+			productName = FramePeekCoreTests;
+			productReference = 5573F1EE2F2530340056DA23 /* FramePeekCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		5573F2532F2546190056DA23 /* FramePeekCLI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5573F2582F2546190056DA23 /* Build configuration list for PBXNativeTarget "FramePeekCLI" */;
+			buildPhases = (
+				5573F2502F2546190056DA23 /* Sources */,
+				5573F2512F2546190056DA23 /* Frameworks */,
+				5573F2522F2546190056DA23 /* CopyFiles */,
+				5573F27A2F2546D90056DA23 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5573F2792F2546D90056DA23 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5573F2552F2546190056DA23 /* FramePeekCLI */,
+			);
+			name = FramePeekCLI;
+			packageProductDependencies = (
+				5573F2702F25469A0056DA23 /* ArgumentParser */,
+				5573F2722F25469A0056DA23 /* generate-docc-reference */,
+				5573F2742F25469A0056DA23 /* generate-manual */,
+			);
+			productName = FramePeekCLI;
+			productReference = 5573F2542F2546190056DA23 /* framepeek-cli */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -224,7 +540,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1620;
+				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
 					552AB10F2D60B9FD00A4C7B5 = {
@@ -238,6 +554,16 @@
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 552AB10F2D60B9FD00A4C7B5;
 					};
+					5573F1E32F2530340056DA23 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5573F1ED2F2530340056DA23 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 552AB10F2D60B9FD00A4C7B5;
+					};
+					5573F2532F2546190056DA23 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 				};
 			};
 			buildConfigurationList = 552AB10B2D60B9FD00A4C7B5 /* Build configuration list for PBXProject "FramePeek" */;
@@ -249,6 +575,10 @@
 			);
 			mainGroup = 552AB1072D60B9FD00A4C7B5;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5573F26F2F25469A0056DA23 /* XCRemoteSwiftPackageReference "swift-argument-parser" */,
+				5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 552AB1112D60B9FD00A4C7B5 /* Products */;
 			projectDirPath = "";
@@ -257,6 +587,9 @@
 				552AB10F2D60B9FD00A4C7B5 /* FramePeek */,
 				552AB1202D60BA0000A4C7B5 /* FramePeekTests */,
 				552AB12A2D60BA0000A4C7B5 /* FramePeekUITests */,
+				5573F1E32F2530340056DA23 /* FramePeekCore */,
+				5573F1ED2F2530340056DA23 /* FramePeekCoreTests */,
+				5573F2532F2546190056DA23 /* FramePeekCLI */,
 			);
 		};
 /* End PBXProject section */
@@ -277,6 +610,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		552AB1292D60BA0000A4C7B5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5573F1E22F2530340056DA23 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5573F1EC2F2530340056DA23 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -307,6 +654,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5573F1E02F2530340056DA23 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5573F1EA2F2530340056DA23 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5573F2502F2546190056DA23 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -319,6 +687,26 @@
 			isa = PBXTargetDependency;
 			target = 552AB10F2D60B9FD00A4C7B5 /* FramePeek */;
 			targetProxy = 552AB12C2D60BA0000A4C7B5 /* PBXContainerItemProxy */;
+		};
+		5573F1F12F2530340056DA23 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5573F1E32F2530340056DA23 /* FramePeekCore */;
+			targetProxy = 5573F1F02F2530340056DA23 /* PBXContainerItemProxy */;
+		};
+		5573F1F32F2530340056DA23 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 552AB10F2D60B9FD00A4C7B5 /* FramePeek */;
+			targetProxy = 5573F1F22F2530340056DA23 /* PBXContainerItemProxy */;
+		};
+		5573F1F82F2530340056DA23 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5573F1E32F2530340056DA23 /* FramePeekCore */;
+			targetProxy = 5573F1F72F2530340056DA23 /* PBXContainerItemProxy */;
+		};
+		5573F2792F2546D90056DA23 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5573F1E32F2530340056DA23 /* FramePeekCore */;
+			targetProxy = 5573F2782F2546D90056DA23 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -454,8 +842,19 @@
 				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_ASSET_PATHS = "\"framepeek/Preview Content\"";
 				DEVELOPMENT_TEAM = 9JFT83BZMT;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -486,8 +885,19 @@
 				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_ASSET_PATHS = "\"framepeek/Preview Content\"";
 				DEVELOPMENT_TEAM = 9JFT83BZMT;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
@@ -573,6 +983,192 @@
 			};
 			name = Release;
 		};
+		5573F1FC2F2530340056DA23 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9JFT83BZMT;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = com.oscarnord.FramePeekCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_MODULE = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		5573F1FD2F2530340056DA23 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9JFT83BZMT;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = com.oscarnord.FramePeekCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_MODULE = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		5573F2002F2530340056DA23 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9JFT83BZMT;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oscarnord.FramePeekCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FramePeek.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FramePeek";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		5573F2012F2530340056DA23 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9JFT83BZMT;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oscarnord.FramePeekCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FramePeek.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FramePeek";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		5573F2592F2546190056DA23 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9JFT83BZMT;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				PRODUCT_NAME = "framepeek-cli";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		5573F25A2F2546190056DA23 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9JFT83BZMT;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				PRODUCT_NAME = "framepeek-cli";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -612,7 +1208,96 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		5573F1FB2F2530340056DA23 /* Build configuration list for PBXNativeTarget "FramePeekCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5573F1FC2F2530340056DA23 /* Debug */,
+				5573F1FD2F2530340056DA23 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5573F1FF2F2530340056DA23 /* Build configuration list for PBXNativeTarget "FramePeekCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5573F2002F2530340056DA23 /* Debug */,
+				5573F2012F2530340056DA23 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5573F2582F2546190056DA23 /* Build configuration list for PBXNativeTarget "FramePeekCLI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5573F2592F2546190056DA23 /* Debug */,
+				5573F25A2F2546190056DA23 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5573F26F2F25469A0056DA23 /* XCRemoteSwiftPackageReference "swift-argument-parser" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-argument-parser.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.7.0;
+			};
+		};
+		5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/hummingbird-project/hummingbird";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.19.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5573F2702F25469A0056DA23 /* ArgumentParser */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573F26F2F25469A0056DA23 /* XCRemoteSwiftPackageReference "swift-argument-parser" */;
+			productName = ArgumentParser;
+		};
+		5573F2722F25469A0056DA23 /* generate-docc-reference */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573F26F2F25469A0056DA23 /* XCRemoteSwiftPackageReference "swift-argument-parser" */;
+			productName = "generate-docc-reference";
+		};
+		5573F2742F25469A0056DA23 /* generate-manual */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573F26F2F25469A0056DA23 /* XCRemoteSwiftPackageReference "swift-argument-parser" */;
+			productName = "generate-manual";
+		};
+		5573FF312F2552020056DA23 /* Hummingbird */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
+			productName = Hummingbird;
+		};
+		5573FF332F2552020056DA23 /* HummingbirdCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
+			productName = HummingbirdCore;
+		};
+		5573FF352F2552020056DA23 /* HummingbirdHTTP2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
+			productName = HummingbirdHTTP2;
+		};
+		5573FF372F2552020056DA23 /* HummingbirdRouter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
+			productName = HummingbirdRouter;
+		};
+		5573FF392F2552020056DA23 /* HummingbirdTLS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
+			productName = HummingbirdTLS;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 552AB1082D60B9FD00A4C7B5 /* Project object */;
 }

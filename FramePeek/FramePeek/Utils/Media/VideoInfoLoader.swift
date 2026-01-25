@@ -10,22 +10,22 @@ import CoreMedia
 ///   - url: File URL of the video
 ///   - asset: AVAsset instance for the video
 /// - Returns: ExtendedVideoInfo containing all available metadata
-func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
+public func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
     // Synchronous operations
     let basicInfo = extractBasicInfo(url: url)
-    
+
     // Parallel async operations - all run concurrently
     async let durationInfo = extractDurationInfo(asset: asset)
     async let overallBitrate = getOverallBitrateString(asset: asset, fileURL: url)
     async let metadataInfo = extractMetadataInfo(asset: asset)
     async let videoTrackInfo = extractVideoTrackInfo(asset: asset)
     async let audioTracks = loadAudioInfo(asset: asset)
-    
+
     // Wait for all parallel operations
     let (duration, bitrate, metadata, videoInfo, audio) = await (
         durationInfo, overallBitrate, metadataInfo, videoTrackInfo, audioTracks
     )
-    
+
     // Extract video track for further processing if available
     var videoTrack: AVAssetTrack?
     do {
@@ -34,26 +34,26 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
     } catch {
         print("Failed to load video tracks: \(error.localizedDescription)")
     }
-    
+
     // Extract codec, color, and AV1 info in parallel if we have a video track
-    var codecInfo: CodecInfo? = nil
-    var colorInfo: ColorInfo? = nil
-    var av1Info: AV1Info? = nil
-    
+    var codecInfo: CodecInfo?
+    var colorInfo: ColorInfo?
+    var av1Info: AV1Info?
+
     if let videoTrack = videoTrack {
         async let codec = extractCodecInfo(videoTrack: videoTrack)
         let codecResult = await codec
-        
+
         codecInfo = codecResult
         let hasDolbyVision = codecResult?.hasDolbyVision ?? false
-        
+
         async let color = extractColorInfo(videoTrack: videoTrack, hasDolbyVision: hasDolbyVision)
         async let av1 = extractAV1Info(videoTrack: videoTrack)
-        
+
         colorInfo = await color
         av1Info = await av1
     }
-    
+
     // Combine all extracted information
     let videoWidth = videoInfo?.videoWidth ?? 0
     let videoHeight = videoInfo?.videoHeight ?? 0
@@ -61,7 +61,7 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
     let parV = videoInfo?.parV ?? 1
     let nominalFrameRateValue = videoInfo?.nominalFrameRateValue ?? 0
     let trackBitrateValue = videoInfo?.trackBitrateValue ?? 0
-    
+
     // Calculate display aspect ratio
     let displayAspectRatio: String? = {
     if videoWidth > 0 && videoHeight > 0 {
@@ -74,14 +74,14 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
     }
         return nil
     }()
-    
+
     // Determine final chroma subsampling (prefer AV1, then codec, then color)
     let chromaSubsampling = av1Info?.chromaSubsampling ?? codecInfo?.chromaSubsampling ?? colorInfo?.chromaSubsampling
-    
+
     // Determine final bit depth (prefer AV1, then color)
     let inferredBitDepthBpc = av1Info?.inferredBitDepthBpc ?? colorInfo?.inferredBitDepthBpc
     let bitDepthString: String? = inferredBitDepthBpc.map { "\($0)-bit" }
-    
+
     // Calculate bits per pixel per frame
     let bitsPerPixelFrame: String? = {
     if videoWidth > 0 && videoHeight > 0 && nominalFrameRateValue > 0 && trackBitrateValue > 0 {
@@ -93,7 +93,7 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
     }
         return nil
     }()
-    
+
     // Calculate video stream size (estimate based on bitrate ratio)
     let videoStreamSize: String? = {
         guard let fileSizeBytes = basicInfo.fileSizeBytes,
@@ -114,7 +114,7 @@ func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
             return String(format: "%.2f MiB (%.0f%%)", videoMiB, percentage)
         }
     }()
-    
+
     return ExtendedVideoInfo(
         fileName: basicInfo.fileName,
         fileSize: basicInfo.fileSize,
