@@ -24,7 +24,7 @@ struct InfoInspectorView: View {
     var body: some View {
         Group {
             if let info = viewModel.extendedInfo {
-                NoTopInsetScrollView {
+                ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         // Top padding spacer
                         Color.clear
@@ -190,6 +190,7 @@ struct InfoInspectorView: View {
                     .padding(.horizontal, DesignSystem.Padding.md) // Consistent horizontal padding for all content
                     .padding(.bottom, DesignSystem.Padding.md3)
                 }
+                .modifier(ScrollEdgeEffectModifier())
                 .overlay(alignment: .top) {
                     if let banner = copiedBannerText {
                         CopiedBanner(text: banner)
@@ -228,6 +229,20 @@ struct InfoInspectorView: View {
         }
     }
 
+}
+
+// MARK: - Scroll Edge Effect Modifier
+
+/// Applies native scroll edge effect on macOS 26+
+private struct ScrollEdgeEffectModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
+        }
+    }
 }
 
 #Preview {

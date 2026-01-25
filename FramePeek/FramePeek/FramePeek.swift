@@ -30,7 +30,7 @@ struct FramePeek: View {
                 AboutView()
             }
             .background {
-                WindowTabbingDisabler()
+                WindowConfigurator()
             }
             .onChange(of: appViewModel.showSettingsView) { _, newValue in
                 if newValue {
@@ -204,6 +204,7 @@ struct FramePeek: View {
                             .frame(maxWidth: .infinity)
                             .padding(.bottom, isTimelineVisible ? DesignSystem.Padding.xxl2 + 80 : DesignSystem.Padding.lg) // Extra padding when timeline is visible
                         }
+                        .modifier(ScrollEdgeEffectModifier())
                         .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
                         .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
                         .transition(.opacity)
@@ -296,6 +297,7 @@ struct FramePeek: View {
             } // End of else (not showServerTab)
         }
         .navigationSplitViewStyle(.balanced)
+        .navigationTitle("")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -626,29 +628,34 @@ private struct TabNameObserver: View {
     }
 }
 
-// Helper view to disable native macOS window tabbing
-private struct WindowTabbingDisabler: NSViewRepresentable {
+// MARK: - Scroll Edge Effect Modifier
+
+/// Applies native scroll edge effect on macOS 26+
+private struct ScrollEdgeEffectModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
+        }
+    }
+}
+
+// Helper view to configure NSWindow for proper appearance
+private struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        // Try to get window immediately
-        if let window = view.window {
-            window.tabbingMode = .disallowed
-        } else {
-            // If window isn't available yet, try again after a short delay
-            Task { @MainActor in
-                if let window = view.window {
-                    window.tabbingMode = .disallowed
-                }
-            }
+        DispatchQueue.main.async {
+            view.window?.tabbingMode = .disallowed
+            view.window?.titleVisibility = .hidden
         }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        // Check again when view updates in case window wasn't available initially
-        if let window = nsView.window {
-            window.tabbingMode = .disallowed
-        }
+        nsView.window?.tabbingMode = .disallowed
+        nsView.window?.titleVisibility = .hidden
     }
 }
 
