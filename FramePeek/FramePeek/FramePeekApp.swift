@@ -94,10 +94,11 @@ struct FramePeekApp: App {
 
         WindowGroup(id: "videoPlayer") {
             VideoPlayerView()
-                .preferredColorScheme(appearanceMode.colorScheme)
+                .preferredColorScheme(.dark)
                 .animation(.easeInOut(duration: 0.3), value: appearanceMode)
         }
         .windowStyle(.automatic)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .defaultSize(width: 800, height: 600)
     }
 }

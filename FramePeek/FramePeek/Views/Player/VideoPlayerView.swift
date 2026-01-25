@@ -17,6 +17,7 @@ struct VideoPlayerView: View {
     @AppStorage("playerMuted") private var playerMuted: Bool = false
     @AppStorage("statisticsOverlayOffsetX") private var savedOffsetX: Double = 0
     @AppStorage("statisticsOverlayOffsetY") private var savedOffsetY: Double = 0
+    @AppStorage("playerSafeAreaGuides") private var safeAreaGuidesRaw: String = ""
 
     // Section visibility settings (all expanded by default)
     @AppStorage("overlayShowVideo") private var showVideoSection: Bool = true
@@ -33,6 +34,7 @@ struct VideoPlayerView: View {
     @State private var overlaySize: CGSize = .zero
     @State private var shouldInitializePosition: Bool = false
     @State private var hasInitializedPosition: Bool = false
+    @State private var showSafeAreaGuidesMenu: Bool = false
 
     // Section expansion state
     @State private var videoSectionExpanded: Bool = true
@@ -40,8 +42,79 @@ struct VideoPlayerView: View {
     @State private var audioSectionExpanded: Bool = true
     @State private var analysisSectionExpanded: Bool = true
 
+    // Overlay interaction state
+    @State private var isOverlayHovered: Bool = false
+    @State private var isOverlayDragging: Bool = false
+
     // Selected audio track (0-based index, updated when player selection changes)
     @State private var selectedAudioTrackIndex: Int = 0
+    
+    // Safe area guides
+    private var activeSafeAreaGuides: Set<SafeAreaGuideType> {
+        get { Set(storageString: safeAreaGuidesRaw) }
+        nonmutating set { safeAreaGuidesRaw = newValue.storageString }
+    }
+    
+    // Frame duration for frame stepping
+    private var frameDuration: Double {
+        guard let frameRateString = viewModel?.extendedInfo?.frameRate else {
+            return 1.0 / 30.0 // Default to 30fps
+        }
+        // Parse frame rate from string like "23.976 fps" or "29.97 FPS"
+        let numericString = frameRateString
+            .replacingOccurrences(of: "fps", with: "", options: .caseInsensitive)
+            .trimmingCharacters(in: .whitespaces)
+        guard let fps = Double(numericString), fps > 0 else {
+            return 1.0 / 30.0 // Default to 30fps
+        }
+        return 1.0 / fps
+    }
+    
+    // Video aspect ratio for safe area guides
+    private var videoAspectRatio: CGFloat {
+        guard let resolution = viewModel?.extendedInfo?.resolution else {
+            return 16.0 / 9.0 // Default to 16:9
+        }
+        let components = resolution.split(separator: "×")
+        if components.count == 2,
+           let width = Double(components[0]),
+           let height = Double(components[1]),
+           height > 0 {
+            return CGFloat(width / height)
+        }
+        return 16.0 / 9.0
+    }
+    
+    // Formatted aspect ratio string for display
+    private var formattedAspectRatio: String {
+        let ratio = videoAspectRatio
+        
+        // Check for common aspect ratios with tolerance
+        let tolerance: CGFloat = 0.02
+        
+        if abs(ratio - 2.39) < tolerance {
+            return "2.39:1 (Cinemascope)"
+        } else if abs(ratio - 2.35) < tolerance {
+            return "2.35:1 (Anamorphic)"
+        } else if abs(ratio - 2.00) < tolerance {
+            return "2:1 (Univisium)"
+        } else if abs(ratio - 1.85) < tolerance {
+            return "1.85:1 (Flat)"
+        } else if abs(ratio - (16.0/9.0)) < tolerance {
+            return "16:9 (1.78:1)"
+        } else if abs(ratio - (4.0/3.0)) < tolerance {
+            return "4:3 (1.33:1)"
+        } else if abs(ratio - 1.0) < tolerance {
+            return "1:1 (Square)"
+        } else if abs(ratio - (9.0/16.0)) < tolerance {
+            return "9:16 (Vertical)"
+        } else if abs(ratio - (4.0/5.0)) < tolerance {
+            return "4:5 (Portrait)"
+        } else {
+            // Display as decimal ratio
+            return String(format: "%.2f:1", ratio)
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -91,6 +164,14 @@ struct VideoPlayerView: View {
                         }
                     }
 
+                // Safe area guides overlay
+                if !activeSafeAreaGuides.isEmpty {
+                    SafeAreaGuidesOverlay(
+                        activeGuides: activeSafeAreaGuides,
+                        videoAspectRatio: videoAspectRatio
+                    )
+                }
+                
                 // Statistics overlay
                 if playerShowStatistics {
                     GeometryReader { geometry in
@@ -117,12 +198,20 @@ struct VideoPlayerView: View {
                                 x: savedOffsetX + dragOffset.width,
                                 y: savedOffsetY + dragOffset.height
                             )
+                            .onHover { hovering in
+                                isOverlayHovered = hovering
+                            }
                             .highPriorityGesture(
                                 DragGesture()
                                     .onChanged { value in
+                                        if !isOverlayDragging {
+                                            isOverlayDragging = true
+                                        }
                                         dragOffset = value.translation
                                     }
                                     .onEnded { value in
+                                        isOverlayDragging = false
+                                        
                                         // Calculate new offset (relative to bottom-left anchor with padding)
                                         let newOffsetX = savedOffsetX + value.translation.width
                                         let newOffsetY = savedOffsetY + value.translation.height
@@ -171,14 +260,108 @@ struct VideoPlayerView: View {
                 }
             }
         }
+        .focusable()
+        .onKeyPress(.leftArrow) {
+            stepBackward()
+            return .handled
+        }
+        .onKeyPress(.rightArrow) {
+            stepForward()
+            return .handled
+        }
+        .onKeyPress(characters: .init(charactersIn: "gG")) { _ in
+            toggleSafeAreaGuidesMenu()
+            return .handled
+        }
         .frame(minWidth: 400, minHeight: 300)
+        .background(.black)
         .navigationTitle(viewModel?.extendedInfo?.fileName ?? "Video Player")
+        .toolbarBackground(.black.opacity(0.5), for: .windowToolbar)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                safeAreaGuidesMenuButton
+            }
+        }
+    }
+    
+    // MARK: - Frame Stepping
+    
+    private func stepForward() {
+        guard let player = player else { return }
+        player.pause()
+        isPlaying = false
+        let newTime = min(currentTime + frameDuration, duration)
+        let cmTime = CMTime(seconds: newTime, preferredTimescale: 600)
+        player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
+    }
+    
+    private func stepBackward() {
+        guard let player = player else { return }
+        player.pause()
+        isPlaying = false
+        let newTime = max(currentTime - frameDuration, 0)
+        let cmTime = CMTime(seconds: newTime, preferredTimescale: 600)
+        player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
+    }
+    
+    private func toggleSafeAreaGuidesMenu() {
+        showSafeAreaGuidesMenu.toggle()
+    }
+    
+    private func toggleGuide(_ guide: SafeAreaGuideType) {
+        var guides = activeSafeAreaGuides
+        if guides.contains(guide) {
+            guides.remove(guide)
+        } else {
+            guides.insert(guide)
+        }
+        safeAreaGuidesRaw = guides.storageString
+    }
+    
+    private func clearAllGuides() {
+        safeAreaGuidesRaw = ""
+    }
+    
+    // MARK: - Safe Area Guides Menu
+    
+    private var safeAreaGuidesMenuButton: some View {
+        Menu {
+            // Current video aspect ratio indicator
+            Section {
+                Label("Current: \(formattedAspectRatio)", systemImage: "aspectratio")
+                    .foregroundStyle(.secondary)
+            }
+            
+            ForEach(SafeAreaGuideType.groupedByCategory, id: \.category) { group in
+                Section(group.category.displayName) {
+                    ForEach(group.guides) { guide in
+                        Toggle(guide.displayName, isOn: Binding(
+                            get: { activeSafeAreaGuides.contains(guide) },
+                            set: { _ in toggleGuide(guide) }
+                        ))
+                    }
+                }
+            }
+            
+            Divider()
+            
+            Button("Clear All", role: .destructive) {
+                clearAllGuides()
+            }
+            .disabled(activeSafeAreaGuides.isEmpty)
+        } label: {
+            Label("Safe Area Guides", systemImage: activeSafeAreaGuides.isEmpty ? "viewfinder" : "viewfinder.rectangular")
+        }
+        .help(String(localized: "Show safe area guides (G)"))
     }
 
     // MARK: - Statistics Overlay
 
     private var statisticsOverlay: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            // Drag handle indicator
+            dragHandleIndicator
+            
             // Video Section
             if showVideoSection {
                 videoSection
@@ -204,6 +387,18 @@ struct VideoPlayerView: View {
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous))
         .contextMenu {
             sectionToggleMenu
+        }
+    }
+    
+    private var dragHandleIndicator: some View {
+        HStack {
+            Spacer()
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.primary.opacity(isOverlayHovered || isOverlayDragging ? 0.4 : 0.15))
+                .frame(width: 36, height: 4)
+                .animation(.easeInOut(duration: 0.15), value: isOverlayHovered)
+                .animation(.easeInOut(duration: 0.15), value: isOverlayDragging)
+            Spacer()
         }
     }
 
