@@ -5,6 +5,7 @@ import FramePeekCore
 extension Notification.Name {
     static let menuOpenFile = Notification.Name("menuOpenFile")
     static let menuOpenRecentFile = Notification.Name("menuOpenRecentFile")
+    static let menuShowWelcome = Notification.Name("menuShowWelcome")
 }
 
 struct OpenRecentCommands: Commands {
@@ -44,9 +45,11 @@ struct FramePeekApp: App {
                 .environmentObject(appViewModel)
                 .preferredColorScheme(appearanceMode.colorScheme)
                 .animation(.easeInOut(duration: 0.3), value: appearanceMode)
+                .frame(minWidth: 900, minHeight: 600)
         }
         .windowToolbarStyle(.unified)
-        .defaultSize(width: 850, height: 650)
+        .defaultSize(width: 1100, height: 750)
+        .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About FramePeek") {
@@ -73,6 +76,12 @@ struct FramePeekApp: App {
 
             InspectorCommands()
             SidebarCommands()
+            
+            CommandGroup(replacing: .help) {
+                Button("Welcome to FramePeek") {
+                    NotificationCenter.default.post(name: .menuShowWelcome, object: nil)
+                }
+            }
         }
 
         WindowGroup(id: "settings") {

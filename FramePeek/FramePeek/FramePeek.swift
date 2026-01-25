@@ -16,6 +16,10 @@ struct FramePeek: View {
     @State private var isInspectorVisible: Bool = true
     @State private var isTimelineVisible: Bool = true
     @State private var showServerTab: Bool = false
+    @State private var showWelcomeSheet: Bool = false
+    @State private var isDropTargeted: Bool = false
+    
+    @AppStorage("hasSeenWelcomeV1") private var hasSeenWelcome: Bool = false
 
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
@@ -28,6 +32,15 @@ struct FramePeek: View {
             }
             .sheet(isPresented: $appViewModel.showAboutView) {
                 AboutView()
+            }
+            .sheet(isPresented: $showWelcomeSheet) {
+                WelcomeSheetView()
+            }
+            .onAppear {
+                if !hasSeenWelcome {
+                    showWelcomeSheet = true
+                    hasSeenWelcome = true
+                }
             }
             .background {
                 WindowConfigurator()
@@ -53,6 +66,9 @@ struct FramePeek: View {
                 if let url = notification.object as? URL {
                     openFileInAppropriateTab(url: url)
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .menuShowWelcome)) { _ in
+                showWelcomeSheet = true
             }
     }
 
@@ -275,10 +291,11 @@ struct FramePeek: View {
                                 tabManager.switchToTab(id: untitledTab.id)
                             }
                             currentViewModel?.pickFile()
-                        }
+                        },
+                        isDropTargeted: isDropTargeted
                     )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+                        .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted, perform: handleDrop(providers:))
                         .transition(.opacity)
                 }
             }
@@ -324,7 +341,6 @@ struct FramePeek: View {
                 } label: {
                     Label("Open…", systemImage: "folder")
                 }
-                .keyboardShortcut("o", modifiers: [.command])
 
                 if !fileHistory.validFiles.isEmpty {
                     Divider()
@@ -348,7 +364,6 @@ struct FramePeek: View {
             } label: {
                 Label("Open…", systemImage: "folder")
             }
-            .keyboardShortcut("o", modifiers: [.command])
             .transition(.move(edge: .trailing).combined(with: .opacity))
         }
 
