@@ -16,6 +16,7 @@ struct InfoInspectorView: View {
     @AppStorage("inspector.colorExpanded") var colorExpanded: Bool = false
     @AppStorage("inspector.audioExpanded") var audioExpanded: Bool = false
     @AppStorage("inspector.analysisExpanded") var analysisExpanded: Bool = false
+    @AppStorage("inspector.containerExpanded") var containerExpanded: Bool = false
 
     // Track if we've auto-expanded for this video
     @State private var lastLoadedFileName: String?
@@ -23,7 +24,7 @@ struct InfoInspectorView: View {
     var body: some View {
         Group {
             if let info = viewModel.extendedInfo {
-                NoTopInsetScrollView {
+                ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         // Top padding spacer
                         Color.clear
@@ -126,6 +127,34 @@ struct InfoInspectorView: View {
                                 }
                             }
 
+                            // Container structure section
+                            if let containerResult = viewModel.containerAnalysis {
+                                CollapsibleSection(
+                                    title: "Container (\(containerResult.totalAtomCount))",
+                                    systemImage: "shippingbox.fill",
+                                    isExpanded: $containerExpanded,
+                                    isLoading: viewModel.isAnalyzingContainer
+                                ) {
+                                    ContainerInspectorView(result: containerResult)
+                                }
+                            } else if viewModel.isAnalyzingContainer {
+                                CollapsibleSection(
+                                    title: "Container",
+                                    systemImage: "shippingbox.fill",
+                                    isExpanded: $containerExpanded,
+                                    isLoading: true
+                                ) {
+                                    HStack(spacing: 8) {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                        Text("Analyzing container structure…")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            }
+
                             // Analysis section
                             if viewModel.effectiveFPS != nil || viewModel.minInterval != nil || viewModel.isAnalyzing {
                                 CollapsibleSection(
@@ -161,6 +190,7 @@ struct InfoInspectorView: View {
                     .padding(.horizontal, DesignSystem.Padding.md) // Consistent horizontal padding for all content
                     .padding(.bottom, DesignSystem.Padding.md3)
                 }
+                .modifier(ScrollEdgeEffectModifier())
                 .overlay(alignment: .top) {
                     if let banner = copiedBannerText {
                         CopiedBanner(text: banner)
@@ -199,6 +229,20 @@ struct InfoInspectorView: View {
         }
     }
 
+}
+
+// MARK: - Scroll Edge Effect Modifier
+
+/// Applies native scroll edge effect on macOS 26+
+private struct ScrollEdgeEffectModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
+        }
+    }
 }
 
 #Preview {

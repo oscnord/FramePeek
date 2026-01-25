@@ -26,6 +26,42 @@ struct ColorAnalysisView: View {
     private var waveformScale: WaveformScale {
         WaveformScale(rawValue: waveformScaleRaw) ?? .percentage
     }
+    
+    // MARK: - Interactive Scope Data
+    
+    /// The time to use for scope display - playback time takes priority, falls back to visible range center
+    private var currentScopeTime: Double? {
+        if let playbackTime = viewModel.currentPlaybackTime {
+            return playbackTime
+        }
+        if let range = viewModel.visibleTimeRange {
+            return (range.lowerBound + range.upperBound) / 2
+        }
+        return nil
+    }
+    
+    /// The frame analysis to display in scopes - based on current time or latest
+    private var currentFrameAnalysis: FrameColorAnalysis? {
+        if let time = currentScopeTime {
+            return viewModel.frameAnalysisAtTime(time)
+        }
+        return viewModel.professionalColorAnalysis.last
+    }
+    
+    /// Waveform data for the current frame
+    private var currentWaveformData: WaveformData? {
+        currentFrameAnalysis?.waveformData
+    }
+    
+    /// Vectorscope data for the current frame
+    private var currentVectorscopeData: VectorscopeData? {
+        currentFrameAnalysis?.vectorscopeData
+    }
+    
+    /// Histogram data for the current frame
+    private var currentHistogram: ColorHistogram? {
+        currentFrameAnalysis?.histogram
+    }
 
     // MARK: - HDR Detection
 
@@ -286,15 +322,24 @@ struct ColorAnalysisView: View {
     
     private var scopesSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Text("Scopes")
-                .font(.subheadline)
-                .fontWeight(.semibold)
+            // Header with time indicator
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.md) {
+                Text("Scopes")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                
+                if let time = currentFrameAnalysis?.time {
+                    Text("Frame at \(formatTimeForChart(time, frameRate: viewModel.effectiveFPS))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             
             // Side-by-side Waveform and Vectorscope
             HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
                 // Waveform (flexible width - takes remaining space)
                 if generateWaveformData {
-                    if let waveformData = viewModel.latestWaveformData {
+                    if let waveformData = currentWaveformData {
                         WaveformScopeView(
                             waveformData: waveformData,
                             scale: waveformScale,
@@ -310,7 +355,7 @@ struct ColorAnalysisView: View {
                 
                 // Vectorscope (fixed square)
                 if generateVectorscopeData {
-                    if let vectorscopeData = viewModel.latestVectorscopeData {
+                    if let vectorscopeData = currentVectorscopeData {
                         VectorscopeView(
                             vectorscopeData: vectorscopeData,
                             showReferenceBoxes: showReferenceBoxes,
@@ -324,7 +369,7 @@ struct ColorAnalysisView: View {
             }
             
             // Histogram below
-            if let histogram = aggregatedHistogram {
+            if let histogram = currentHistogram {
                 RGBHistogramView(histogram: histogram, isHDRContent: isHDRContent, isDolbyVision: isDolbyVision)
             }
         }

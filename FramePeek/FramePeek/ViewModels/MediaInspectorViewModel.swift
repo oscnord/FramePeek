@@ -84,6 +84,10 @@ final class FramePeekViewModel: ObservableObject {
     @Published var hdrContentType: HDRContentType = .sdr
     @Published var dolbyVisionConfig: DolbyVisionConfig?
 
+    // Container analysis
+    @Published var containerAnalysis: ContainerAnalysisResult?
+    @Published var isAnalyzingContainer: Bool = false
+
     // Playback position
     @Published var currentPlaybackTime: Double?
 
@@ -174,6 +178,7 @@ final class FramePeekViewModel: ObservableObject {
     var waveformTasks: [Int: Task<Void, Never>] = [:] // Dictionary of extraction tasks per track
     var syncTask: Task<Void, Never>?
     var colorAnalysisTask: Task<Void, Never>?
+    var containerTask: Task<Void, Never>?
 
     enum SamplingMode: String, CaseIterable, Identifiable {
         case auto

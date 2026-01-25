@@ -1,61 +1,82 @@
 import SwiftUI
 import FramePeekCore
 
+// MARK: - Selection Type
+
+enum SidebarSelection: Hashable {
+    case tab(UUID)
+    case server
+}
+
+// MARK: - Sidebar Tab Bar View
+
 struct SidebarTabBarView: View {
     @ObservedObject var tabManager: TabManager
     @Binding var showServerTab: Bool
-
-    @AppStorage("sidebarTabBarWidth") private var sidebarWidth: Double = 200
-    @State private var isNewTabButtonHovered: Bool = false
     @StateObject private var serverManager = ServerManager.shared
 
-    var body: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
-            // Tabs list using ScrollView with custom selection styling
-            ScrollView {
-                LazyVStack(spacing: DesignSystem.Spacing.xs) {
-                    ForEach(tabManager.tabs) { tab in
-                        SidebarTabButton(
-                            tab: tab,
-                            tabManager: tabManager,
-                            isSelected: !showServerTab && tab.id == tabManager.selectedTabId,
-                            onSelect: {
-                                Task { @MainActor in
-                                    withAnimation(.none) {
-                                        showServerTab = false
-                                        tabManager.switchToTab(id: tab.id)
-                                    }
-                                }
-                            },
-                            onClose: {
-                                Task { @MainActor in
-                                    tabManager.removeTab(id: tab.id)
-                                }
-                            }
-                        )
+    private var sidebarSelection: Binding<SidebarSelection?> {
+        Binding<SidebarSelection?>(
+            get: {
+                if showServerTab {
+                    return .server
+                } else if let tabId = tabManager.selectedTabId {
+                    return .tab(tabId)
+                }
+                return nil
+            },
+            set: { newValue in
+                // Defer state changes to avoid "Publishing changes from within view updates" warning
+                Task { @MainActor in
+                    switch newValue {
+                    case .tab(let id):
+                        showServerTab = false
+                        tabManager.switchToTab(id: id)
+                    case .server:
+                        showServerTab = true
+                    case .none:
+                        break
                     }
                 }
-                .padding(.horizontal, DesignSystem.Padding.md)
             }
-            
+        )
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Tabs list - scrollable
+            List(selection: sidebarSelection) {
+                ForEach(tabManager.tabs) { tab in
+                    SidebarTabRow(
+                        tab: tab,
+                        tabManager: tabManager,
+                        onClose: {
+                            Task { @MainActor in
+                                tabManager.removeTab(id: tab.id)
+                            }
+                        }
+                    )
+                    .tag(SidebarSelection.tab(tab.id))
+                }
+            }
+            .listStyle(.sidebar)
+
             Divider()
-                .padding(.horizontal, DesignSystem.Padding.md)
-            
-            // Server tab button
+
+            // Server row - pinned at bottom
             ServerSidebarButton(
                 isSelected: showServerTab,
                 isRunning: serverManager.isRunning,
                 activeJobCount: serverManager.jobQueue.activeJobs.count,
                 onSelect: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                    Task { @MainActor in
                         showServerTab = true
                     }
                 }
             )
-            .padding(.horizontal, DesignSystem.Padding.md)
+            .padding(.horizontal, DesignSystem.Padding.sm)
+            .padding(.vertical, DesignSystem.Padding.sm)
         }
-        .padding(.bottom, DesignSystem.Padding.md)
-        .frame(maxHeight: .infinity)
     }
 }
 
@@ -66,29 +87,28 @@ struct ServerSidebarButton: View {
     let isRunning: Bool
     let activeJobCount: Int
     let onSelect: () -> Void
-    
+
     @State private var isHovered: Bool = false
-    
+
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: DesignSystem.Spacing.sm) {
                 // Server icon with status indicator
-                ZStack {
+                ZStack(alignment: .topTrailing) {
                     Image(systemName: "server.rack")
                         .font(.system(size: 14))
-                    
+
                     // Status dot
                     Circle()
                         .fill(isRunning ? Color.green : Color.secondary.opacity(0.5))
                         .frame(width: 6, height: 6)
-                        .offset(x: 8, y: -6)
+                        .offset(x: 2, y: -2)
                 }
-                
+
                 Text("Server")
-                    .font(.system(size: 12))
-                
+
                 Spacer()
-                
+
                 // Active job count badge
                 if activeJobCount > 0 {
                     Text("\(activeJobCount)")
@@ -106,7 +126,7 @@ struct ServerSidebarButton: View {
             .padding(.horizontal, 8)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.15) : (isHovered ? Color.primary.opacity(0.05) : Color.clear))
+                    .fill(isSelected ? Color.accentColor.opacity(0.2) : (isHovered ? Color.primary.opacity(0.05) : Color.clear))
             )
             .contentShape(Rectangle())
         }
@@ -119,77 +139,44 @@ struct ServerSidebarButton: View {
     }
 }
 
-struct SidebarTabButton: View {
+// MARK: - Sidebar Tab Row
+
+struct SidebarTabRow: View {
     let tab: TabItem
     let tabManager: TabManager
-    let isSelected: Bool
-    let onSelect: () -> Void
     let onClose: () -> Void
 
     @ObservedObject private var viewModel: FramePeekViewModel
-    @State private var isHovered: Bool = false
 
-    init(tab: TabItem, tabManager: TabManager, isSelected: Bool, onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
+    init(tab: TabItem, tabManager: TabManager, onClose: @escaping () -> Void) {
         self.tab = tab
         self.tabManager = tabManager
-        self.isSelected = isSelected
-        self.onSelect = onSelect
         self.onClose = onClose
         self._viewModel = ObservedObject(wrappedValue: tab.viewModel)
     }
 
     var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: DesignSystem.Spacing.md) {
-                // File name
-                Text(tab.displayName)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .font(.system(size: 12))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            // File name
+            Text(tab.displayName)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
-                Spacer(minLength: DesignSystem.Spacing.sm)
+            Spacer(minLength: DesignSystem.Spacing.sm)
 
-                // Processing indicator - only show for main analysis, not background keyframe/thumbnail generation
-                // This ensures the spinner disappears when the main file loading is complete
-                if viewModel.isAnalyzing {
-                    ProgressView()
-                        .controlSize(.small)
-                        .layoutPriority(-1)
-                }
-
-                // Close button
-                Group {
-                    if isHovered || isSelected {
-                        Button(action: onClose) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 16, height: 16)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                    } else {
-                        // Invisible spacer to maintain consistent layout
-                        Color.clear
-                            .frame(width: 16, height: 16)
-                    }
-                }
+            // Processing indicator
+            if viewModel.isAnalyzing {
+                ProgressView()
+                    .controlSize(.small)
             }
-            .padding(.vertical, DesignSystem.Padding.sm2)
-            .padding(.horizontal, DesignSystem.Padding.md)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small)
-                    .fill(isSelected ? Color.primary.opacity(0.15) : (isHovered ? Color.primary.opacity(0.05) : Color.clear))
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
+
+            // Close button - always visible
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
+            .buttonStyle(.plain)
         }
         .contextMenu {
             Button(role: .destructive, action: onClose) {
@@ -230,6 +217,8 @@ struct SidebarTabButton: View {
         }
     }
 }
+
+
 
 #Preview {
     SidebarTabBarView(tabManager: TabManager(), showServerTab: .constant(false))
