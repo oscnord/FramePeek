@@ -157,6 +157,9 @@ extension FramePeekViewModel {
 
         // Start fast GOP preview analysis
         startGOPPreview(asset: assetForGOP)
+
+        // Start container structure analysis (for MP4/MOV files)
+        startContainerAnalysis(url: url)
     }
 
     private func cancelAllTasks() {
@@ -166,6 +169,7 @@ extension FramePeekViewModel {
         gopTask?.cancel()
         syncTask?.cancel()
         colorAnalysisTask?.cancel()
+        containerTask?.cancel()
         // Cancel all waveform extraction tasks
         for task in waveformTasks.values {
             task.cancel()
@@ -177,6 +181,7 @@ extension FramePeekViewModel {
         gopTask = nil
         syncTask = nil
         colorAnalysisTask = nil
+        containerTask = nil
     }
 
     private func resetStateForNewAsset() {
@@ -221,5 +226,7 @@ extension FramePeekViewModel {
         colorSamples = []
         isAnalyzingColor = false
         currentPlaybackTime = nil
+        containerAnalysis = nil
+        isAnalyzingContainer = false
     }
 }

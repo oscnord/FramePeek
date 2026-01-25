@@ -16,6 +16,7 @@ struct InfoInspectorView: View {
     @AppStorage("inspector.colorExpanded") var colorExpanded: Bool = false
     @AppStorage("inspector.audioExpanded") var audioExpanded: Bool = false
     @AppStorage("inspector.analysisExpanded") var analysisExpanded: Bool = false
+    @AppStorage("inspector.containerExpanded") var containerExpanded: Bool = false
 
     // Track if we've auto-expanded for this video
     @State private var lastLoadedFileName: String?
@@ -123,6 +124,35 @@ struct InfoInspectorView: View {
                                     ForEach(info.audioTracks, id: \.index) { track in
                                         KVRow("Track \(track.index)", track.displayString, monospace: true)
                                     }
+                                }
+                            }
+
+                            // Container structure section
+                            if let containerResult = viewModel.containerAnalysis {
+                                CollapsibleSection(
+                                    title: "Container (\(containerResult.totalAtomCount))",
+                                    systemImage: "shippingbox.fill",
+                                    isExpanded: $containerExpanded,
+                                    isLoading: viewModel.isAnalyzingContainer
+                                ) {
+                                    ContainerInspectorView(result: containerResult)
+                                        .frame(maxHeight: 400)
+                                }
+                            } else if viewModel.isAnalyzingContainer {
+                                CollapsibleSection(
+                                    title: "Container",
+                                    systemImage: "shippingbox.fill",
+                                    isExpanded: $containerExpanded,
+                                    isLoading: true
+                                ) {
+                                    HStack(spacing: 8) {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                        Text("Analyzing container structure…")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.vertical, 4)
                                 }
                             }
 
