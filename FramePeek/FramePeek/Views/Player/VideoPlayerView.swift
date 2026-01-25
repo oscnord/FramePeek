@@ -3,6 +3,7 @@ import AVFoundation
 import AVKit
 import AppKit
 import QuartzCore
+import FramePeekCore
 
 struct VideoPlayerView: View {
     @ObservedObject private var manager = PlayerViewModelManager.shared
@@ -837,7 +838,7 @@ struct VideoPlayerView: View {
         for segment in analysis.segments {
             if time >= segment.startTime && time < segment.endTime {
                 // Find frame within this GOP
-                if let frames = segment.frames {
+                if let frames = segment.frames, !frames.isEmpty {
                     for (index, frame) in frames.enumerated() {
                         let nextFrameTime = index + 1 < frames.count ? frames[index + 1].time : segment.endTime
                         if time >= frame.time && time < nextFrameTime {
@@ -845,12 +846,50 @@ struct VideoPlayerView: View {
                         }
                     }
                 }
-                // If no frames data, assume first frame is I-frame
-                if time < segment.startTime + 0.1 {
+                
+                // No frame data for this segment - try to extrapolate from representative GOP
+                if let repGOP = analysis.representativeGOP,
+                   let repFrames = repGOP.frames,
+                   !repFrames.isEmpty,
+                   analysis.structureType.isFixed {
+                    // Calculate position within GOP
+                    let gopDuration = segment.endTime - segment.startTime
+                    let positionInGOP = time - segment.startTime
+                    let normalizedPosition = gopDuration > 0 ? positionInGOP / gopDuration : 0
+                    
+                    // Map to frame index in representative pattern
+                    let frameIndex = Int(normalizedPosition * Double(repFrames.count))
+                    let clampedIndex = min(max(0, frameIndex), repFrames.count - 1)
+                    return repFrames[clampedIndex].type
+                }
+                
+                // Fallback: first frame is always I-frame
+                if time < segment.startTime + 0.04 { // ~1 frame at 24fps
                     return .i
                 }
                 return nil
             }
+        }
+        
+        // Time is beyond analyzed segments - try to extrapolate if we have a fixed pattern
+        if analysis.structureType.isFixed,
+           let repGOP = analysis.representativeGOP,
+           let repFrames = repGOP.frames,
+           !repFrames.isEmpty,
+           let lastSegment = analysis.segments.last {
+            // Estimate GOP duration from representative
+            let gopDuration = repGOP.endTime - repGOP.startTime
+            guard gopDuration > 0 else { return nil }
+            
+            // Calculate which GOP this time would be in
+            let timeFromLastGOP = time - lastSegment.endTime
+            let positionInGOP = timeFromLastGOP.truncatingRemainder(dividingBy: gopDuration)
+            let normalizedPosition = positionInGOP / gopDuration
+            
+            // Map to frame index in representative pattern
+            let frameIndex = Int(normalizedPosition * Double(repFrames.count))
+            let clampedIndex = min(max(0, frameIndex), repFrames.count - 1)
+            return repFrames[clampedIndex].type
         }
 
         return nil

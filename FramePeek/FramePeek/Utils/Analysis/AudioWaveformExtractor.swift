@@ -10,7 +10,7 @@ import Accelerate
 ///   - durationSeconds: Duration of the audio track in seconds
 ///   - maxSamples: Maximum number of waveform samples to return (for downsampling)
 /// - Returns: AsyncStream of WaveformUpdate with progressive samples
-func extractWaveform(
+public func extractWaveform(
     asset: AVAsset,
     audioTrack: AVAssetTrack,
     durationSeconds: Double,
@@ -251,7 +251,7 @@ func extractWaveform(
 }
 
 /// Finalize a window by calculating RMS, min, and max using Accelerate framework
-func finalizeWindow(
+public func finalizeWindow(
     samples: [Int16],
     windowStart: Double,
     windowSize: Double
@@ -293,7 +293,7 @@ func finalizeWindow(
 }
 
 /// Downsample waveform samples using LTTB algorithm
-func downsampleWaveformLTTB(_ samples: [WaveformSample], targetCount: Int) -> [WaveformSample] {
+public func downsampleWaveformLTTB(_ samples: [WaveformSample], targetCount: Int) -> [WaveformSample] {
     guard samples.count > targetCount, targetCount >= 2 else { return samples }
 
     var result: [WaveformSample] = []

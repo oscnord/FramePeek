@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct GOPDetailsPanel: View {
     let segment: GOPSegment

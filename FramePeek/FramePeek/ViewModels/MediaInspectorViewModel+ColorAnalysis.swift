@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import FramePeekCore
 
 extension FramePeekViewModel {
     /// Starts color analysis (manual trigger)

@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 /// A compact sparkline visualization showing bitrate over a rolling time window
 struct BitrateSparklineView: View {

@@ -1,4 +1,5 @@
 import Foundation
+import FramePeekCore
 
 /// Largest-Triangle-Three-Buckets (LTTB) downsampling algorithm
 /// Preserves visual shape of the data while reducing point count for performance

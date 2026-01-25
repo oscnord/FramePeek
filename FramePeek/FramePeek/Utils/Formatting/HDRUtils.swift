@@ -15,7 +15,7 @@ private enum PQConstants {
 /// Converts PQ code value (0.0-1.0) to linear light (0.0-1.0 normalized to 10000 nits)
 /// - Parameter pq: PQ-encoded value in range 0.0 to 1.0
 /// - Returns: Linear light value normalized to 0.0-1.0 (where 1.0 = 10000 nits)
-func pqToLinear(_ pq: Double) -> Double {
+public func pqToLinear(_ pq: Double) -> Double {
     guard pq > 0 else { return 0 }
     guard pq < 1 else { return 1 }
     
@@ -32,7 +32,7 @@ func pqToLinear(_ pq: Double) -> Double {
 /// Converts linear light (0.0-1.0) to PQ code value
 /// - Parameter linear: Linear light value normalized to 0.0-1.0 (where 1.0 = 10000 nits)
 /// - Returns: PQ-encoded value in range 0.0 to 1.0
-func linearToPQ(_ linear: Double) -> Double {
+public func linearToPQ(_ linear: Double) -> Double {
     guard linear > 0 else { return 0 }
     guard linear < 1 else { return 1 }
     
@@ -46,14 +46,14 @@ func linearToPQ(_ linear: Double) -> Double {
 /// Converts PQ code value to absolute luminance in nits
 /// - Parameter pq: PQ-encoded value in range 0.0 to 1.0
 /// - Returns: Luminance in nits (cd/m²), range 0 to 10000
-func pqToNits(_ pq: Double) -> Double {
+public func pqToNits(_ pq: Double) -> Double {
     return pqToLinear(pq) * PQConstants.peakLuminance
 }
 
 /// Converts nits to PQ code value
 /// - Parameter nits: Luminance in nits (cd/m²)
 /// - Returns: PQ-encoded value in range 0.0 to 1.0
-func nitsToPQ(_ nits: Double) -> Double {
+public func nitsToPQ(_ nits: Double) -> Double {
     let linear = nits / PQConstants.peakLuminance
     return linearToPQ(linear)
 }
@@ -70,7 +70,7 @@ private enum HLGConstants {
 /// Converts HLG signal value (0.0-1.0) to relative scene light (OETF^-1)
 /// - Parameter hlg: HLG-encoded value in range 0.0 to 1.0
 /// - Returns: Relative scene light value
-func hlgOETFInverse(_ hlg: Double) -> Double {
+public func hlgOETFInverse(_ hlg: Double) -> Double {
     guard hlg > 0 else { return 0 }
     
     if hlg <= 0.5 {
@@ -86,7 +86,7 @@ func hlgOETFInverse(_ hlg: Double) -> Double {
 ///   - peakLuminance: Display peak luminance in nits (default 1000)
 ///   - gamma: System gamma for OOTF (default 1.2)
 /// - Returns: Display luminance in nits
-func hlgToNits(_ hlg: Double, peakLuminance: Double = 1000.0, gamma: Double = 1.2) -> Double {
+public func hlgToNits(_ hlg: Double, peakLuminance: Double = 1000.0, gamma: Double = 1.2) -> Double {
     let sceneLight = hlgOETFInverse(hlg)
     // Apply OOTF (Opto-Optical Transfer Function)
     let displayLight = pow(sceneLight, gamma)
@@ -98,7 +98,7 @@ func hlgToNits(_ hlg: Double, peakLuminance: Double = 1000.0, gamma: Double = 1.
 ///   - hlg: HLG-encoded value
 ///   - peakLuminance: Reference peak luminance in nits
 /// - Returns: Normalized linear value 0.0-1.0
-func hlgToLinear(_ hlg: Double, peakLuminance: Double = 1000.0) -> Double {
+public func hlgToLinear(_ hlg: Double, peakLuminance: Double = 1000.0) -> Double {
     return hlgToNits(hlg, peakLuminance: peakLuminance) / peakLuminance
 }
 
@@ -110,7 +110,7 @@ private let sdrGamma: Double = 2.4
 /// Converts gamma-encoded SDR value to linear light
 /// - Parameter sdr: Gamma-encoded value in range 0.0 to 1.0
 /// - Returns: Linear light value
-func sdrToLinear(_ sdr: Double) -> Double {
+public func sdrToLinear(_ sdr: Double) -> Double {
     guard sdr > 0 else { return 0 }
     return pow(sdr, sdrGamma)
 }
@@ -118,7 +118,7 @@ func sdrToLinear(_ sdr: Double) -> Double {
 /// Converts linear light to gamma-encoded SDR value
 /// - Parameter linear: Linear light value
 /// - Returns: Gamma-encoded value in range 0.0 to 1.0
-func linearToSDR(_ linear: Double) -> Double {
+public func linearToSDR(_ linear: Double) -> Double {
     guard linear > 0 else { return 0 }
     return pow(linear, 1.0 / sdrGamma)
 }
@@ -130,7 +130,7 @@ func linearToSDR(_ linear: Double) -> Double {
 ///   - linear: Linear light value (0.0-1.0)
 ///   - contentType: Type of HDR content
 /// - Returns: Luminance in nits
-func linearToNits(_ linear: Double, contentType: HDRContentType) -> Double {
+public func linearToNits(_ linear: Double, contentType: HDRContentType) -> Double {
     switch contentType {
     case .sdr:
         return linear * 100.0  // SDR reference white = 100 nits
@@ -146,7 +146,7 @@ func linearToNits(_ linear: Double, contentType: HDRContentType) -> Double {
 ///   - signal: Encoded signal value (0.0-1.0)
 ///   - contentType: Type of HDR content
 /// - Returns: Linear light value (0.0-1.0 normalized to content type's peak)
-func signalToLinear(_ signal: Double, contentType: HDRContentType) -> Double {
+public func signalToLinear(_ signal: Double, contentType: HDRContentType) -> Double {
     switch contentType {
     case .sdr:
         return sdrToLinear(signal)
@@ -162,7 +162,7 @@ func signalToLinear(_ signal: Double, contentType: HDRContentType) -> Double {
 ///   - signal: Encoded signal value (0.0-1.0)
 ///   - contentType: Type of HDR content
 /// - Returns: Luminance in nits
-func signalToNits(_ signal: Double, contentType: HDRContentType) -> Double {
+public func signalToNits(_ signal: Double, contentType: HDRContentType) -> Double {
     switch contentType {
     case .sdr:
         return sdrToLinear(signal) * 100.0
@@ -178,7 +178,7 @@ func signalToNits(_ signal: Double, contentType: HDRContentType) -> Double {
 /// Converts nits to logarithmic scale for HDR visualization
 /// - Parameter nits: Luminance in nits
 /// - Returns: Log10 of nits (useful range: 0-4 for 1-10000 nits)
-func nitsToLog(_ nits: Double) -> Double {
+public func nitsToLog(_ nits: Double) -> Double {
     guard nits > 0 else { return 0 }
     return log10(nits)
 }
@@ -186,7 +186,7 @@ func nitsToLog(_ nits: Double) -> Double {
 /// Converts log nits back to linear nits
 /// - Parameter logNits: Logarithmic nits value
 /// - Returns: Luminance in nits
-func logToNits(_ logNits: Double) -> Double {
+public func logToNits(_ logNits: Double) -> Double {
     return pow(10, logNits)
 }
 
@@ -195,7 +195,7 @@ func logToNits(_ logNits: Double) -> Double {
 /// Converts normalized value (0-1) to IRE scale
 /// - Parameter normalized: Normalized value 0.0-1.0
 /// - Returns: IRE value (0 = black, 100 = reference white, >100 = super-white)
-func normalizedToIRE(_ normalized: Double) -> Double {
+public func normalizedToIRE(_ normalized: Double) -> Double {
     // Standard video: 0 = 7.5 IRE (setup), 1.0 = 100 IRE
     // For digital video without setup: 0 = 0 IRE, 1.0 = 100 IRE
     // We use the digital convention
@@ -205,7 +205,7 @@ func normalizedToIRE(_ normalized: Double) -> Double {
 /// Converts IRE to normalized value
 /// - Parameter ire: IRE value
 /// - Returns: Normalized value 0.0-1.0
-func ireToNormalized(_ ire: Double) -> Double {
+public func ireToNormalized(_ ire: Double) -> Double {
     return ire / 100.0
 }
 
@@ -217,7 +217,7 @@ func ireToNormalized(_ ire: Double) -> Double {
 ///   - colorPrimaries: Color primaries string
 ///   - hasDolbyVision: Whether Dolby Vision configuration was detected
 /// - Returns: Detected HDR content type
-func detectHDRContentType(
+public func detectHDRContentType(
     transferFunction: String?,
     colorPrimaries: String?,
     hasDolbyVision: Bool
@@ -247,19 +247,19 @@ func detectHDRContentType(
 // MARK: - Reference Levels
 
 /// Standard reference luminance levels
-enum ReferenceLuminance {
+public enum ReferenceLuminance {
     /// SDR reference white (100 nits)
-    static let sdrWhite: Double = 100.0
+    public static let sdrWhite: Double = 100.0
     
     /// HDR reference white for grading (203 nits, per ITU-R BT.2408)
-    static let hdrReferenceWhite: Double = 203.0
+    public static let hdrReferenceWhite: Double = 203.0
     
     /// HDR10 typical peak (1000 nits)
-    static let hdr10TypicalPeak: Double = 1000.0
+    public static let hdr10TypicalPeak: Double = 1000.0
     
     /// PQ absolute peak (10000 nits)
-    static let pqPeak: Double = 10000.0
+    public static let pqPeak: Double = 10000.0
     
     /// HLG nominal peak (1000 nits at 1.2 gamma)
-    static let hlgPeak: Double = 1000.0
+    public static let hlgPeak: Double = 1000.0
 }

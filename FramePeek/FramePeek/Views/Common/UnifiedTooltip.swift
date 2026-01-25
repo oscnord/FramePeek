@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 // MARK: - Unified Tooltip Data
 

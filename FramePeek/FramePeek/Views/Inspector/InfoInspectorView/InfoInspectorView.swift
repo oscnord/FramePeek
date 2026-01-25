@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 #if canImport(AppKit)
 import AppKit
 #endif

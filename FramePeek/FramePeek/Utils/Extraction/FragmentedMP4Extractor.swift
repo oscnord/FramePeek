@@ -2,7 +2,7 @@ import AVFoundation
 import CoreMedia
 
 /// Extracts bitrate from fragmented MP4/CMAF files with fragment-aware handling
-func extractFragmentedMP4(
+public func extractFragmentedMP4(
     asset: AVAsset,
     videoTrack: AVAssetTrack,
     durationSeconds: Double,

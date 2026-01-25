@@ -29,7 +29,7 @@ private func convertToSRGBSimple(_ cgImage: CGImage) -> CGImage? {
 
 /// Generates thumbnails progressively as they're created
 /// Simplified approach: Use AVAssetImageGenerator with direct CoreImage sRGB conversion
-func GenerateKeyframeThumbnailsStream(
+public func GenerateKeyframeThumbnailsStream(
     asset: AVAsset,
     keyframeTimes: [Double],
     maxThumbnails: Int = 150,  // Reasonable limit for smooth scrolling
@@ -184,7 +184,7 @@ func GenerateKeyframeThumbnailsStream(
 }
 
 /// Legacy function that collects all thumbnails before returning
-func GenerateKeyframeThumbnails(
+public func GenerateKeyframeThumbnails(
     asset: AVAsset,
     keyframeTimes: [Double],
     maxThumbnails: Int = 150,  // Reasonable limit for smooth scrolling

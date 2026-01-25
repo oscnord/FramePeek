@@ -4,7 +4,7 @@ import CoreMedia
 /// Extracts bitrate samples efficiently using AVSampleCursor when possible,
 /// falling back to AVAssetReader.
 /// Routes to format-specific extractors based on detected container format.
-func extractBitratesFast(
+public func extractBitratesFast(
     asset: AVAsset,
     options: FrameSamplingOptions
 ) -> AsyncStream<FrameAnalysisUpdate> {

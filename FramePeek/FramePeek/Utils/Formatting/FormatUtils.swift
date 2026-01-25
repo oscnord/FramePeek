@@ -3,7 +3,7 @@ import Foundation
 // MARK: - FourCC Conversion
 
 /// Converts a FourCC code to a string representation
-func fourCCToString(_ code: OSType) -> String {
+public func fourCCToString(_ code: OSType) -> String {
     let bytes: [CChar] = [
         CChar((code >> 24) & 0xFF),
         CChar((code >> 16) & 0xFF),
@@ -17,7 +17,7 @@ func fourCCToString(_ code: OSType) -> String {
 // MARK: - Duration Formatting
 
 /// Formats duration in a human-readable way (e.g., "1h 23m 45s" or "2m 30s")
-func formatDuration(seconds: Double) -> String {
+public func formatDuration(seconds: Double) -> String {
     guard seconds.isFinite, seconds >= 0 else { return "N/A" }
 
     let totalSeconds = Int(seconds)
@@ -41,7 +41,7 @@ func formatDuration(seconds: Double) -> String {
 /// - Parameters:
 ///   - seconds: Time in seconds
 ///   - frameRate: Optional frame rate (FPS). If nil, defaults to 30 fps
-func formatTimeForChart(_ seconds: Double, frameRate: Double? = nil) -> String {
+public func formatTimeForChart(_ seconds: Double, frameRate: Double? = nil) -> String {
     let fps = frameRate ?? 30.0
     let totalFrames = Int((seconds * fps).rounded())
 
@@ -61,7 +61,7 @@ func formatTimeForChart(_ seconds: Double, frameRate: Double? = nil) -> String {
 // MARK: - Audio Channel Layout
 
 /// Converts channel count to a descriptive layout string
-func channelLayoutDescription(channels: Int) -> String {
+public func channelLayoutDescription(channels: Int) -> String {
     switch channels {
     case 1: return "Mono"
     case 2: return "Stereo"
@@ -78,7 +78,7 @@ func channelLayoutDescription(channels: Int) -> String {
 // MARK: - Codec Names
 
 /// Converts audio codec FourCC to a human-readable name
-func audioCodecName(_ fourCC: String) -> String {
+public func audioCodecName(_ fourCC: String) -> String {
     let mappings: [String: String] = [
         "aac ": "AAC",
         "mp4a": "AAC",
@@ -99,7 +99,7 @@ func audioCodecName(_ fourCC: String) -> String {
 }
 
 /// Video codec FourCC to human-readable name mappings
-let videoCodecMappings: [String: String] = [
+public let videoCodecMappings: [String: String] = [
     "avc1": "H.264",
     "avc2": "H.264",
     "avc3": "H.264",
@@ -119,12 +119,12 @@ let videoCodecMappings: [String: String] = [
 ]
 
 /// Converts video codec FourCC to a human-readable name
-func videoCodecName(_ fourCC: String) -> String {
+public func videoCodecName(_ fourCC: String) -> String {
     videoCodecMappings[fourCC] ?? fourCC
 }
 
 /// Video codec FourCC to descriptive info (Format/Info in MediaInfo)
-let videoCodecInfoMappings: [String: String] = [
+public let videoCodecInfoMappings: [String: String] = [
     "avc1": "Advanced Video Coding",
     "avc2": "Advanced Video Coding",
     "avc3": "Advanced Video Coding",
@@ -144,7 +144,7 @@ let videoCodecInfoMappings: [String: String] = [
 ]
 
 /// Returns descriptive codec info
-func videoCodecInfo(_ fourCC: String) -> String? {
+public func videoCodecInfo(_ fourCC: String) -> String? {
     videoCodecInfoMappings[fourCC]
 }
 
@@ -152,7 +152,7 @@ func videoCodecInfo(_ fourCC: String) -> String? {
 
 /// Detects container format from file URL
 /// For MP4 files, optionally checks for CMAF branding or fragmented structure
-func detectContainerFormat(url: URL, checkDetailed: Bool = false) -> String? {
+public func detectContainerFormat(url: URL, checkDetailed: Bool = false) -> String? {
     let ext = url.pathExtension.lowercased()
     switch ext {
     case "mp4", "m4v":
@@ -196,7 +196,7 @@ func detectContainerFormat(url: URL, checkDetailed: Bool = false) -> String? {
 // MARK: - Codec Profile Parsing
 
 /// Parses HEVC (H.265) profile from hvcC box data
-func parseHEVCProfile(_ data: Data) -> String? {
+public func parseHEVCProfile(_ data: Data) -> String? {
     guard data.count >= 13 else { return nil }
 
     let bytes = [UInt8](data)
@@ -223,7 +223,7 @@ func parseHEVCProfile(_ data: Data) -> String? {
 }
 
 /// Parses AVC (H.264) profile from avcC box data
-func parseAVCProfile(_ data: Data) -> String? {
+public func parseAVCProfile(_ data: Data) -> String? {
     guard data.count >= 4 else { return nil }
 
     let bytes = [UInt8](data)
@@ -250,7 +250,7 @@ func parseAVCProfile(_ data: Data) -> String? {
 }
 
 /// Parses VP9 profile from vpcC box data
-func parseVP9Profile(_ data: Data) -> String? {
+public func parseVP9Profile(_ data: Data) -> String? {
     guard data.count >= 8 else { return nil }
 
     let bytes = [UInt8](data)
@@ -282,7 +282,7 @@ func parseVP9Profile(_ data: Data) -> String? {
 /// Parses container format profile from file structure
 /// For MP4/MOV, this reads the ftyp atom to get brand and compatible brands
 /// Detects CMAF branding (cmf2, cmaf) in compatible brands
-func parseContainerFormatProfile(url: URL) -> String? {
+public func parseContainerFormatProfile(url: URL) -> String? {
     guard let fileHandle = FileHandle(forReadingAtPath: url.path) else { return nil }
     defer { fileHandle.closeFile() }
 

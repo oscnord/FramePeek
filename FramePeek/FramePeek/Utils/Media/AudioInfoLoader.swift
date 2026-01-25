@@ -7,7 +7,7 @@ import CoreMedia
 /// Loads audio track information from an AVAsset
 /// - Parameter asset: The AVAsset to analyze
 /// - Returns: Array of AudioTrackInfo for each audio track
-func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
+public func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
     var result: [AudioTrackInfo] = []
 
     let tracks: [AVAssetTrack]

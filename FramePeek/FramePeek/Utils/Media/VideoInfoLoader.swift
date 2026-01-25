@@ -10,7 +10,7 @@ import CoreMedia
 ///   - url: File URL of the video
 ///   - asset: AVAsset instance for the video
 /// - Returns: ExtendedVideoInfo containing all available metadata
-func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
+public func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo {
     // Synchronous operations
     let basicInfo = extractBasicInfo(url: url)
 

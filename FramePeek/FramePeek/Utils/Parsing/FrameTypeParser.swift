@@ -5,7 +5,7 @@ import CoreMedia
 /// Detects frame type (I/P/B) from sample buffer data by parsing NAL units.
 /// Supports H.264 (AVC) and HEVC (H.265).
 /// Handles both AVCC/HVCC (length-prefixed) and Annex-B (start-code prefixed) formats.
-func detectFrameType(sampleBuffer: CMSampleBuffer, codecType: FourCharCode) -> FrameType {
+public func detectFrameType(sampleBuffer: CMSampleBuffer, codecType: FourCharCode) -> FrameType {
     guard let dataBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return .unknown }
 
     var totalLength: Int = 0

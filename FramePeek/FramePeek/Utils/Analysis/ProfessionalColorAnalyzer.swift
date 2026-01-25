@@ -15,7 +15,7 @@ import AppKit
 ///   - sampleInterval: Interval in seconds between frame samples
 ///   - maxSamples: Maximum number of samples to analyze
 /// - Returns: AsyncStream of progressive analysis updates
-func analyzeColorProfessional(
+public func analyzeColorProfessional(
     asset: AVAsset,
     config: ColorAnalysisConfig = .default,
     sampleInterval: Double = 1.0,
@@ -107,7 +107,7 @@ func analyzeColorProfessional(
 // MARK: - Single Frame Analysis
 
 /// Analyzes a single frame for all color metrics
-func analyzeFrame(
+public func analyzeFrame(
     cgImage: CGImage,
     time: Double,
     config: ColorAnalysisConfig,
@@ -502,7 +502,7 @@ private func detectColorSpace(from track: AVAssetTrack) async -> ColorSpace {
 
 /// Converts professional analysis to legacy ColorSample format
 /// This maintains backward compatibility with existing UI components
-func convertToLegacyColorSample(_ analysis: FrameColorAnalysis) -> ColorSample {
+public func convertToLegacyColorSample(_ analysis: FrameColorAnalysis) -> ColorSample {
     return ColorSample(
         time: analysis.time,
         brightness: analysis.luminance.average,
@@ -512,7 +512,7 @@ func convertToLegacyColorSample(_ analysis: FrameColorAnalysis) -> ColorSample {
 }
 
 /// Converts array of professional analyses to legacy format
-func convertToLegacyColorSamples(_ analyses: [FrameColorAnalysis]) -> [ColorSample] {
+public func convertToLegacyColorSamples(_ analyses: [FrameColorAnalysis]) -> [ColorSample] {
     return analyses.map { convertToLegacyColorSample($0) }
 }
 
@@ -520,7 +520,7 @@ func convertToLegacyColorSamples(_ analyses: [FrameColorAnalysis]) -> [ColorSamp
 
 /// Analyzes a single frame for real-time display in player overlay
 /// Optimized for speed with reduced resolution
-func analyzeFrameForOverlay(
+public func analyzeFrameForOverlay(
     cgImage: CGImage,
     config: ColorAnalysisConfig = .default
 ) -> FrameColorAnalysis {

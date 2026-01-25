@@ -2,19 +2,28 @@ import AVFoundation
 import CoreMedia
 import AppKit
 
-struct KeyframeMarker: Identifiable {
-    let id = UUID()
-    let time: Double
+public struct KeyframeMarker: Identifiable {
+    public let id = UUID()
+    public let time: Double
+    
+    public init(time: Double) {
+        self.time = time
+    }
 }
 
-struct KeyframeThumbnail: Identifiable {
-    let id = UUID()
-    let time: Double
-    let image: NSImage
+public struct KeyframeThumbnail: Identifiable {
+    public let id = UUID()
+    public let time: Double
+    public let image: NSImage
+    
+    public init(time: Double, image: NSImage) {
+        self.time = time
+        self.image = image
+    }
 }
 
 /// Extracts keyframes and returns them progressively via AsyncStream
-func extractKeyframesStream(
+public func extractKeyframesStream(
     asset: AVAsset,
     maxKeyframes: Int = 20_000,           // safety cap
     minSpacingSeconds: Double = 0.0,      // optional downsample to avoid "solid line"
@@ -50,7 +59,7 @@ func extractKeyframesStream(
 }
 
 /// Legacy function that collects all keyframes before returning
-func extractKeyframes(
+public func extractKeyframes(
     asset: AVAsset,
     maxKeyframes: Int = 20_000,           // safety cap
     minSpacingSeconds: Double = 0.0,      // optional downsample to avoid "solid line"

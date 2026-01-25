@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import FramePeekCore
 
 struct CollapsibleWaveformTrack: View {
     let trackInfo: AudioTrackInfo

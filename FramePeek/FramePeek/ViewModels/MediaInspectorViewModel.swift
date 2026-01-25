@@ -2,6 +2,7 @@ import Foundation
 import AVFoundation
 import CoreMedia
 import SwiftUI
+import FramePeekCore
 
 @MainActor
 final class FramePeekViewModel: ObservableObject {

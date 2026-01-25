@@ -10,7 +10,7 @@ import AppKit
 ///   - maxSamples: Maximum number of samples to return
 ///   - smoothingFactor: Smoothing factor for brightness and temperature (default: 0.3)
 /// - Returns: AsyncStream of color samples
-func analyzeColor(
+public func analyzeColor(
     asset: AVAsset,
     sampleInterval: Double = 1.0,
     maxSamples: Int = 1000,

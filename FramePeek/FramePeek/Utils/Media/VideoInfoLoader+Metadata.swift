@@ -1,15 +1,23 @@
 import Foundation
 import AVFoundation
 
-struct MetadataInfo {
-    let creationDate: String?
-    let title: String?
-    let artist: String?
-    let encoder: String?
-    let description: String?
+public struct MetadataInfo {
+    public let creationDate: String?
+    public let title: String?
+    public let artist: String?
+    public let encoder: String?
+    public let description: String?
+    
+    public init(creationDate: String?, title: String?, artist: String?, encoder: String?, description: String?) {
+        self.creationDate = creationDate
+        self.title = title
+        self.artist = artist
+        self.encoder = encoder
+        self.description = description
+    }
 }
 
-func formatCreationDate(from asset: AVAsset) async -> String? {
+public func formatCreationDate(from asset: AVAsset) async -> String? {
     guard
         let creationItem = try? await asset.load(.creationDate),
         let date = try? await creationItem.load(.dateValue)
@@ -23,7 +31,7 @@ func formatCreationDate(from asset: AVAsset) async -> String? {
     return formatter.string(from: date)
 }
 
-func extractCommonMetadata(from asset: AVAsset) async -> (
+public func extractCommonMetadata(from asset: AVAsset) async -> (
     title: String?,
     artist: String?,
     encoder: String?,
@@ -59,7 +67,7 @@ func extractCommonMetadata(from asset: AVAsset) async -> (
     return (title, artist, encoder, description)
 }
 
-func extractMetadataInfo(asset: AVAsset) async -> MetadataInfo {
+public func extractMetadataInfo(asset: AVAsset) async -> MetadataInfo {
     async let creationDate = formatCreationDate(from: asset)
     let commonMetadata = await extractCommonMetadata(from: asset)
 

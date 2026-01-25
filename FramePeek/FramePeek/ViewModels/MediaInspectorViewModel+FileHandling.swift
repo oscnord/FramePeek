@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import SwiftUI
+import FramePeekCore
 
 extension FramePeekViewModel {
     enum TabChoiceAction {

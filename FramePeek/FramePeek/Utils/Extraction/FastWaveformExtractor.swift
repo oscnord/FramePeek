@@ -1,19 +1,13 @@
 import AVFoundation
-import CoreMedia
 import Accelerate
+import FramePeekCore
 
-// MARK: - Fast Waveform Extraction
+// MARK: - Waveform Extraction
 
-/// Fast waveform extraction using lower sample rate decoding
-/// This produces accurate amplitude data (unlike packet-size approximation)
-/// while being significantly faster than full-rate decoding.
-///
-/// Speed optimizations:
-/// 1. Requests 8kHz sample rate (6x less data than 48kHz)
-/// 2. Uses mono output (half the data for stereo sources)
-/// 3. Aggressive buffer skipping for long files
-/// 4. Early termination when enough samples collected
-func extractWaveformFast(
+/// Extracts waveform data from an audio track
+/// Processes audio in time-based windows to avoid loading entire file into memory
+/// Uses Accelerate for fast peak detection within each window
+public func extractWaveformFast(
     asset: AVAsset,
     audioTrack: AVAssetTrack,
     durationSeconds: Double,
@@ -21,111 +15,84 @@ func extractWaveformFast(
 ) -> AsyncStream<WaveformUpdate> {
     AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
-            let finish = WaveformUpdate(appendedSamples: [], isFinished: true)
-
+            let emptyFinish = WaveformUpdate(appendedSamples: [], isFinished: true)
+            
             guard durationSeconds > 0, maxSamples > 0 else {
-                continuation.yield(finish)
+                continuation.yield(emptyFinish)
                 continuation.finish()
                 return
             }
-
+            
             guard let reader = try? AVAssetReader(asset: asset) else {
-                continuation.yield(finish)
+                continuation.yield(emptyFinish)
                 continuation.finish()
                 return
             }
-
-            // Use low sample rate for speed - 8kHz is enough for waveform visualization
-            // This is the key optimization: 6x less data to decode than 48kHz
-            let targetSampleRate: Double = 8000
-
-            // Configure output for low-rate mono PCM audio
+            
+            // Request 32-bit float, mono output
             let outputSettings: [String: Any] = [
                 AVFormatIDKey: kAudioFormatLinearPCM,
-                AVSampleRateKey: targetSampleRate,
-                AVNumberOfChannelsKey: 1, // Mono - halves data for stereo
-                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMBitDepthKey: 32,
+                AVLinearPCMIsFloatKey: true,
                 AVLinearPCMIsBigEndianKey: false,
-                AVLinearPCMIsFloatKey: false,
-                AVLinearPCMIsNonInterleaved: false
+                AVLinearPCMIsNonInterleaved: false,
+                AVNumberOfChannelsKey: 1  // Mix down to mono
             ]
-
+            
             let output = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: outputSettings)
             output.alwaysCopiesSampleData = false
-
+            
             guard reader.canAdd(output) else {
-                continuation.yield(finish)
+                continuation.yield(emptyFinish)
                 continuation.finish()
                 return
             }
-
+            
             reader.add(output)
-
+            
             guard reader.startReading() else {
-                continuation.yield(finish)
+                continuation.yield(emptyFinish)
                 continuation.finish()
                 return
             }
-
-            // Calculate window size based on target sample count
-            let windowSize = durationSeconds / Double(maxSamples)
-            let minWindowSize = 0.01 // Minimum 10ms windows
-            let actualWindowSize = max(windowSize, minWindowSize)
-
-            // At 8kHz, we get ~8000 samples/second
-            // For a 2-hour file (7200s) with 2000 output samples, that's 3.6s windows
-            // Each 3.6s window has ~28,800 samples - still a lot, so we skip buffers
-
-            // Calculate buffer skip interval based on duration
-            // More aggressive skipping for longer files
-            let skipInterval: Int
-            if durationSeconds > 7200 { // > 2 hours
-                skipInterval = 8
-            } else if durationSeconds > 3600 { // > 1 hour
-                skipInterval = 6
-            } else if durationSeconds > 1800 { // > 30 min
-                skipInterval = 4
-            } else if durationSeconds > 600 { // > 10 min
-                skipInterval = 3
-            } else if durationSeconds > 120 { // > 2 min
-                skipInterval = 2
-            } else {
-                skipInterval = 1 // Read all buffers for short files
-            }
-
-            var allSamples: [WaveformSample] = []
-            allSamples.reserveCapacity(maxSamples + 100)
-
-            var currentWindowStart: Double = 0
-            var windowSamples: [Int16] = []
-            windowSamples.reserveCapacity(Int(actualWindowSize * targetSampleRate * 1.5))
-
-            var bufferIndex = 0
+            
+            // Calculate time window for each output sample
+            let windowDuration = durationSeconds / Double(maxSamples)
+            
+            // Results array
+            var results = [WaveformSample]()
+            results.reserveCapacity(maxSamples)
+            
+            // Current window tracking
+            var currentWindowIndex = 0
+            var currentWindowPeak: Float = 0
+            var currentWindowSamples = [Float]()
+            currentWindowSamples.reserveCapacity(8192) // Buffer for samples in current window
+            
+            // Progress tracking for UI updates
             var lastYieldTime = Date()
             var lastYieldedCount = 0
-            let yieldInterval: TimeInterval = 0.08 // Yield every 80ms for responsive UI
-            var shouldBreak = false
-
-            while !Task.isCancelled && !shouldBreak {
+            let yieldInterval: TimeInterval = 0.15
+            
+            // Process buffers
+            while !Task.isCancelled {
                 autoreleasepool {
                     guard let sampleBuffer = output.copyNextSampleBuffer() else {
-                        shouldBreak = true
                         return
                     }
-
-                    // Skip buffers for speed
-                    bufferIndex += 1
-                    if bufferIndex % skipInterval != 0 {
-                        return
-                    }
-
+                    
+                    // Get timing info
                     let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-                    guard pts.isFinite else { return }
-
+                    let bufferDuration = CMSampleBufferGetDuration(sampleBuffer).seconds
+                    
+                    guard pts.isFinite, bufferDuration.isFinite, bufferDuration > 0 else {
+                        return
+                    }
+                    
                     guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
                         return
                     }
-
+                    
                     var length: Int = 0
                     var dataPointer: UnsafeMutablePointer<Int8>?
                     let status = CMBlockBufferGetDataPointer(
@@ -135,147 +102,109 @@ func extractWaveformFast(
                         totalLengthOut: &length,
                         dataPointerOut: &dataPointer
                     )
-
+                    
                     guard status == noErr, let data = dataPointer, length > 0 else {
                         return
                     }
-
-                    let numSamples = CMSampleBufferGetNumSamples(sampleBuffer)
-                    guard numSamples > 0 else { return }
-
-                    let bufferDuration = CMSampleBufferGetDuration(sampleBuffer).seconds
-                    let timeStep = bufferDuration / Double(numSamples)
-
-                    let sampleCount = length / MemoryLayout<Int16>.size
-                    guard sampleCount > 0 else { return }
-
-                    // Process samples
-                    data.withMemoryRebound(to: Int16.self, capacity: sampleCount) { ptr in
-                        let samplesBuffer = UnsafeBufferPointer(start: ptr, count: sampleCount)
-
-                        for i in 0..<sampleCount {
-                            let sampleTime = pts + Double(i) * timeStep
-
-                            // Finalize window if needed
-                            while sampleTime >= currentWindowStart + actualWindowSize && currentWindowStart < durationSeconds {
-                                if !windowSamples.isEmpty {
-                                    let newSample = finalizeWindowFast(
-                                        samples: windowSamples,
-                                        windowStart: currentWindowStart,
-                                        windowSize: actualWindowSize
-                                    )
-                                    allSamples.append(newSample)
+                    
+                    let floatCount = length / MemoryLayout<Float>.size
+                    guard floatCount > 0 else { return }
+                    
+                    let timePerSample = bufferDuration / Double(floatCount)
+                    
+                    data.withMemoryRebound(to: Float.self, capacity: floatCount) { floatPtr in
+                        for i in 0..<floatCount {
+                            let sampleTime = pts + Double(i) * timePerSample
+                            let targetWindowIndex = min(Int(sampleTime / windowDuration), maxSamples - 1)
+                            
+                            // If we've moved to a new window, finalize the previous one
+                            while currentWindowIndex < targetWindowIndex && currentWindowIndex < maxSamples {
+                                // Use Accelerate to find max in accumulated samples
+                                let peak: Float
+                                if currentWindowSamples.isEmpty {
+                                    peak = currentWindowPeak
+                                } else {
+                                    var maxVal: Float = 0
+                                    vDSP_maxv(currentWindowSamples, 1, &maxVal, vDSP_Length(currentWindowSamples.count))
+                                    peak = max(maxVal, currentWindowPeak)
                                 }
-                                currentWindowStart += actualWindowSize
-                                windowSamples.removeAll(keepingCapacity: true)
+                                
+                                let time = (Double(currentWindowIndex) + 0.5) * windowDuration
+                                let amplitude = Double(min(peak, 1.0))
+                                
+                                results.append(WaveformSample(
+                                    time: time,
+                                    amplitude: amplitude,
+                                    minAmplitude: amplitude,
+                                    maxAmplitude: amplitude
+                                ))
+                                
+                                currentWindowIndex += 1
+                                currentWindowPeak = 0
+                                currentWindowSamples.removeAll(keepingCapacity: true)
                             }
-
-                            windowSamples.append(samplesBuffer[i])
+                            
+                            // Add sample to current window (absolute value)
+                            let absValue = abs(floatPtr[i])
+                            
+                            // Keep buffer small - if too many samples, just track peak
+                            if currentWindowSamples.count < 50000 {
+                                currentWindowSamples.append(absValue)
+                            } else if absValue > currentWindowPeak {
+                                currentWindowPeak = absValue
+                            }
                         }
-                    }
-
-                    // Early termination for very long files
-                    // Once we have 1.5x the needed samples and are past 40% of the file, stop
-                    if allSamples.count >= Int(Double(maxSamples) * 1.5) && currentWindowStart > durationSeconds * 0.4 {
-                        if !windowSamples.isEmpty {
-                            let newSample = finalizeWindowFast(
-                                samples: windowSamples,
-                                windowStart: currentWindowStart,
-                                windowSize: actualWindowSize
-                            )
-                            allSamples.append(newSample)
-                        }
-                        shouldBreak = true
-                        return
-                    }
-
-                    // Progressive UI updates
-                    let now = Date()
-                    if now.timeIntervalSince(lastYieldTime) >= yieldInterval && allSamples.count > lastYieldedCount {
-                        let newSamples = Array(allSamples[lastYieldedCount...])
-                        continuation.yield(WaveformUpdate(appendedSamples: newSamples, isFinished: false))
-                        lastYieldedCount = allSamples.count
-                        lastYieldTime = now
                     }
                 }
-
+                
                 if reader.status != .reading {
                     break
                 }
+                
+                // Progressive UI updates
+                let now = Date()
+                if now.timeIntervalSince(lastYieldTime) >= yieldInterval && results.count > lastYieldedCount {
+                    let newSamples = Array(results[lastYieldedCount...])
+                    continuation.yield(WaveformUpdate(appendedSamples: newSamples, isFinished: false))
+                    lastYieldedCount = results.count
+                    lastYieldTime = now
+                }
             }
-
+            
             reader.cancelReading()
-
-            // Finalize remaining window
-            if !windowSamples.isEmpty && currentWindowStart < durationSeconds {
-                let newSample = finalizeWindowFast(
-                    samples: windowSamples,
-                    windowStart: currentWindowStart,
-                    windowSize: actualWindowSize
-                )
-                allSamples.append(newSample)
+            
+            // Finalize last window
+            if currentWindowIndex < maxSamples {
+                let peak: Float
+                if currentWindowSamples.isEmpty {
+                    peak = currentWindowPeak
+                } else {
+                    var maxVal: Float = 0
+                    vDSP_maxv(currentWindowSamples, 1, &maxVal, vDSP_Length(currentWindowSamples.count))
+                    peak = max(maxVal, currentWindowPeak)
+                }
+                
+                let time = (Double(currentWindowIndex) + 0.5) * windowDuration
+                let amplitude = Double(min(peak, 1.0))
+                
+                results.append(WaveformSample(
+                    time: time,
+                    amplitude: amplitude,
+                    minAmplitude: amplitude,
+                    maxAmplitude: amplitude
+                ))
             }
-
-            // Downsample if needed
-            let finalSamples: [WaveformSample]
-            if allSamples.count > maxSamples {
-                finalSamples = downsampleWaveformLTTB(allSamples, targetCount: maxSamples)
+            
+            // Send remaining results
+            if results.count > lastYieldedCount {
+                let newSamples = Array(results[lastYieldedCount...])
+                continuation.yield(WaveformUpdate(appendedSamples: newSamples, isFinished: true))
             } else {
-                finalSamples = allSamples
+                continuation.yield(WaveformUpdate(appendedSamples: [], isFinished: true))
             }
-
-            continuation.yield(WaveformUpdate(appendedSamples: finalSamples, isFinished: true))
             continuation.finish()
         }
-
+        
         continuation.onTermination = { _ in task.cancel() }
     }
-}
-
-// MARK: - Helper Functions
-
-/// Finalize a window using Accelerate for fast vectorized operations
-private func finalizeWindowFast(
-    samples: [Int16],
-    windowStart: Double,
-    windowSize: Double
-) -> WaveformSample {
-    guard !samples.isEmpty else {
-        return WaveformSample(
-            time: windowStart + windowSize / 2.0,
-            amplitude: 0.0,
-            minAmplitude: 0.0,
-            maxAmplitude: 0.0
-        )
-    }
-
-    let count = vDSP_Length(samples.count)
-
-    // Convert Int16 to Float for Accelerate
-    var floatSamples = [Float](repeating: 0, count: samples.count)
-    vDSP_vflt16(samples, 1, &floatSamples, 1, count)
-
-    // Calculate RMS (root mean square) for average amplitude
-    var rms: Float = 0
-    vDSP_rmsqv(floatSamples, 1, &rms, count)
-
-    // Calculate min and max for envelope
-    var minValue: Float = 0
-    var maxValue: Float = 0
-    vDSP_minv(floatSamples, 1, &minValue, count)
-    vDSP_maxv(floatSamples, 1, &maxValue, count)
-
-    // Normalize to 0.0-1.0 range
-    let normalizedAmplitude = min(1.0, Double(rms) / 32768.0)
-    let absMin = abs(Double(minValue))
-    let absMax = abs(Double(maxValue))
-    let normalizedMin = min(absMin, absMax) / 32768.0
-    let normalizedMax = max(absMin, absMax) / 32768.0
-
-    return WaveformSample(
-        time: windowStart + windowSize / 2.0,
-        amplitude: normalizedAmplitude,
-        minAmplitude: normalizedMin,
-        maxAmplitude: normalizedMax
-    )
 }

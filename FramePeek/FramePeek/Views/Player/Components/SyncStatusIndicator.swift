@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 /// A status indicator showing A/V sync status with offset display
 struct SyncStatusIndicator: View {

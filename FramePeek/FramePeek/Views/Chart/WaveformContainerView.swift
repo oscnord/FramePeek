@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import FramePeekCore
 
 struct WaveformContainerView: View {
     @ObservedObject var viewModel: FramePeekViewModel
@@ -61,16 +62,18 @@ struct WaveformContainerView: View {
                     .font(.caption)
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 
-                // Cache indicator with refresh button
-                if viewModel.waveformLoadedFromCache {
+                // Refresh button - show when any waveform data exists
+                if !viewModel.waveformData.isEmpty && !viewModel.isExtractingWaveforms {
                     Button {
                         viewModel.refreshWaveforms()
                     } label: {
                         HStack(spacing: 3) {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 9))
-                            Text("Cached")
-                                .font(.system(size: 10))
+                            if viewModel.waveformLoadedFromCache {
+                                Text("Cached")
+                                    .font(.system(size: 10))
+                            }
                         }
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
@@ -81,7 +84,7 @@ struct WaveformContainerView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .help(String(localized: "Data loaded from cache. Click to refresh."))
+                    .help(String(localized: "Refresh waveform data"))
                 }
             }
 

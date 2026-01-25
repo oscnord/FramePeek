@@ -2,7 +2,7 @@ import Foundation
 import AVFoundation
 
 /// Container format types for specialized extraction strategies
-enum ContainerFormat {
+public enum ContainerFormat {
     case standardMP4
     case fragmentedMP4
     case cmaf
@@ -13,7 +13,7 @@ enum ContainerFormat {
 
 /// Detects the container format of a media file
 /// Uses file extension, file structure analysis, and AVAsset metadata
-func detectContainerFormat(asset: AVAsset, url: URL) async -> ContainerFormat {
+public func detectContainerFormat(asset: AVAsset, url: URL) async -> ContainerFormat {
     // First check file extension for quick detection
     let ext = url.pathExtension.lowercased()
 

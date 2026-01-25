@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 /// Traditional broadcast-style waveform scope view
 /// Shows luminance distribution across horizontal position
@@ -48,14 +49,9 @@ struct WaveformScopeView: View {
     
     private var headerView: some View {
         HStack {
-            HStack(spacing: DesignSystem.Spacing.xs) {
-                Image(systemName: "waveform.path")
-                    .font(.caption)
-                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                Text("Waveform")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
+            Text("Waveform")
+                .font(.subheadline)
+                .fontWeight(.medium)
             
             Button {
                 showInfoPopover.toggle()

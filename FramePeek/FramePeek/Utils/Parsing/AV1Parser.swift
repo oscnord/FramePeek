@@ -5,7 +5,7 @@ import Foundation
 /// Parses the av1C configuration box from an AV1 video stream
 /// - Parameter data: Raw av1C data (minimum 4 bytes required)
 /// - Returns: Parsed AV1 configuration summary, or nil if invalid
-func parseAV1C(_ data: Data) -> AV1ConfigSummary? {
+public func parseAV1C(_ data: Data) -> AV1ConfigSummary? {
     guard data.count >= 4 else { return nil }
     let bytes = [UInt8](data)
 
@@ -66,7 +66,7 @@ func parseAV1C(_ data: Data) -> AV1ConfigSummary? {
 // MARK: - AV1 Level Description
 
 /// Returns human-readable AV1 level description
-func av1LevelDescription(_ level: Int) -> String {
+public func av1LevelDescription(_ level: Int) -> String {
     // AV1 levels: 2.0, 2.1, 2.2, 2.3, 3.0, 3.1, 3.2, 3.3, 4.0, 4.1, 4.2, 4.3, 5.0, 5.1, 5.2, 5.3, 6.0, 6.1, 6.2, 6.3
     let major = (level >> 2) + 2
     let minor = level & 0x03
@@ -74,7 +74,7 @@ func av1LevelDescription(_ level: Int) -> String {
 }
 
 /// Returns human-readable AV1 profile description
-func av1ProfileDescription(_ profile: Int) -> String {
+public func av1ProfileDescription(_ profile: Int) -> String {
     switch profile {
     case 0: return "Main"
     case 1: return "High"

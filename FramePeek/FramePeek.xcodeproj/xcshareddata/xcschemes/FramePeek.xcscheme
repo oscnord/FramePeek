@@ -52,6 +52,17 @@
                ReferencedContainer = "container:FramePeek.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5573F1ED2F2530340056DA23"
+               BuildableName = "FramePeekCoreTests.xctest"
+               BlueprintName = "FramePeekCoreTests"
+               ReferencedContainer = "container:FramePeek.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

@@ -1,23 +1,29 @@
 import Foundation
 
-enum FrameType: String, Sendable, Codable {
+// MARK: - Frame Type
+
+/// Type of video frame (I, P, B)
+public enum FrameType: String, Sendable, Codable, CaseIterable {
     case i = "I"
     case p = "P"
     case b = "B"
     case unknown = "?"
 }
 
-enum GOPStructureType: Equatable, Sendable, Codable {
+// MARK: - GOP Structure Type
+
+/// Describes the GOP structure pattern
+public enum GOPStructureType: Equatable, Sendable, Codable {
     case unknown
     case fixed(frameCount: Int)
     case variable
 
-    var isFixed: Bool {
+    public var isFixed: Bool {
         if case .fixed = self { return true }
         return false
     }
 
-    var fixedFrameCount: Int? {
+    public var fixedFrameCount: Int? {
         if case .fixed(let count) = self { return count }
         return nil
     }
@@ -28,7 +34,7 @@ enum GOPStructureType: Equatable, Sendable, Codable {
         case type, frameCount
     }
     
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(String.self, forKey: .type)
         switch type {
@@ -42,7 +48,7 @@ enum GOPStructureType: Equatable, Sendable, Codable {
         }
     }
     
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .unknown:
@@ -56,13 +62,16 @@ enum GOPStructureType: Equatable, Sendable, Codable {
     }
 }
 
-struct FrameInfo: Identifiable, Sendable, Codable {
-    let id: UUID
-    let time: Double
-    let type: FrameType
-    let size: Int64?
+// MARK: - Frame Info
+
+/// Information about a single video frame
+public struct FrameInfo: Identifiable, Sendable, Codable {
+    public let id: UUID
+    public let time: Double
+    public let type: FrameType
+    public let size: Int64?
     
-    init(id: UUID = UUID(), time: Double, type: FrameType, size: Int64? = nil) {
+    public init(id: UUID = UUID(), time: Double, type: FrameType, size: Int64? = nil) {
         self.id = id
         self.time = time
         self.type = type
@@ -70,32 +79,46 @@ struct FrameInfo: Identifiable, Sendable, Codable {
     }
 }
 
-struct GOPSegment: Identifiable, Equatable, Sendable {
-    let id = UUID()
-    let startTime: Double
-    let endTime: Double
-    let frameCount: Int?
-    let frames: [FrameInfo]?
+// MARK: - GOP Segment
 
-    var duration: Double { max(0, endTime - startTime) }
+/// A single GOP (Group of Pictures) segment
+public struct GOPSegment: Identifiable, Equatable, Sendable, Codable {
+    public let id: UUID
+    public let startTime: Double
+    public let endTime: Double
+    public let frameCount: Int?
+    public let frames: [FrameInfo]?
 
-    static func == (lhs: GOPSegment, rhs: GOPSegment) -> Bool {
+    public var duration: Double { max(0, endTime - startTime) }
+    
+    public init(id: UUID = UUID(), startTime: Double, endTime: Double, frameCount: Int?, frames: [FrameInfo]?) {
+        self.id = id
+        self.startTime = startTime
+        self.endTime = endTime
+        self.frameCount = frameCount
+        self.frames = frames
+    }
+
+    public static func == (lhs: GOPSegment, rhs: GOPSegment) -> Bool {
         lhs.startTime == rhs.startTime &&
         lhs.endTime == rhs.endTime &&
         lhs.frameCount == rhs.frameCount
     }
 }
 
-struct GOPAnalysisStats: Equatable {
-    let gopCount: Int
-    let minDuration: Double?
-    let avgDuration: Double?
-    let maxDuration: Double?
-    let minFrameCount: Int?
-    let avgFrameCount: Double?
-    let maxFrameCount: Int?
+// MARK: - GOP Analysis Stats
 
-    init(segments: [GOPSegment]) {
+/// Statistics computed from GOP analysis
+public struct GOPAnalysisStats: Equatable, Codable, Sendable {
+    public let gopCount: Int
+    public let minDuration: Double?
+    public let avgDuration: Double?
+    public let maxDuration: Double?
+    public let minFrameCount: Int?
+    public let avgFrameCount: Double?
+    public let maxFrameCount: Int?
+
+    public init(segments: [GOPSegment]) {
         gopCount = segments.count
 
         let durations = segments.map(\.duration).filter { $0.isFinite && $0 > 0 }
@@ -108,18 +131,32 @@ struct GOPAnalysisStats: Equatable {
         maxFrameCount = frameCounts.max()
         avgFrameCount = frameCounts.isEmpty ? nil : (Double(frameCounts.reduce(0, +)) / Double(frameCounts.count))
     }
+    
+    public init(gopCount: Int, minDuration: Double?, avgDuration: Double?, maxDuration: Double?,
+                minFrameCount: Int?, avgFrameCount: Double?, maxFrameCount: Int?) {
+        self.gopCount = gopCount
+        self.minDuration = minDuration
+        self.avgDuration = avgDuration
+        self.maxDuration = maxDuration
+        self.minFrameCount = minFrameCount
+        self.avgFrameCount = avgFrameCount
+        self.maxFrameCount = maxFrameCount
+    }
 }
 
-struct GOPAnalysisResult: Equatable {
-    let segments: [GOPSegment]
-    let isPreview: Bool
-    let scannedUntilSeconds: Double
-    let isFinished: Bool
-    let stats: GOPAnalysisStats
-    let structureType: GOPStructureType
-    let representativeGOP: GOPSegment?
+// MARK: - GOP Analysis Result
 
-    init(
+/// Complete result of GOP analysis
+public struct GOPAnalysisResult: Equatable, Codable, Sendable {
+    public let segments: [GOPSegment]
+    public let isPreview: Bool
+    public let scannedUntilSeconds: Double
+    public let isFinished: Bool
+    public let stats: GOPAnalysisStats
+    public let structureType: GOPStructureType
+    public let representativeGOP: GOPSegment?
+
+    public init(
         segments: [GOPSegment],
         isPreview: Bool,
         scannedUntilSeconds: Double,
@@ -137,17 +174,20 @@ struct GOPAnalysisResult: Equatable {
     }
 }
 
-struct GOPOptions: Sendable {
-    let maxScanSeconds: Double?
-    let maxGOPs: Int?
-    let emitEveryNGOPs: Int
-    let detectFrameTypes: Bool
-    let timeRange: ClosedRange<Double>?
-    let detectFixedStructure: Bool
-    let minGOPsForFixedDetection: Int
-    let fixedFrameTolerance: Int
+// MARK: - GOP Options
 
-    init(
+/// Configuration options for GOP analysis
+public struct GOPOptions: Sendable {
+    public let maxScanSeconds: Double?
+    public let maxGOPs: Int?
+    public let emitEveryNGOPs: Int
+    public let detectFrameTypes: Bool
+    public let timeRange: ClosedRange<Double>?
+    public let detectFixedStructure: Bool
+    public let minGOPsForFixedDetection: Int
+    public let fixedFrameTolerance: Int
+
+    public init(
         maxScanSeconds: Double?,
         maxGOPs: Int?,
         emitEveryNGOPs: Int = 25,
@@ -167,7 +207,7 @@ struct GOPOptions: Sendable {
         self.fixedFrameTolerance = max(0, fixedFrameTolerance)
     }
 
-    static func preview(maxSeconds: Double = 30, maxGOPs: Int = 200, detectFrameTypes: Bool = true, detectFixedStructure: Bool = true) -> GOPOptions {
+    public static func preview(maxSeconds: Double = 30, maxGOPs: Int = 200, detectFrameTypes: Bool = true, detectFixedStructure: Bool = true) -> GOPOptions {
         GOPOptions(
             maxScanSeconds: maxSeconds,
             maxGOPs: maxGOPs,
@@ -180,7 +220,7 @@ struct GOPOptions: Sendable {
         )
     }
 
-    static func fullFile(detectFrameTypes: Bool = true, detectFixedStructure: Bool = false) -> GOPOptions {
+    public static func fullFile(detectFrameTypes: Bool = true, detectFixedStructure: Bool = false) -> GOPOptions {
         GOPOptions(
             maxScanSeconds: nil,
             maxGOPs: nil,
@@ -191,7 +231,7 @@ struct GOPOptions: Sendable {
         )
     }
 
-    static func timeRange(_ range: ClosedRange<Double>, detectFrameTypes: Bool = true) -> GOPOptions {
+    public static func timeRange(_ range: ClosedRange<Double>, detectFrameTypes: Bool = true) -> GOPOptions {
         let duration = range.upperBound - range.lowerBound
         return GOPOptions(
             maxScanSeconds: duration,
@@ -204,16 +244,19 @@ struct GOPOptions: Sendable {
     }
 }
 
-struct GOPUpdate: Sendable {
-    let appendedSegments: [GOPSegment]
-    let scannedUntilSeconds: Double
-    let isFinished: Bool
-    let isPreview: Bool
-    let structureType: GOPStructureType
-    let detectedFixedFrameCount: Int?
-    let representativeGOP: GOPSegment?
+// MARK: - GOP Update
 
-    init(
+/// Progressive update during GOP analysis
+public struct GOPUpdate: Sendable {
+    public let appendedSegments: [GOPSegment]
+    public let scannedUntilSeconds: Double
+    public let isFinished: Bool
+    public let isPreview: Bool
+    public let structureType: GOPStructureType
+    public let detectedFixedFrameCount: Int?
+    public let representativeGOP: GOPSegment?
+
+    public init(
         appendedSegments: [GOPSegment],
         scannedUntilSeconds: Double,
         isFinished: Bool,

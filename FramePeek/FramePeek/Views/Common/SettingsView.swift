@@ -32,10 +32,8 @@ struct SettingsView: View {
                             GeneralSettingsView()
                         case .analysis:
                             AnalysisSettingsView()
-                        case .media:
-                            MediaSettingsView()
-                        case .display:
-                            DisplaySettingsView()
+                        case .playbackDisplay:
+                            PlaybackDisplaySettingsView()
                         }
                     }
                 }

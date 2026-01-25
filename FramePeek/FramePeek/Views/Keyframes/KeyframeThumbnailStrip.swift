@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import FramePeekCore
 
 struct KeyframeThumbnailStrip: View {
     let thumbs: [KeyframeThumbnail]

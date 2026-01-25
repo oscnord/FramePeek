@@ -90,7 +90,7 @@ private struct BitReader {
 /// Extracts max bitrate from AVC (H.264) codec configuration
 /// - Parameter avcCData: Raw avcC box data containing SPS
 /// - Returns: Formatted max bitrate string (e.g., "50000 kb/s") or nil if not found
-func parseAVCMaxBitrate(_ avcCData: Data) -> String? {
+public func parseAVCMaxBitrate(_ avcCData: Data) -> String? {
     guard avcCData.count >= 6 else { return nil }
 
     let bytes = [UInt8](avcCData)
@@ -307,7 +307,7 @@ private func parseHRDParameters(reader: inout BitReader) -> UInt32? {
 /// Extracts max bitrate from HEVC (H.265) codec configuration
 /// - Parameter hvcCData: Raw hvcC box data containing VPS/SPS
 /// - Returns: Formatted max bitrate string (e.g., "50000 kb/s") or nil if not found
-func parseHEVCMaxBitrate(_ hvcCData: Data) -> String? {
+public func parseHEVCMaxBitrate(_ hvcCData: Data) -> String? {
     guard hvcCData.count >= 23 else { return nil }
 
     let bytes = [UInt8](hvcCData)

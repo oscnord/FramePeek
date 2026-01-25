@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import FramePeekCore
 
 extension Notification.Name {
     static let menuOpenFile = Notification.Name("menuOpenFile")

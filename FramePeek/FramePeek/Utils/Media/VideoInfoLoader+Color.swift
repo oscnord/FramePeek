@@ -2,18 +2,29 @@ import Foundation
 import AVFoundation
 import CoreMedia
 
-struct ColorInfo {
-    let colorSpace: String?
-    let chromaSubsampling: String?
-    let colorPrimaries: String?
-    let transferFunction: String?
-    let matrixCoefficients: String?
-    let colorRange: String?
-    let inferredBitDepthBpc: Int?
-    let hdrFormat: String?
+public struct ColorInfo {
+    public let colorSpace: String?
+    public let chromaSubsampling: String?
+    public let colorPrimaries: String?
+    public let transferFunction: String?
+    public let matrixCoefficients: String?
+    public let colorRange: String?
+    public let inferredBitDepthBpc: Int?
+    public let hdrFormat: String?
+    
+    public init(colorSpace: String?, chromaSubsampling: String?, colorPrimaries: String?, transferFunction: String?, matrixCoefficients: String?, colorRange: String?, inferredBitDepthBpc: Int?, hdrFormat: String?) {
+        self.colorSpace = colorSpace
+        self.chromaSubsampling = chromaSubsampling
+        self.colorPrimaries = colorPrimaries
+        self.transferFunction = transferFunction
+        self.matrixCoefficients = matrixCoefficients
+        self.colorRange = colorRange
+        self.inferredBitDepthBpc = inferredBitDepthBpc
+        self.hdrFormat = hdrFormat
+    }
 }
 
-func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> ColorInfo? {
+public func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) async -> ColorInfo? {
     do {
         let formatDescriptions = try await videoTrack.load(.formatDescriptions)
         guard let formatDesc = formatDescriptions.first,

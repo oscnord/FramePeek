@@ -1,5 +1,6 @@
 import AVFoundation
 import SwiftUI
+import FramePeekCore
 
 extension FramePeekViewModel {
     func startGOPPreview(asset: AVAsset, forceRefresh: Bool = false) {
@@ -210,7 +211,8 @@ extension FramePeekViewModel {
 
     private func startGOPAnalysis(asset: AVAsset, options: GOPOptions, forceRefresh: Bool = false) {
         gopTask?.cancel()
-        gopAnalysis = nil
+        // Don't clear gopAnalysis immediately - keep showing previous results until new data arrives
+        // This prevents UI jumping when transitioning from preview to full analysis
         isAnalyzingGOP = true
         gopLoadedFromCache = false
         
@@ -231,37 +233,45 @@ extension FramePeekViewModel {
         gopTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             
+            // Determine if this is a full file request (no maxScanSeconds limit means full file)
+            let isFullFileRequest = options.maxScanSeconds == nil
+            
             // Check cache first (unless force refresh)
             if !forceRefresh {
                 if let cached = await CacheManager.shared.loadGOPCache(for: url) {
-                    let segments = await CacheManager.shared.convertCachedGOPSegments(cached.segments)
+                    // Skip cache if requesting full file but cache only has preview
+                    let shouldSkipCache = isFullFileRequest && cached.isPreview
                     
-                    // Get representative GOP from index
-                    let representativeGOP: GOPSegment? = cached.representativeGOPIndex.flatMap { index in
-                        index < segments.count ? segments[index] : nil
-                    }
-                    
-                    await MainActor.run {
-                        self.gopAnalysis = GOPAnalysisResult(
-                            segments: segments,
-                            isPreview: cached.isPreview,
-                            scannedUntilSeconds: cached.scannedUntilSeconds,
-                            isFinished: !cached.isPartial,
-                            structureType: cached.structureType,
-                            representativeGOP: representativeGOP
-                        )
-                        self.gopLoadedFromCache = true
+                    if !shouldSkipCache {
+                        let segments = await CacheManager.shared.convertCachedGOPSegments(cached.segments)
                         
-                        if !cached.isPartial {
-                            self.isAnalyzingGOP = false
+                        // Get representative GOP from index
+                        let representativeGOP: GOPSegment? = cached.representativeGOPIndex.flatMap { index in
+                            index < segments.count ? segments[index] : nil
                         }
+                        
+                        await MainActor.run {
+                            self.gopAnalysis = GOPAnalysisResult(
+                                segments: segments,
+                                isPreview: cached.isPreview,
+                                scannedUntilSeconds: cached.scannedUntilSeconds,
+                                isFinished: !cached.isPartial,
+                                structureType: cached.structureType,
+                                representativeGOP: representativeGOP
+                            )
+                            self.gopLoadedFromCache = true
+                            
+                            if !cached.isPartial {
+                                self.isAnalyzingGOP = false
+                            }
+                        }
+                        
+                        // If not partial, we're done
+                        if !cached.isPartial {
+                            return
+                        }
+                        // If partial, continue with fresh analysis below
                     }
-                    
-                    // If not partial, we're done
-                    if !cached.isPartial {
-                        return
-                    }
-                    // If partial, continue with fresh analysis below
                 }
             }
 

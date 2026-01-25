@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct GOPStatsPanel: View {
     let stats: GOPAnalysisStats

@@ -1,10 +1,10 @@
 import Foundation
 
 /// Raw frame data: presentation timestamp and size in bytes
-typealias RawFrame = (pts: Double, size: Int64)
+public typealias RawFrame = (pts: Double, size: Int64)
 
 /// Aggregates raw frame data into BitrateSamples based on visualization mode
-func aggregateFrames(
+public func aggregateFrames(
     rawFrames: [RawFrame],
     mode: BitrateVisualizationMode,
     averageFPS: Double?,
@@ -29,7 +29,7 @@ func aggregateFrames(
 
 /// Calculates instantaneous bitrate for every frame
 /// This gives a true per-frame bitrate value without any windowing or aggregation
-func calculateInstantaneousBitrates(
+public func calculateInstantaneousBitrates(
     rawFrames: [RawFrame],
     estimatedFPS: Double
 ) -> [BitrateSample] {
@@ -72,7 +72,7 @@ func calculateInstantaneousBitrates(
 // MARK: - Peak-Preserving Downsampling
 
 /// Downsamples bitrate samples while preserving all peaks above a threshold
-func downsampleWithPeakPreservation(
+public func downsampleWithPeakPreservation(
     samples: [BitrateSample],
     targetCount: Int,
     peakThreshold: Double = 1.2  // Peaks must be 20% above average

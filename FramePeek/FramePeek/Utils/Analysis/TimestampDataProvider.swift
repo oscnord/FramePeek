@@ -1,4 +1,5 @@
 import Foundation
+import FramePeekCore
 
 /// Provides aggregated data at a specific timestamp from all available analyses
 @MainActor

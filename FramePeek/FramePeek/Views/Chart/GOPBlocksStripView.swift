@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct GOPBlocksStripView: View {
     let segments: [GOPSegment]

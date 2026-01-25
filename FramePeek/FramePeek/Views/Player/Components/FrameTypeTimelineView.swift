@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 /// A compact timeline visualization showing frame types (I/P/B) over a rolling time window
 struct FrameTypeTimelineView: View {

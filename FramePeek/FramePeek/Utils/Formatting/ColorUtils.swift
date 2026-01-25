@@ -3,7 +3,7 @@ import Foundation
 // MARK: - HDR Detection
 
 /// Detects HDR format based on color metadata
-func detectHDRFormat(
+public func detectHDRFormat(
     transferFunction: String?,
     colorPrimaries: String?,
     hasDolbyVisionConfig: Bool = false
@@ -40,7 +40,7 @@ func detectHDRFormat(
 // MARK: - Color Space Descriptions
 
 /// Human-readable color primaries description
-func colorPrimariesDescription(_ primaries: String?) -> String? {
+public func colorPrimariesDescription(_ primaries: String?) -> String? {
     guard let primaries = primaries else { return nil }
 
     let mappings: [String: String] = [
@@ -56,7 +56,7 @@ func colorPrimariesDescription(_ primaries: String?) -> String? {
 }
 
 /// Human-readable transfer function description
-func transferFunctionDescription(_ transfer: String?) -> String? {
+public func transferFunctionDescription(_ transfer: String?) -> String? {
     guard let transfer = transfer else { return nil }
 
     let mappings: [String: String] = [
@@ -73,7 +73,7 @@ func transferFunctionDescription(_ transfer: String?) -> String? {
 }
 
 /// Human-readable matrix coefficients description
-func matrixDescription(_ matrix: String?) -> String? {
+public func matrixDescription(_ matrix: String?) -> String? {
     guard let matrix = matrix else { return nil }
 
     let mappings: [String: String] = [

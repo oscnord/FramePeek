@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import AppKit
+import FramePeekCore
 
 struct FramePeek: View {
     @EnvironmentObject var appViewModel: FramePeekViewModel
@@ -14,6 +15,7 @@ struct FramePeek: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var isInspectorVisible: Bool = true
     @State private var isTimelineVisible: Bool = true
+    @State private var showServerTab: Bool = false
 
     private var currentViewModel: FramePeekViewModel? {
         tabManager.currentViewModel
@@ -136,10 +138,15 @@ struct FramePeek: View {
 
     private var mainContent: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            SidebarTabBarView(tabManager: tabManager)
+            SidebarTabBarView(tabManager: tabManager, showServerTab: $showServerTab)
                 .toolbar { newTabToolbarContent }
                 .navigationSplitViewColumnWidth(min: 200, ideal: 200)
         } detail: {
+            if showServerTab {
+                // Server Tab View
+                ServerTabView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
             // Main content area
             ZStack {
                 if let viewModel = currentViewModel, viewModel.extendedInfo != nil {
@@ -286,6 +293,7 @@ struct FramePeek: View {
                     .inspectorColumnWidth(400)
                 }
             }
+            } // End of else (not showServerTab)
         }
         .navigationSplitViewStyle(.balanced)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

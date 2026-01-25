@@ -2,7 +2,7 @@ import AVFoundation
 import CoreMedia
 
 /// Extracts bitrate from MPEG-TS files with optional TS packet overhead accounting
-func extractTS(
+public func extractTS(
     asset: AVAsset,
     videoTrack: AVAssetTrack,
     durationSeconds: Double,

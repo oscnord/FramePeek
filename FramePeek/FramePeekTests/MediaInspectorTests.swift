@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import FramePeek
+@testable import FramePeekCore
 
 // MARK: - ExtendedVideoInfo Tests
 
@@ -997,19 +998,19 @@ struct LuminanceDataTests {
 
 struct ColorTemperatureDataTests {
     
-    @Test func colorTemperatureData_description_warm() {
+    @Test func colorTemperatureData_temperatureDescription_warm() {
         let data = ColorTemperatureData(cct: 2700, duv: 0.001, confidence: 0.9)
-        #expect(data.description.contains("Tungsten") || data.description.contains("Warm"))
+        #expect(data.temperatureDescription.contains("Tungsten") || data.temperatureDescription.contains("Warm"))
     }
     
-    @Test func colorTemperatureData_description_daylight() {
+    @Test func colorTemperatureData_temperatureDescription_daylight() {
         let data = ColorTemperatureData(cct: 5600, duv: 0.001, confidence: 0.9)
-        #expect(data.description.contains("Daylight") || data.description.contains("Neutral"))
+        #expect(data.temperatureDescription.contains("Daylight") || data.temperatureDescription.contains("Neutral"))
     }
     
-    @Test func colorTemperatureData_description_cool() {
+    @Test func colorTemperatureData_temperatureDescription_cool() {
         let data = ColorTemperatureData(cct: 8000, duv: 0.001, confidence: 0.9)
-        #expect(data.description.contains("Cool"))
+        #expect(data.temperatureDescription.contains("Cool"))
     }
     
     @Test func colorTemperatureData_tintDescription_none() {

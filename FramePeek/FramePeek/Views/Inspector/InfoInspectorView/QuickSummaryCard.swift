@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct QuickSummaryCard: View {
     let info: ExtendedVideoInfo

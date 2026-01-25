@@ -3,7 +3,7 @@ import CoreMedia
 
 // MARK: - Cursor-based extraction (fast, metadata-only)
 
-func extractWithCursor(
+public func extractWithCursor(
     track: AVAssetTrack,
     durationSeconds: Double,
     nominalFrameRate: Double,

@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct StatPill: View {
     let title: String

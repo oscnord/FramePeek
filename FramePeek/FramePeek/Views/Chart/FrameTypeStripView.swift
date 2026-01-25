@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct FrameTypeStripView: View {
     let frames: [FrameInfo]

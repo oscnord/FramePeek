@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 /// Compact exposure indicator for video player overlay
 /// Shows exposure status with color-coded icon and optional level bar

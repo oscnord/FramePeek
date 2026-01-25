@@ -83,8 +83,7 @@ enum ThumbnailSize: String, CaseIterable, Identifiable, Codable {
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general
     case analysis
-    case media
-    case display
+    case playbackDisplay
 
     var id: String { rawValue }
 
@@ -92,8 +91,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         switch self {
         case .general: return String(localized: "General")
         case .analysis: return String(localized: "Analysis")
-        case .media: return String(localized: "Media")
-        case .display: return String(localized: "Display")
+        case .playbackDisplay: return String(localized: "Playback & Display")
         }
     }
 
@@ -101,8 +99,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         switch self {
         case .general: return "gearshape"
         case .analysis: return "chart.line.uptrend.xyaxis"
-        case .media: return "photo.on.rectangle"
-        case .display: return "display"
+        case .playbackDisplay: return "play.display"
         }
     }
 }

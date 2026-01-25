@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import FramePeekCore
 
 struct TabItem: Identifiable, Equatable {
     let id: UUID

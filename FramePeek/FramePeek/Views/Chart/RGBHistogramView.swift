@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct RGBHistogramView: View {
     let histogram: ColorHistogram

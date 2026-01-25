@@ -6,7 +6,7 @@ import Foundation
 /// Pattern: I B B P B B P B B P ...
 /// - Parameter frameIndex: 0-based index of the frame in the GOP
 /// - Returns: The frame type for that index
-func synthesizeIBBPFrameType(at frameIndex: Int) -> FrameType {
+public func synthesizeIBBPFrameType(at frameIndex: Int) -> FrameType {
     if frameIndex == 0 {
         return .i  // First frame is always I-frame (keyframe)
     } else {
@@ -22,7 +22,7 @@ func synthesizeIBBPFrameType(at frameIndex: Int) -> FrameType {
 ///   - frameCount: Number of frames in the GOP
 ///   - gopDuration: Duration of the GOP in seconds
 /// - Returns: Array of FrameInfo with synthesized types
-func synthesizeGOPFrames(startTime: Double, frameCount: Int, gopDuration: Double) -> [FrameInfo] {
+public func synthesizeGOPFrames(startTime: Double, frameCount: Int, gopDuration: Double) -> [FrameInfo] {
     guard frameCount > 0, gopDuration > 0 else { return [] }
 
     let frameDuration = gopDuration / Double(frameCount)
@@ -44,7 +44,7 @@ func synthesizeGOPFrames(startTime: Double, frameCount: Int, gopDuration: Double
 ///   - gopDuration: Duration of each GOP in seconds
 ///   - videoDuration: Total video duration in seconds
 /// - Returns: Range of GOP indices that overlap with the window
-func calculateGOPsInWindow(
+public func calculateGOPsInWindow(
     windowStart: Double,
     windowEnd: Double,
     gopDuration: Double,
@@ -71,7 +71,7 @@ func calculateGOPsInWindow(
 ///   - videoDuration: Total video duration in seconds
 ///   - framePattern: Optional pattern from representative GOP (used if provided)
 /// - Returns: Array of FrameInfo for frames within the window
-func extrapolateFramesForWindow(
+public func extrapolateFramesForWindow(
     windowStart: Double,
     windowEnd: Double,
     gopDuration: Double,

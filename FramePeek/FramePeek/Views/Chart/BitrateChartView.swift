@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import FramePeekCore
 
 struct BitrateChartView: View {
     @ObservedObject var viewModel: FramePeekViewModel

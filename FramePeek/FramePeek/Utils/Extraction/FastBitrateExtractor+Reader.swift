@@ -3,7 +3,7 @@ import CoreMedia
 
 // MARK: - Reader-based extraction (accurate sample sizes)
 
-func extractWithReader(
+public func extractWithReader(
     asset: AVAsset,
     videoTrack: AVAssetTrack,
     durationSeconds: Double,

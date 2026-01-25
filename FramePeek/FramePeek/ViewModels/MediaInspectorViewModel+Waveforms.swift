@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import FramePeekCore
 
 extension FramePeekViewModel {
     /// Starts waveform extraction for expanded audio tracks

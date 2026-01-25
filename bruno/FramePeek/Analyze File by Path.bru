@@ -1,0 +1,25 @@
+meta {
+  name: Analyze File by Path
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://127.0.0.1:8080/analyze/path
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "path": "/path/to/your/video.mp4",
+    "options": {
+      "info": true,
+      "bitrate": true
+    }
+  }
+}

@@ -2,17 +2,27 @@ import Foundation
 import AVFoundation
 import CoreMedia
 
-struct CodecInfo {
-    let codec: String
-    let codecIdRaw: String?
-    let codecProfile: String?
-    let codecIdInfo: String?
-    let chromaSubsampling: String?
-    let hasDolbyVision: Bool
-    let maxBitrate: String?
+public struct CodecInfo {
+    public let codec: String
+    public let codecIdRaw: String?
+    public let codecProfile: String?
+    public let codecIdInfo: String?
+    public let chromaSubsampling: String?
+    public let hasDolbyVision: Bool
+    public let maxBitrate: String?
+    
+    public init(codec: String, codecIdRaw: String?, codecProfile: String?, codecIdInfo: String?, chromaSubsampling: String?, hasDolbyVision: Bool, maxBitrate: String?) {
+        self.codec = codec
+        self.codecIdRaw = codecIdRaw
+        self.codecProfile = codecProfile
+        self.codecIdInfo = codecIdInfo
+        self.chromaSubsampling = chromaSubsampling
+        self.hasDolbyVision = hasDolbyVision
+        self.maxBitrate = maxBitrate
+    }
 }
 
-func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
+public func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
     do {
         let formatDescriptions = try await videoTrack.load(.formatDescriptions)
         guard let formatDesc = formatDescriptions.first else { return nil }

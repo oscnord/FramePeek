@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Math Helpers
 
 /// Calculates the greatest common divisor for aspect ratio simplification
-func gcd(_ a: Int, _ b: Int) -> Int {
+public func gcd(_ a: Int, _ b: Int) -> Int {
     b == 0 ? a : gcd(b, a % b)
 }
 
@@ -30,7 +30,7 @@ private let commonAspectRatios: [(Double, String)] = [
 ///   - parH: Pixel aspect ratio horizontal spacing (default 1)
 ///   - parV: Pixel aspect ratio vertical spacing (default 1)
 /// - Returns: Human-readable aspect ratio string
-func calculateDisplayAspectRatio(width: Int, height: Int, parH: Int = 1, parV: Int = 1) -> String {
+public func calculateDisplayAspectRatio(width: Int, height: Int, parH: Int = 1, parV: Int = 1) -> String {
     guard width > 0, height > 0, parH > 0, parV > 0 else { return "N/A" }
 
     // Calculate display dimensions accounting for non-square pixels
@@ -54,13 +54,13 @@ func calculateDisplayAspectRatio(width: Int, height: Int, parH: Int = 1, parV: I
 }
 
 /// Determines if the resolution is considered "vertical" (portrait)
-func isVerticalResolution(width: Int, height: Int) -> Bool {
+public func isVerticalResolution(width: Int, height: Int) -> Bool {
     height > width
 }
 
 /// Returns a descriptive resolution category based on the smaller dimension (typically height)
 /// This matches standard video resolution naming (720p, 1080p, etc.)
-func resolutionCategory(width: Int, height: Int) -> String {
+public func resolutionCategory(width: Int, height: Int) -> String {
     // Use the smaller dimension for classification (typically height in landscape)
     // This ensures 1920x1080 is "1080p" not based on 1920
     let minDim = min(width, height)

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import FramePeekCore
 
 /// Shared manager to track the active ViewModel for the video player window
 @MainActor

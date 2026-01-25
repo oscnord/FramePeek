@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import FramePeekCore
 
 struct BrightnessChartView: View {
     let samples: [ColorSample]

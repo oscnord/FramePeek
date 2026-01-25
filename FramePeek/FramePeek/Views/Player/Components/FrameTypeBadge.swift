@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 /// A compact badge showing the current frame type (I, P, B)
 struct FrameTypeBadge: View {

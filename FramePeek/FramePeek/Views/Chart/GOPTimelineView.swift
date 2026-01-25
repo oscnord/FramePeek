@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct GOPTimelineView: View {
     let segments: [GOPSegment]

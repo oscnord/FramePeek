@@ -12,7 +12,7 @@ private func detectFixedGOPPattern(_ frameCounts: [Int], tolerance: Int) -> Int?
 
 /// Attempts fast GOP extraction using MP4 atom parsing.
 /// Falls back to standard extraction if fast path is unavailable.
-func extractGOPSegmentsFast(
+public func extractGOPSegmentsFast(
     asset: AVAsset,
     url: URL,
     options: GOPOptions
@@ -137,7 +137,7 @@ func extractGOPSegmentsFast(
 
 // MARK: - Standard GOP Extraction (works with all formats)
 
-func extractGOPSegments(
+public func extractGOPSegments(
     asset: AVAsset,
     options: GOPOptions
 ) -> AsyncStream<GOPUpdate> {

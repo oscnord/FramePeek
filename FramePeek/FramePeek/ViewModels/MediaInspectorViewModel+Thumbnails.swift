@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import FramePeekCore
 
 extension FramePeekViewModel {
     /// Cancels only thumbnail generation

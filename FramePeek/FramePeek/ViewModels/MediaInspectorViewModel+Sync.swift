@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import FramePeekCore
 
 extension FramePeekViewModel {
     /// Starts audio/video sync analysis when audio tracks are detected

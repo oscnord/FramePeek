@@ -14,7 +14,7 @@ private enum SyncThresholds {
 /// Analyzes audio/video synchronization by examining actual sample timestamps
 /// - Parameter asset: The AVAsset to analyze
 /// - Returns: SyncAnalysisResult with track timing information, or nil on failure
-func analyzeAudioVideoSync(asset: AVAsset) async -> SyncAnalysisResult? {
+public func analyzeAudioVideoSync(asset: AVAsset) async -> SyncAnalysisResult? {
     do {
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
@@ -139,7 +139,7 @@ private func getFirstSamplePTS(asset: AVAsset, track: AVAssetTrack) async -> Dou
 
 /// Analyzes frame timing to detect VFR and gaps
 /// Returns frame timing samples for visualization with progressive updates
-func analyzeFrameTimingStream(
+public func analyzeFrameTimingStream(
     asset: AVAsset,
     maxSamples: Int = 500
 ) -> AsyncStream<[FrameTimingSample]> {

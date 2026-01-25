@@ -5,16 +5,16 @@ import CoreMedia
 // MARK: - Dolby Vision Configuration
 
 /// Dolby Vision configuration extracted from dvcC/dvvC atoms
-struct DolbyVisionConfig {
-    let profile: Int           // 0-9
-    let level: Int             // 0-13
-    let blSignalCompatibility: Int  // Base layer signal compatibility
-    let rpuPresent: Bool       // RPU (Reference Processing Unit) data present
-    let elPresent: Bool        // Enhancement layer present
-    let blPresent: Bool        // Base layer present
+public struct DolbyVisionConfig {
+    public let profile: Int           // 0-9
+    public let level: Int             // 0-13
+    public let blSignalCompatibility: Int  // Base layer signal compatibility
+    public let rpuPresent: Bool       // RPU (Reference Processing Unit) data present
+    public let elPresent: Bool        // Enhancement layer present
+    public let blPresent: Bool        // Base layer present
     
     /// Human-readable profile description
-    var profileDescription: String {
+    public var profileDescription: String {
         switch profile {
         case 0: return "dvav.per"
         case 1: return "dvav.pen"
@@ -31,7 +31,7 @@ struct DolbyVisionConfig {
     }
     
     /// Human-readable level description
-    var levelDescription: String {
+    public var levelDescription: String {
         switch level {
         case 0: return "Unspecified"
         case 1: return "Level 1 (HD 24fps)"
@@ -52,22 +52,22 @@ struct DolbyVisionConfig {
     }
     
     /// Is this profile cross-compatible with HDR10?
-    var isHDR10Compatible: Bool {
+    public var isHDR10Compatible: Bool {
         profile == 7 || profile == 8
     }
     
     /// Is this profile cross-compatible with HLG?
-    var isHLGCompatible: Bool {
+    public var isHLGCompatible: Bool {
         profile == 8
     }
     
     /// Is this profile cross-compatible with SDR?
-    var isSDRCompatible: Bool {
+    public var isSDRCompatible: Bool {
         profile == 9
     }
     
     /// Short codec string (e.g., "dvhe.07.06")
-    var codecString: String {
+    public var codecString: String {
         let profileHex = String(format: "%02d", profile)
         let levelHex = String(format: "%02d", level)
         
@@ -86,30 +86,30 @@ struct DolbyVisionConfig {
 // MARK: - Dolby Vision Metadata (from dovi_tool)
 
 /// Extended Dolby Vision metadata from dovi_tool analysis
-struct DolbyVisionMetadata {
-    let config: DolbyVisionConfig?
+public struct DolbyVisionMetadata {
+    public let config: DolbyVisionConfig?
     
     // L6 metadata (static HDR metadata)
-    let maxCLL: Int?           // Maximum Content Light Level (nits)
-    let maxFALL: Int?          // Maximum Frame Average Light Level (nits)
+    public let maxCLL: Int?           // Maximum Content Light Level (nits)
+    public let maxFALL: Int?          // Maximum Frame Average Light Level (nits)
     
     // L1 metadata (scene-based)
-    let minPQ: Double?         // Minimum PQ value
-    let maxPQ: Double?         // Maximum PQ value
-    let avgPQ: Double?         // Average PQ value
+    public let minPQ: Double?         // Minimum PQ value
+    public let maxPQ: Double?         // Maximum PQ value
+    public let avgPQ: Double?         // Average PQ value
     
     // Additional info
-    let rpuCount: Int?         // Number of RPU NAL units
-    let dmDataCount: Int?      // Number of DM (Display Management) data blocks
+    public let rpuCount: Int?         // Number of RPU NAL units
+    public let dmDataCount: Int?      // Number of DM (Display Management) data blocks
     
     /// Human-readable MaxCLL
-    var maxCLLDescription: String? {
+    public var maxCLLDescription: String? {
         guard let maxCLL = maxCLL else { return nil }
         return "\(maxCLL) nits"
     }
     
     /// Human-readable MaxFALL
-    var maxFALLDescription: String? {
+    public var maxFALLDescription: String? {
         guard let maxFALL = maxFALL else { return nil }
         return "\(maxFALL) nits"
     }
@@ -186,7 +186,7 @@ func parseDolbyVisionConfig(data: Data) -> DolbyVisionConfig? {
 /// Extracts Dolby Vision configuration from a video track
 /// - Parameter track: AVAssetTrack to analyze
 /// - Returns: Dolby Vision configuration if present
-func extractDolbyVisionConfig(from track: AVAssetTrack) async -> DolbyVisionConfig? {
+public func extractDolbyVisionConfig(from track: AVAssetTrack) async -> DolbyVisionConfig? {
     do {
         let formatDescriptions = try await track.load(.formatDescriptions)
         guard let formatDesc = formatDescriptions.first,
@@ -213,14 +213,14 @@ func extractDolbyVisionConfig(from track: AVAssetTrack) async -> DolbyVisionConf
 // MARK: - dovi_tool Integration
 
 /// Manager for dovi_tool CLI integration
-class DoviToolManager {
-    static let shared = DoviToolManager()
+public class DoviToolManager {
+    public static let shared = DoviToolManager()
     
     private var cachedPath: String?
     private var pathChecked = false
     
     /// Finds dovi_tool in PATH or user-configured location
-    func findDoviTool() -> String? {
+    public func findDoviTool() -> String? {
         if pathChecked, let cached = cachedPath {
             return cached
         }
@@ -299,12 +299,12 @@ class DoviToolManager {
     }
     
     /// Checks if dovi_tool is available
-    var isAvailable: Bool {
+    public var isAvailable: Bool {
         findDoviTool() != nil
     }
     
     /// Resets the cached path (call when user changes settings)
-    func resetCache() {
+    public func resetCache() {
         pathChecked = false
         cachedPath = nil
     }
@@ -312,7 +312,7 @@ class DoviToolManager {
     /// Analyzes a Dolby Vision file using dovi_tool
     /// - Parameter url: URL to the video file
     /// - Returns: Extended Dolby Vision metadata
-    func analyzeFile(url: URL) async -> DolbyVisionMetadata? {
+    public func analyzeFile(url: URL) async -> DolbyVisionMetadata? {
         guard let doviToolPath = findDoviTool() else {
             return nil
         }

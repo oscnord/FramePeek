@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 struct GOPStructureSection: View {
     @ObservedObject var viewModel: FramePeekViewModel

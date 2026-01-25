@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 /// Vectorscope view showing color distribution
 /// Displays UV/CbCr color space with reference markers
@@ -22,7 +23,7 @@ struct VectorscopeView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             headerView
                 .frame(width: size)
             
@@ -33,7 +34,7 @@ struct VectorscopeView: View {
                 emptyStateView
             }
         }
-        .padding(DesignSystem.Padding.sm)
+        .padding(DesignSystem.Padding.md)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous)
                 .fill(DesignSystem.Materials.ultraThin)
@@ -47,14 +48,9 @@ struct VectorscopeView: View {
     
     private var headerView: some View {
         HStack {
-            HStack(spacing: DesignSystem.Spacing.xs) {
-                Image(systemName: "target")
-                    .font(.caption)
-                    .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                Text("Vectorscope")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
+            Text("Vectorscope")
+                .font(.subheadline)
+                .fontWeight(.medium)
             
             Button {
                 showInfoPopover.toggle()

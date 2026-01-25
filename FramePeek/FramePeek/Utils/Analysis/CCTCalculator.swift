@@ -210,7 +210,7 @@ func calculateCCTFromRGB(
 }
 
 /// Color space enumeration for matrix selection
-enum ColorSpace: String, CaseIterable {
+public enum ColorSpace: String, CaseIterable {
     case bt709 = "BT.709"
     case bt2020 = "BT.2020"
     case p3 = "P3"

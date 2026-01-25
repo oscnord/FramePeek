@@ -5,13 +5,13 @@ import CoreMedia
 
 /// Extracts frame-level details with accurate frame type detection.
 /// Only provides frame types for supported codecs (H.264, HEVC, intra-only).
-enum FrameDetailExtractor {
+public enum FrameDetailExtractor {
     
     /// Result of frame detail extraction
-    struct ExtractionResult: Sendable {
-        let frames: [FrameInfo]
-        let codecSupportsFrameTypes: Bool
-        let codecName: String
+    public struct ExtractionResult: Sendable {
+        public let frames: [FrameInfo]
+        public let codecSupportsFrameTypes: Bool
+        public let codecName: String
     }
     
     /// Extracts frame details for a specific time range.
@@ -19,7 +19,7 @@ enum FrameDetailExtractor {
     ///   - asset: The video asset to analyze
     ///   - timeRange: The time range to extract frames from
     /// - Returns: Extraction result with frames and codec support info, or nil if extraction fails
-    static func extractFrameDetails(
+    public static func extractFrameDetails(
         from asset: AVAsset,
         timeRange: ClosedRange<Double>
     ) async -> ExtractionResult? {
@@ -123,7 +123,7 @@ enum FrameDetailExtractor {
     }
     
     /// Checks if codec supports accurate frame type detection
-    static func codecSupportsFrameTypeDetection(_ codecType: FourCharCode) -> Bool {
+    public static func codecSupportsFrameTypeDetection(_ codecType: FourCharCode) -> Bool {
         return isIntraOnlyCodec(codecType) || supportsNALFrameTypeDetection(codecType)
     }
     
@@ -185,13 +185,13 @@ private let intraOnlyCodecFourCCs: Set<String> = [
 ]
 
 /// Checks if a codec is intra-only (all I-frames)
-func isIntraOnlyCodec(_ codecType: FourCharCode) -> Bool {
+public func isIntraOnlyCodec(_ codecType: FourCharCode) -> Bool {
     let codecID = fourCCToString(codecType)
     return intraOnlyCodecFourCCs.contains(codecID)
 }
 
 /// Checks if codec supports NAL-based frame type detection
-func supportsNALFrameTypeDetection(_ codecType: FourCharCode) -> Bool {
+public func supportsNALFrameTypeDetection(_ codecType: FourCharCode) -> Bool {
     let codecID = fourCCToString(codecType).lowercased()
     return codecID.hasPrefix("avc") || codecID == "h264" ||
            codecID.hasPrefix("hev") || codecID.hasPrefix("hvc") || codecID == "hevc"
@@ -205,7 +205,7 @@ func supportsNALFrameTypeDetection(_ codecType: FourCharCode) -> Bool {
 /// Sample Dependency Type (sdtp) box provides:
 /// - kCMSampleAttachmentKey_DependsOnOthers: true = non-I-frame
 /// - kCMSampleAttachmentKey_IsDependedOnByOthers: true = P-frame (others depend on it), false = B-frame (droppable)
-func detectFrameTypeFromAttachments(_ sampleBuffer: CMSampleBuffer) -> FrameType? {
+public func detectFrameTypeFromAttachments(_ sampleBuffer: CMSampleBuffer) -> FrameType? {
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false),
           CFArrayGetCount(attachments) > 0,
           let dict = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFDictionary.self) as? [CFString: Any] else {

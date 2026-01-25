@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import AVFoundation
+import FramePeekCore
 
 struct ColorAnalysisView: View {
     @ObservedObject var viewModel: FramePeekViewModel

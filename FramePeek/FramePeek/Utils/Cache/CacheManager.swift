@@ -1,11 +1,12 @@
 import Foundation
 import CryptoKit
+import Combine
 
 // MARK: - Cache Configuration
 
 private enum CacheConfig {
     static let version = 1
-    static let waveformVersion = 2 // Bumped to invalidate caches from flawed fast extractor
+    static let waveformVersion = 4 // Bumped - new Accelerate-based waveform extractor
     static let maxCacheSizeBytes: Int64 = 1_073_741_824 // 1 GB
     static let cacheDirectoryName = "FramePeek"
     static let waveformSubdirectory = "Waveforms"
@@ -16,49 +17,49 @@ private enum CacheConfig {
 
 // MARK: - Cached Data Structures
 
-struct CachedWaveformData: Codable {
-    let version: Int
-    let samples: [WaveformSample]
-    let isPartial: Bool
-    let partialDurationSeconds: Double?
-    let createdAt: Date
+public struct CachedWaveformData: Codable {
+    public let version: Int
+    public let samples: [WaveformSample]
+    public let isPartial: Bool
+    public let partialDurationSeconds: Double?
+    public let createdAt: Date
 }
 
-struct CachedGOPData: Codable {
-    let version: Int
-    let segments: [CachedGOPSegment]
-    let isPartial: Bool
-    let partialDurationSeconds: Double?
-    let createdAt: Date
+public struct CachedGOPData: Codable {
+    public let version: Int
+    public let segments: [CachedGOPSegment]
+    public let isPartial: Bool
+    public let partialDurationSeconds: Double?
+    public let createdAt: Date
     // Additional fields for full GOPAnalysisResult reconstruction
-    let isPreview: Bool
-    let scannedUntilSeconds: Double
-    let structureType: GOPStructureType
-    let representativeGOPIndex: Int?  // Index into segments array
+    public let isPreview: Bool
+    public let scannedUntilSeconds: Double
+    public let structureType: GOPStructureType
+    public let representativeGOPIndex: Int?  // Index into segments array
 }
 
 /// Simplified GOP segment for caching (without non-Codable properties)
-struct CachedGOPSegment: Codable {
-    let startTime: Double
-    let endTime: Double
-    let frameCount: Int?
-    let frames: [CachedFrameInfo]?
+public struct CachedGOPSegment: Codable {
+    public let startTime: Double
+    public let endTime: Double
+    public let frameCount: Int?
+    public let frames: [CachedFrameInfo]?
 }
 
-struct CachedFrameInfo: Codable {
-    let time: Double
-    let type: String // "I", "P", "B", "?"
-    let size: Int64?
+public struct CachedFrameInfo: Codable {
+    public let time: Double
+    public let type: String // "I", "P", "B", "?"
+    public let size: Int64?
 }
 
 // MARK: - Cache Manager
 
 @MainActor
-final class CacheManager: ObservableObject {
-    static let shared = CacheManager()
+public final class CacheManager: ObservableObject {
+    public static let shared = CacheManager()
 
-    @Published private(set) var currentCacheSize: Int64 = 0
-    @Published private(set) var isCalculatingSize: Bool = false
+    @Published public private(set) var currentCacheSize: Int64 = 0
+    @Published public private(set) var isCalculatingSize: Bool = false
 
     private let fileManager = FileManager.default
     private let encoder = PropertyListEncoder()
@@ -98,7 +99,7 @@ final class CacheManager: ObservableObject {
 
     /// Generate a unique cache key based on file path, modification date, size, and cache version
     /// For waveform caches, use waveformVersion to allow separate invalidation
-    func cacheKey(for url: URL, useWaveformVersion: Bool = false) async -> String? {
+    public func cacheKey(for url: URL, useWaveformVersion: Bool = false) async -> String? {
         do {
             let resourceValues = try url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
             guard let modDate = resourceValues.contentModificationDate,
@@ -117,7 +118,7 @@ final class CacheManager: ObservableObject {
 
     // MARK: - Waveform Cache
 
-    func loadWaveformCache(for url: URL) async -> CachedWaveformData? {
+    public func loadWaveformCache(for url: URL) async -> CachedWaveformData? {
         guard let key = await cacheKey(for: url, useWaveformVersion: true),
               let cacheURL = waveformCacheURL else { return nil }
 
@@ -142,7 +143,7 @@ final class CacheManager: ObservableObject {
         }
     }
 
-    func saveWaveformCache(
+    public func saveWaveformCache(
         for url: URL,
         samples: [WaveformSample],
         isPartial: Bool = false,
@@ -173,7 +174,7 @@ final class CacheManager: ObservableObject {
 
     // MARK: - GOP Cache
 
-    func loadGOPCache(for url: URL) async -> CachedGOPData? {
+    public func loadGOPCache(for url: URL) async -> CachedGOPData? {
         guard let key = await cacheKey(for: url),
               let cacheURL = gopCacheURL else { return nil }
 
@@ -198,7 +199,7 @@ final class CacheManager: ObservableObject {
         }
     }
 
-    func saveGOPCache(
+    public func saveGOPCache(
         for url: URL,
         segments: [GOPSegment],
         isPartial: Bool = false,
@@ -248,7 +249,7 @@ final class CacheManager: ObservableObject {
     }
 
     /// Convert cached GOP data back to GOPSegment array
-    func convertCachedGOPSegments(_ cached: [CachedGOPSegment]) -> [GOPSegment] {
+    public func convertCachedGOPSegments(_ cached: [CachedGOPSegment]) -> [GOPSegment] {
         cached.map { cachedSegment in
             GOPSegment(
                 startTime: cachedSegment.startTime,
@@ -267,7 +268,7 @@ final class CacheManager: ObservableObject {
 
     // MARK: - Cache Size Management
 
-    func recalculateCacheSize() async {
+    public func recalculateCacheSize() async {
         isCalculatingSize = true
         defer { isCalculatingSize = false }
 
@@ -365,7 +366,7 @@ final class CacheManager: ObservableObject {
 
     // MARK: - Clear Cache
 
-    func clearAllCaches() async {
+    public func clearAllCaches() async {
         if let waveformURL = waveformCacheURL {
             try? fileManager.removeItem(at: waveformURL)
         }
@@ -377,7 +378,7 @@ final class CacheManager: ObservableObject {
         await recalculateCacheSize()
     }
 
-    func clearWaveformCache() async {
+    public func clearWaveformCache() async {
         if let waveformURL = waveformCacheURL {
             try? fileManager.removeItem(at: waveformURL)
             try? fileManager.createDirectory(at: waveformURL, withIntermediateDirectories: true)
@@ -385,7 +386,7 @@ final class CacheManager: ObservableObject {
         await recalculateCacheSize()
     }
 
-    func clearGOPCache() async {
+    public func clearGOPCache() async {
         if let gopURL = gopCacheURL {
             try? fileManager.removeItem(at: gopURL)
             try? fileManager.createDirectory(at: gopURL, withIntermediateDirectories: true)
@@ -395,7 +396,7 @@ final class CacheManager: ObservableObject {
 
     // MARK: - Formatted Size
 
-    var formattedCacheSize: String {
+    public var formattedCacheSize: String {
         ByteCountFormatter.string(fromByteCount: currentCacheSize, countStyle: .file)
     }
 }

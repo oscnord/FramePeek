@@ -2,24 +2,41 @@ import Foundation
 import AVFoundation
 import CoreMedia
 
-struct VideoTrackInfo {
-    let resolution: String
-    let videoWidth: Int
-    let videoHeight: Int
-    let frameRate: String
-    let nominalFrameRateValue: Float
-    let orientationDegrees: Int?
-    let trackBitrate: String?
-    let trackBitrateValue: Float
-    let pixelAspectRatio: String?
-    let parH: Int
-    let parV: Int
-    let cleanAperture: String?
-    let scanType: String?
-    let frameRateMode: String?
+public struct VideoTrackInfo {
+    public let resolution: String
+    public let videoWidth: Int
+    public let videoHeight: Int
+    public let frameRate: String
+    public let nominalFrameRateValue: Float
+    public let orientationDegrees: Int?
+    public let trackBitrate: String?
+    public let trackBitrateValue: Float
+    public let pixelAspectRatio: String?
+    public let parH: Int
+    public let parV: Int
+    public let cleanAperture: String?
+    public let scanType: String?
+    public let frameRateMode: String?
+    
+    public init(resolution: String, videoWidth: Int, videoHeight: Int, frameRate: String, nominalFrameRateValue: Float, orientationDegrees: Int?, trackBitrate: String?, trackBitrateValue: Float, pixelAspectRatio: String?, parH: Int, parV: Int, cleanAperture: String?, scanType: String?, frameRateMode: String?) {
+        self.resolution = resolution
+        self.videoWidth = videoWidth
+        self.videoHeight = videoHeight
+        self.frameRate = frameRate
+        self.nominalFrameRateValue = nominalFrameRateValue
+        self.orientationDegrees = orientationDegrees
+        self.trackBitrate = trackBitrate
+        self.trackBitrateValue = trackBitrateValue
+        self.pixelAspectRatio = pixelAspectRatio
+        self.parH = parH
+        self.parV = parV
+        self.cleanAperture = cleanAperture
+        self.scanType = scanType
+        self.frameRateMode = frameRateMode
+    }
 }
 
-func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
+public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
     var videoTrack: AVAssetTrack?
     do {
         let tracks = try await asset.loadTracks(withMediaType: .video)

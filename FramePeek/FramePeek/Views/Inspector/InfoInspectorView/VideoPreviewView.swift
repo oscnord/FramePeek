@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import AppKit
+import FramePeekCore
 
 struct VideoPreviewView: View {
     @ObservedObject var viewModel: FramePeekViewModel

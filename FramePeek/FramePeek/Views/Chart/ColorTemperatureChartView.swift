@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import FramePeekCore
 
 struct ColorTemperatureChartView: View {
     let samples: [ColorSample]

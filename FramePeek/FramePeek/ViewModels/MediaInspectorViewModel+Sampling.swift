@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import CoreMedia
+import FramePeekCore
 
 extension FramePeekViewModel {
     /// Re-aggregates samples from stored raw frames (always uses second-based mode)

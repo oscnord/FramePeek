@@ -26,30 +26,30 @@ import CoreMedia
 ///                       ├─ stss (sync sample table - keyframe indices)
 ///                       └─ stts (time-to-sample - for timestamps)
 /// ```
-enum SyncSampleParser {
+public enum SyncSampleParser {
     
     // MARK: - Types
     
     /// Result of parsing sync sample data
-    struct SyncSampleResult {
+    public struct SyncSampleResult {
         /// 1-based indices of sync samples (keyframes)
-        let syncSampleIndices: [UInt32]
+        public let syncSampleIndices: [UInt32]
         /// Sample count to duration mappings from stts atom
-        let timeToSampleEntries: [(sampleCount: UInt32, sampleDuration: UInt32)]
+        public let timeToSampleEntries: [(sampleCount: UInt32, sampleDuration: UInt32)]
         /// Total number of samples in the track
-        let totalSampleCount: UInt32
+        public let totalSampleCount: UInt32
         /// Timescale for the track (from mdhd)
-        let timescale: UInt32
+        public let timescale: UInt32
     }
     
     /// Parsed keyframe information with timestamps
-    struct KeyframeInfo {
-        let sampleIndex: UInt32  // 1-based
-        let timestamp: Double    // In seconds
+    public struct KeyframeInfo {
+        public let sampleIndex: UInt32  // 1-based
+        public let timestamp: Double    // In seconds
     }
     
     /// Reasons why fast parsing might not be available
-    enum UnavailableReason {
+    public enum UnavailableReason {
         case unsupportedFormat          // Not MP4/MOV
         case fragmentedMP4              // fMP4/CMAF - needs different approach
         case noSyncSampleAtom           // All-intra codec (all frames are keyframes)
@@ -62,7 +62,7 @@ enum SyncSampleParser {
     /// Note: This only checks the extension. Use `parseSyncSamples` for definitive answer.
     /// - Parameter url: URL of the media file
     /// - Returns: True if the file extension suggests MP4/MOV format
-    static func canUseFastParsing(for url: URL) -> Bool {
+    public static func canUseFastParsing(for url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()
         return ["mp4", "m4v", "mov"].contains(ext)
     }
@@ -70,7 +70,7 @@ enum SyncSampleParser {
     /// Parse sync sample indices from an MP4/MOV file
     /// - Parameter url: URL of the media file
     /// - Returns: SyncSampleResult if successful, nil otherwise (fragmented, unsupported, or parse error)
-    static func parseSyncSamples(from url: URL) async -> SyncSampleResult? {
+    public static func parseSyncSamples(from url: URL) async -> SyncSampleResult? {
         guard canUseFastParsing(for: url) else { return nil }
         
         return await Task.detached(priority: .userInitiated) {
@@ -147,7 +147,7 @@ enum SyncSampleParser {
     /// Convert sync sample result to keyframe timestamps
     /// - Parameter result: The parsed sync sample result
     /// - Returns: Array of keyframe info with timestamps in seconds
-    static func keyframeTimestamps(from result: SyncSampleResult) -> [KeyframeInfo] {
+    public static func keyframeTimestamps(from result: SyncSampleResult) -> [KeyframeInfo] {
         var keyframes: [KeyframeInfo] = []
         keyframes.reserveCapacity(result.syncSampleIndices.count)
         
@@ -533,7 +533,7 @@ extension SyncSampleParser {
     /// - All-intra codecs (ProRes, MJPEG, etc.)
     /// - Non-MP4/MOV formats
     /// - Parse errors
-    static func generateGOPSegments(
+    public static func generateGOPSegments(
         from url: URL,
         totalDuration: Double,
         options: GOPOptions

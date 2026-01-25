@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import FramePeekCore
 
 struct TimelineView: View {
     let duration: Double

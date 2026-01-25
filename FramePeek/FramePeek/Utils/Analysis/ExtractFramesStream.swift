@@ -1,16 +1,25 @@
 import AVFoundation
 import CoreMedia
 
-struct FrameAnalysisUpdate {
-    var appendedSamples: [BitrateSample] = []
-    var rawFrames: [RawFrame] = []  // Raw frame data for re-aggregation
-    var averageFPS: Double?
-    var minInterval: Double?
-    var maxInterval: Double?
-    var isFinished: Bool = false
+public struct FrameAnalysisUpdate {
+    public var appendedSamples: [BitrateSample] = []
+    public var rawFrames: [RawFrame] = []  // Raw frame data for re-aggregation
+    public var averageFPS: Double?
+    public var minInterval: Double?
+    public var maxInterval: Double?
+    public var isFinished: Bool = false
+    
+    public init(appendedSamples: [BitrateSample] = [], rawFrames: [RawFrame] = [], averageFPS: Double? = nil, minInterval: Double? = nil, maxInterval: Double? = nil, isFinished: Bool = false) {
+        self.appendedSamples = appendedSamples
+        self.rawFrames = rawFrames
+        self.averageFPS = averageFPS
+        self.minInterval = minInterval
+        self.maxInterval = maxInterval
+        self.isFinished = isFinished
+    }
 }
 
-func extractFramesStream(
+public func extractFramesStream(
     asset: AVAsset,
     options: FrameSamplingOptions
 ) -> AsyncStream<FrameAnalysisUpdate> {

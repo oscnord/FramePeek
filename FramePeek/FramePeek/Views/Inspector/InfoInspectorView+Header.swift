@@ -1,4 +1,5 @@
 import SwiftUI
+import FramePeekCore
 
 extension InfoInspectorView {
     // MARK: - Header / Actions
