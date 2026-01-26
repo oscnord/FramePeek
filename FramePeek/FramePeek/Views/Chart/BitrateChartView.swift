@@ -111,9 +111,8 @@ struct BitrateChartView: View {
 
             if viewModel.isAnalyzing {
                 VStack(spacing: DesignSystem.Spacing.md2) {
-                    ProgressView()
-                        .controlSize(.regular)
-                        .frame(minWidth: 0, maxWidth: 50, minHeight: 0, maxHeight: 50)
+                    SafeProgressView(controlSize: .regular)
+                        .frame(width: 32, height: 32)
                     Text("Analyzing frames…")
                         .font(.headline)
                     Text("For long files, choose a larger interval to limit memory usage.")
@@ -331,9 +330,8 @@ struct BitrateChartView: View {
 
     private var loadingBadge: some View {
         HStack(spacing: DesignSystem.Spacing.md) {
-            ProgressView()
-                .controlSize(.small)
-                .frame(minWidth: 0, maxWidth: 20, minHeight: 0, maxHeight: 20)
+            SafeProgressView(controlSize: .small)
+                .frame(width: 16, height: 16)
 
             Text("Analyzing…")
                 .font(.caption)

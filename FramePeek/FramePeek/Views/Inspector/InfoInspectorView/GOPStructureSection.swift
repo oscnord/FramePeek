@@ -30,8 +30,8 @@ struct GOPStructureSection: View {
                 statsGrid(stats: analysis.stats, structureType: analysis.structureType)
             } else if viewModel.isAnalyzingGOP {
                 HStack(spacing: DesignSystem.Spacing.sm) {
-                    ProgressView()
-                        .controlSize(.small)
+                    SafeProgressView(controlSize: .small)
+                        .frame(width: 16, height: 16)
                     Text("Analyzing GOP…")
                         .font(.caption)
                         .foregroundStyle(.secondary)

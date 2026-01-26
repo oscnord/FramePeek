@@ -63,8 +63,8 @@ struct GOPDetailsPanel: View {
             // Loading state
             if viewModel.isLoadingGOPFrameDetails {
                 HStack(spacing: DesignSystem.Spacing.sm) {
-                    ProgressView()
-                        .scaleEffect(0.7)
+                    SafeProgressView(controlSize: .small)
+                        .frame(width: 14, height: 14)
                     Text(String(localized: "Loading frame details..."))
                         .font(.caption)
                         .foregroundStyle(.secondary)

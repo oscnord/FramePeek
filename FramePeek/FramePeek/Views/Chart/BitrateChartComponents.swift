@@ -256,9 +256,8 @@ struct KeyframeLoadingView: View {
                     .frame(height: 80)
 
                 HStack(spacing: DesignSystem.Spacing.md2) {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(minWidth: 0, maxWidth: 20, minHeight: 0, maxHeight: 20)
+                    SafeProgressView(controlSize: .small)
+                        .frame(width: 16, height: 16)
 
                     Text(message)
                         .font(.caption2)
