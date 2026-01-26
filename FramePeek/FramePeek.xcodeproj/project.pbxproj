@@ -839,7 +839,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "\"framepeek/Preview Content\"";
 				DEVELOPMENT_TEAM = 9JFT83BZMT;
 				ENABLE_APP_SANDBOX = YES;
@@ -882,7 +882,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "\"framepeek/Preview Content\"";
 				DEVELOPMENT_TEAM = 9JFT83BZMT;
 				ENABLE_APP_SANDBOX = YES;
