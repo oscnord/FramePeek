@@ -30,6 +30,8 @@ final class FramePeekViewModel: ObservableObject {
     @Published var selectedGOPFrameDetails: [FrameInfo]?
     @Published var isLoadingGOPFrameDetails: Bool = false
     @Published var gopFrameDetailsCache: [UUID: [FrameInfo]] = [:]
+    var gopCacheAccessOrder: [UUID] = []
+    let gopCacheMaxSize = 50
     @Published var preloadingGOPIndices: Set<Int> = []
     @Published var codecSupportsFrameTypes: Bool = true
     var frameDetailPreloadTask: Task<Void, Never>?
@@ -102,6 +104,25 @@ final class FramePeekViewModel: ObservableObject {
         let hasInvalidDuration = durationSeconds <= 0 || !durationSeconds.isFinite
 
         return hasNoSamples && (hasNoVideoTrack || hasInvalidDuration)
+    }
+
+    // MARK: - GOP Frame Details LRU Cache
+
+    func cacheGOPFrameDetails(_ details: [FrameInfo], for id: UUID) {
+        gopFrameDetailsCache[id] = details
+        gopCacheAccessOrder.removeAll { $0 == id }
+        gopCacheAccessOrder.append(id)
+        while gopCacheAccessOrder.count > gopCacheMaxSize {
+            let evictedID = gopCacheAccessOrder.removeFirst()
+            gopFrameDetailsCache.removeValue(forKey: evictedID)
+        }
+    }
+
+    func getCachedGOPFrameDetails(for id: UUID) -> [FrameInfo]? {
+        guard let details = gopFrameDetailsCache[id] else { return nil }
+        gopCacheAccessOrder.removeAll { $0 == id }
+        gopCacheAccessOrder.append(id)
+        return details
     }
 
     init() {

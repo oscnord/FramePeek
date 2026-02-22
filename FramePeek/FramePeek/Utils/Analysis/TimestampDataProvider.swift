@@ -26,7 +26,7 @@ enum TimestampDataProvider {
             data.gopDuration = segment.duration
             
             // Frame type - only if cached
-            if let cachedFrames = viewModel.gopFrameDetailsCache[segment.id] {
+            if let cachedFrames = viewModel.getCachedGOPFrameDetails(for: segment.id) {
                 data.frameType = getFrameTypeAt(time: time, frames: cachedFrames)
             } else if let frames = segment.frames, !frames.isEmpty {
                 data.frameType = getFrameTypeAt(time: time, frames: frames)

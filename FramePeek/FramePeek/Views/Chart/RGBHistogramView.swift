@@ -136,6 +136,7 @@ struct RGBHistogramView: View {
                                 histogramPath(data: histogram.green, color: .green, width: width, height: height)
                                 histogramPath(data: histogram.blue, color: .blue, width: width, height: height)
                             }
+                            .drawingGroup()
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
                         }
                         .frame(height: 130)

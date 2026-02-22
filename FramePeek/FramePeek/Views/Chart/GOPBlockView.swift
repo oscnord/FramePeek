@@ -28,13 +28,18 @@ struct GOPBlockView: View {
         return min(1.0, Double(frameCount) / Double(maxFrameCount))
     }
     
-    // Frame type statistics
+    // Frame type statistics (single-pass)
     private var frameTypeStats: (i: Int, p: Int, b: Int, unknown: Int)? {
         guard let frames = segment.frames, !frames.isEmpty else { return nil }
-        let i = frames.filter { $0.type == .i }.count
-        let p = frames.filter { $0.type == .p }.count
-        let b = frames.filter { $0.type == .b }.count
-        let unknown = frames.filter { $0.type == .unknown }.count
+        var i = 0, p = 0, b = 0, unknown = 0
+        for frame in frames {
+            switch frame.type {
+            case .i: i += 1
+            case .p: p += 1
+            case .b: b += 1
+            case .unknown: unknown += 1
+            }
+        }
         return (i, p, b, unknown)
     }
     
