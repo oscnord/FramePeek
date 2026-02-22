@@ -472,7 +472,7 @@ extension TimelineView {
         let timeRange = maxTime - minTime
         let minZoomSize: Double = self.duration * 0.01
         if timeRange > minZoomSize { // Minimum zoom size
-            visibleTimeRange = minTime...maxTime
+            dragPreviewRange = minTime...maxTime
         }
     }
 
@@ -664,8 +664,8 @@ private class TimelineTrackingView: NSView {
         mouseDownLocation = nil
         isDragging = false
 
-        // Commit preview to actual range if we were dragging
-        if isDraggingRange?.wrappedValue == true, let preview = dragPreviewRange?.wrappedValue {
+        // Commit preview to actual range for any drag type (range drag or new selection)
+        if let preview = dragPreviewRange?.wrappedValue {
             visibleTimeRange?.wrappedValue = preview
         }
 
@@ -793,7 +793,7 @@ private class TimelineTrackingView: NSView {
         let timeRange = maxTime - minTime
         let minZoomSize: Double = duration * 0.01
         if timeRange > minZoomSize {
-            visibleTimeRange?.wrappedValue = minTime...maxTime
+            dragPreviewRange?.wrappedValue = minTime...maxTime
         }
     }
 

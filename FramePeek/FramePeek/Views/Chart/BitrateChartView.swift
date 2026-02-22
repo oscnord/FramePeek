@@ -6,6 +6,11 @@ struct BitrateChartView: View {
     @ObservedObject var viewModel: FramePeekViewModel
     @ObservedObject private var playerManager = PlayerViewModelManager.shared
 
+    // MARK: - Cached Display Samples
+
+    @State private var cachedDisplaySamples: [BitrateSample] = []
+    @State private var lastDisplaySamplesInputHash: Int = 0
+
     // MARK: - Display Settings
 
     /// Maximum points to render in chart for performance (LTTB downsampling)
@@ -27,15 +32,26 @@ struct BitrateChartView: View {
         )
     }
 
-    /// Downsampled samples for efficient chart rendering using LTTB algorithm
-    private var displaySamples: [BitrateSample] {
+    /// Recomputes downsampled display samples only when inputs change
+    private func recomputeDisplaySamples() {
+        let inputHash = combineHashValues(viewModel.samples.count, viewModel.visibleTimeRange?.hashValue ?? 0)
+        guard inputHash != lastDisplaySamplesInputHash else { return }
+        lastDisplaySamplesInputHash = inputHash
+
         let filteredSamples: [BitrateSample]
         if let range = viewModel.visibleTimeRange {
             filteredSamples = viewModel.samples.filter { range.contains($0.time) }
         } else {
             filteredSamples = viewModel.samples
         }
-        return downsampleLTTB(filteredSamples, targetCount: maxDisplayPoints)
+        cachedDisplaySamples = downsampleLTTB(filteredSamples, targetCount: maxDisplayPoints)
+    }
+
+    private func combineHashValues(_ a: Int, _ b: Int) -> Int {
+        var hasher = Hasher()
+        hasher.combine(a)
+        hasher.combine(b)
+        return hasher.finalize()
     }
 
     private var yTickStep: Double {
@@ -199,7 +215,7 @@ struct BitrateChartView: View {
 
     private var chart: some View {
         Chart {
-            ForEach(displaySamples) { sample in
+            ForEach(cachedDisplaySamples) { sample in
                 AreaMark(
                     x: .value("Time (s)", sample.time),
                     y: .value("Bitrate (kbps)", sample.bitrate / 1000.0)
@@ -325,6 +341,9 @@ struct BitrateChartView: View {
         }
         .drawingGroup()
         .frame(minHeight: 400)
+        .onAppear { recomputeDisplaySamples() }
+        .onChange(of: viewModel.samples.count) { _, _ in recomputeDisplaySamples() }
+        .onChange(of: viewModel.visibleTimeRange) { _, _ in recomputeDisplaySamples() }
     }
 
     // MARK: - Overlay

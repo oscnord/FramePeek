@@ -6,14 +6,30 @@ struct SyncAnalysisView: View {
     @ObservedObject var viewModel: FramePeekViewModel
     @State private var showFrameIntervalInfoPopover = false
 
-    private var displaySamples: [FrameTimingSample] {
+    // MARK: - Cached Display Samples
+
+    @State private var cachedDisplaySamples: [FrameTimingSample] = []
+    @State private var lastDisplaySamplesInputHash: Int = 0
+
+    private func recomputeDisplaySamples() {
+        let inputHash = combineHashValues(viewModel.frameTimingSamples.count, viewModel.visibleTimeRange?.hashValue ?? 0)
+        guard inputHash != lastDisplaySamplesInputHash else { return }
+        lastDisplaySamplesInputHash = inputHash
+
         let filteredSamples: [FrameTimingSample]
         if let range = viewModel.visibleTimeRange {
             filteredSamples = viewModel.frameTimingSamples.filter { range.contains($0.time) }
         } else {
             filteredSamples = viewModel.frameTimingSamples
         }
-        return downsampleFrameTiming(filteredSamples, targetCount: 500)
+        cachedDisplaySamples = downsampleFrameTiming(filteredSamples, targetCount: 500)
+    }
+
+    private func combineHashValues(_ a: Int, _ b: Int) -> Int {
+        var hasher = Hasher()
+        hasher.combine(a)
+        hasher.combine(b)
+        return hasher.finalize()
     }
 
     private var frameIntervalStats: (min: Double, max: Double, avg: Double, stdDev: Double)? {
@@ -492,7 +508,7 @@ struct SyncAnalysisView: View {
             }
 
             Chart {
-                ForEach(displaySamples) { sample in
+                ForEach(cachedDisplaySamples) { sample in
                     LineMark(
                         x: .value("Time (s)", sample.time),
                         y: .value("Interval (ms)", sample.intervalMs)
@@ -558,6 +574,9 @@ struct SyncAnalysisView: View {
                     .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
             }
             .frame(height: 200)
+            .onAppear { recomputeDisplaySamples() }
+            .onChange(of: viewModel.frameTimingSamples.count) { _, _ in recomputeDisplaySamples() }
+            .onChange(of: viewModel.visibleTimeRange) { _, _ in recomputeDisplaySamples() }
         }
     }
 
