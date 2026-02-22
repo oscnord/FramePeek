@@ -32,19 +32,12 @@ struct GOPTimelineView: View {
         filteredSegments.compactMap { $0.frameCount }.max() ?? 1
     }
 
-    private func patternColor(for segment: GOPSegment, allSegments: [GOPSegment]) -> Color {
-        guard let stats = calculatePatternStats(segments: allSegments) else {
-            return .secondary.opacity(0.3)
-        }
-
-        let segmentDuration = segment.duration
-        let avgDuration = stats.avgDuration
-
+    private func patternColor(for segment: GOPSegment, avgDuration: Double?) -> Color {
         guard let avg = avgDuration, avg > 0 else {
             return .secondary.opacity(0.3)
         }
 
-        let variance = abs(segmentDuration - avg) / avg
+        let variance = abs(segment.duration - avg) / avg
 
         if variance < 0.1 {
             return .green
@@ -55,15 +48,12 @@ struct GOPTimelineView: View {
         }
     }
 
-    private func calculatePatternStats(segments: [GOPSegment]) -> (avgDuration: Double?, minDuration: Double?, maxDuration: Double?)? {
+    /// Computes the average duration of all segments (used for pattern coloring).
+    /// Computed once per body evaluation, not per segment.
+    private var cachedAvgDuration: Double? {
         let durations = segments.map(\.duration).filter { $0.isFinite && $0 > 0 }
         guard !durations.isEmpty else { return nil }
-
-        let avg = durations.reduce(0, +) / Double(durations.count)
-        let min = durations.min()
-        let max = durations.max()
-
-        return (avg, min, max)
+        return durations.reduce(0, +) / Double(durations.count)
     }
 
     var body: some View {
@@ -73,7 +63,8 @@ struct GOPTimelineView: View {
                 // Use the first segment's startTime to ensure alignment between GOP blocks and frames
                 let alignmentStart = filteredSegments.first?.startTime ?? effectiveDomain.start
 
-                // GOP blocks row
+                // GOP blocks row — compute avg duration once, not per segment
+                let avgDur = cachedAvgDuration
                 GOPBlocksStripView(
                     segments: segments,
                     filteredSegments: filteredSegments,
@@ -82,7 +73,7 @@ struct GOPTimelineView: View {
                     maxFrameCount: maxFrameCount,
                     selectedGOPIndex: viewModel.selectedGOPIndex,
                     patternColor: { segment in
-                        patternColor(for: segment, allSegments: segments)
+                        patternColor(for: segment, avgDuration: avgDur)
                     },
                     onGOPClick: onGOPClick,
                     selectionStartTime: selectionStartTime,

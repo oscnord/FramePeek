@@ -223,7 +223,8 @@ extension FramePeekViewModel {
         syncAnalysisResult = nil
         frameTimingSamples = []
         isAnalyzingSync = false
-        colorSamples = []
+        legacySamplesCache = nil
+        legacySamplesCacheCount = 0
         isAnalyzingColor = false
         containerAnalysis = nil
         isAnalyzingContainer = false

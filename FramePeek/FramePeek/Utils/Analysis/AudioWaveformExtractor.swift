@@ -232,17 +232,18 @@ public func extractWaveform(
                 allSamples.append(newSample)
             }
 
-            // Downsample if needed
-            let finalSamples: [WaveformSample]
             if allSamples.count > maxSamples {
-                finalSamples = downsampleWaveformLTTB(allSamples, targetCount: maxSamples)
+                // Downsampling needed — yield the complete downsampled result
+                // Consumer must treat isFinished as a full replacement
+                let finalSamples = downsampleWaveformLTTB(allSamples, targetCount: maxSamples)
+                continuation.yield(WaveformUpdate(appendedSamples: finalSamples, isFinished: true))
             } else {
-                finalSamples = allSamples
+                // No downsampling needed — just yield any remaining un-yielded samples
+                let remaining = lastYieldedCount < allSamples.count
+                    ? Array(allSamples[lastYieldedCount...])
+                    : []
+                continuation.yield(WaveformUpdate(appendedSamples: remaining, isFinished: true))
             }
-
-            // FIX: After downsampling, indices no longer correspond to pre-downsampling array
-            // Always yield the complete final result to avoid index mismatches
-            continuation.yield(WaveformUpdate(appendedSamples: finalSamples, isFinished: true))
             continuation.finish()
         }
 

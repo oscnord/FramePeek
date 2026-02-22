@@ -75,8 +75,19 @@ final class FramePeekViewModel: ObservableObject {
     @Published var frameTimingSamples: [FrameTimingSample] = []
     @Published var isAnalyzingSync: Bool = false
 
-    // Color analysis (legacy)
-    @Published var colorSamples: [ColorSample] = []
+    // Color analysis (legacy) — computed from professionalColorAnalysis with caching
+    var legacySamplesCache: [ColorSample]?
+    var legacySamplesCacheCount: Int = 0
+    var colorSamples: [ColorSample] {
+        if legacySamplesCacheCount == professionalColorAnalysis.count,
+           let cached = legacySamplesCache {
+            return cached
+        }
+        let converted = convertToLegacyColorSamples(professionalColorAnalysis)
+        legacySamplesCache = converted
+        legacySamplesCacheCount = professionalColorAnalysis.count
+        return converted
+    }
     @Published var isAnalyzingColor: Bool = false
     
     // Professional color analysis

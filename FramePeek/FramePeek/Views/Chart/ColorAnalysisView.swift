@@ -85,7 +85,7 @@ struct ColorAnalysisView: View {
 
     private var histogramInputHash: Int {
         var hasher = Hasher()
-        hasher.combine(viewModel.colorSamples.count)
+        hasher.combine(viewModel.professionalColorAnalysis.count)
         hasher.combine(viewModel.visibleTimeRange?.lowerBound)
         hasher.combine(viewModel.visibleTimeRange?.upperBound)
         return hasher.finalize()
@@ -151,7 +151,7 @@ struct ColorAnalysisView: View {
             .onAppear {
                 recomputeAggregatedHistogram()
             }
-            .onChange(of: viewModel.colorSamples.count) { _, _ in
+            .onChange(of: viewModel.professionalColorAnalysis.count) { _, _ in
                 let hash = histogramInputHash
                 if hash != lastHistogramInputHash {
                     recomputeAggregatedHistogram()

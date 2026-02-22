@@ -10,7 +10,6 @@ extension FramePeekViewModel {
         colorAnalysisTask?.cancel()
 
         isAnalyzingColor = true
-        colorSamples = []
         professionalColorAnalysis = []
         colorAnalysisProgress = 0
 
@@ -58,9 +57,6 @@ extension FramePeekViewModel {
                     if !Task.isCancelled {
                         self.professionalColorAnalysis = update.samples
                         self.colorAnalysisProgress = update.progress
-                        
-                        // Also update legacy colorSamples for backward compatibility
-                        self.colorSamples = convertToLegacyColorSamples(update.samples)
                         
                         if update.isFinished {
                             self.isAnalyzingColor = false

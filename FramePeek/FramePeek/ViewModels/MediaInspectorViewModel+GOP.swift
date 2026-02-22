@@ -132,67 +132,63 @@ extension FramePeekViewModel {
     func preloadFrameDetailsForVisibleGOPs(indices: [Int]) {
         // Cancel any existing preload task
         frameDetailPreloadTask?.cancel()
-        
+
         guard codecSupportsFrameTypes,
               let analysis = gopAnalysis,
               let url = currentVideoURL else {
             return
         }
-        
+
+        // Capture all needed MainActor state ONCE to avoid bouncing
+        let cachedIds = Set(gopFrameDetailsCache.keys)
+        let currentPreloading = preloadingGOPIndices
+
         // Filter to indices that aren't cached yet and aren't already preloading
         let indicesToPreload = indices.filter { index in
             guard index < analysis.segments.count else { return false }
             let segment = analysis.segments[index]
-            return getCachedGOPFrameDetails(for: segment.id) == nil &&
-                   !preloadingGOPIndices.contains(index) &&
+            return !cachedIds.contains(segment.id) &&
+                   !currentPreloading.contains(index) &&
                    (segment.frames == nil || segment.frames!.isEmpty)
         }
-        
+
         // Limit batch size
         let batchIndices = Array(indicesToPreload.prefix(5))
         guard !batchIndices.isEmpty else { return }
-        
+
         preloadingGOPIndices.formUnion(batchIndices)
-        
+
+        // Capture segments info needed for background work
+        let segmentInfos: [(index: Int, id: UUID, timeRange: ClosedRange<Double>)] = batchIndices.compactMap { index in
+            guard index < analysis.segments.count else { return nil }
+            let segment = analysis.segments[index]
+            return (index, segment.id, segment.startTime...segment.endTime)
+        }
+
         frameDetailPreloadTask = Task.detached(priority: .utility) { [weak self] in
             let asset = AVURLAsset(url: url)
-            
-            for index in batchIndices {
+
+            for info in segmentInfos {
                 if Task.isCancelled { break }
-                
-                guard let strongSelf = await MainActor.run(body: { self }),
-                      let analysis = await strongSelf.gopAnalysis,
-                      index < analysis.segments.count else {
-                    continue
-                }
-                
-                let segment = analysis.segments[index]
-                
-                // Skip if already cached
-                if await strongSelf.getCachedGOPFrameDetails(for: segment.id) != nil {
-                    await MainActor.run {
-                        _ = strongSelf.preloadingGOPIndices.remove(index)
-                    }
-                    continue
-                }
-                
-                let timeRange = segment.startTime...segment.endTime
-                let result = await FrameDetailExtractor.extractFrameDetails(from: asset, timeRange: timeRange)
-                
+
+                let result = await FrameDetailExtractor.extractFrameDetails(from: asset, timeRange: info.timeRange)
+
                 if Task.isCancelled { break }
-                
+
+                // Single MainActor bounce per segment for the final UI update
                 await MainActor.run {
-                    strongSelf.preloadingGOPIndices.remove(index)
-                    
+                    guard let self else { return }
+                    self.preloadingGOPIndices.remove(info.index)
+
                     if let result, result.codecSupportsFrameTypes {
-                        strongSelf.cacheGOPFrameDetails(result.frames, for: segment.id)
-                        
+                        self.cacheGOPFrameDetails(result.frames, for: info.id)
+
                         // If this is the currently selected GOP, update selectedGOPFrameDetails
-                        if strongSelf.selectedGOPIndex == index {
-                            strongSelf.selectedGOPFrameDetails = result.frames
+                        if self.selectedGOPIndex == info.index {
+                            self.selectedGOPFrameDetails = result.frames
                         }
                     } else if result != nil {
-                        strongSelf.codecSupportsFrameTypes = false
+                        self.codecSupportsFrameTypes = false
                     }
                 }
             }
