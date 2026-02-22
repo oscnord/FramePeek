@@ -74,7 +74,7 @@ extension FramePeekViewModel {
     func pickFile() {
         openFileDialog { [weak self] path in
             guard let self, let path else { return }
-            // Ensure we're on MainActor for @Published property updates
+            // Ensure we're on MainActor for @Observable property updates
             Task { @MainActor in
                 let url = URL(fileURLWithPath: path)
                 FileHistoryManager.shared.addFile(url)

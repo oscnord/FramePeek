@@ -4,8 +4,8 @@ import AVFoundation
 import FramePeekCore
 
 struct ColorAnalysisView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
-    @ObservedObject private var playerManager = PlayerViewModelManager.shared
+    var viewModel: FramePeekViewModel
+    var playerManager = PlayerViewModelManager.shared
 
     @AppStorage("waveformScale") private var waveformScaleRaw: String = WaveformScale.percentage.rawValue
     @AppStorage("vectorscopeShowReferenceBoxes") private var showReferenceBoxes: Bool = true

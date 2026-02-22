@@ -9,7 +9,7 @@ extension Notification.Name {
 }
 
 struct OpenRecentCommands: Commands {
-    @ObservedObject private var fileHistory = FileHistoryManager.shared
+    private var fileHistory: FileHistoryManager { FileHistoryManager.shared }
 
     var body: some Commands {
         CommandGroup(after: .newItem) {
@@ -31,7 +31,7 @@ struct OpenRecentCommands: Commands {
 
 @main
 struct FramePeekApp: App {
-    @StateObject private var appViewModel = FramePeekViewModel()
+    @State private var appViewModel = FramePeekViewModel()
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
 
     init() {
@@ -42,7 +42,7 @@ struct FramePeekApp: App {
     var body: some Scene {
         WindowGroup {
             FramePeek()
-                .environmentObject(appViewModel)
+                .environment(appViewModel)
                 .preferredColorScheme(appearanceMode.colorScheme)
                 .animation(.easeInOut(duration: 0.3), value: appearanceMode)
                 .frame(minWidth: 900, minHeight: 600)

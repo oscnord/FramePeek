@@ -4,10 +4,10 @@ import AppKit
 import FramePeekCore
 
 struct FramePeek: View {
-    @EnvironmentObject var appViewModel: FramePeekViewModel
+    @Environment(FramePeekViewModel.self) var appViewModel
     @Environment(\.openWindow) private var openWindow
-    @StateObject private var tabManager = TabManager()
-    @StateObject private var fileHistory = FileHistoryManager.shared
+    @State private var tabManager = TabManager()
+    @State private var fileHistory = FileHistoryManager.shared
 
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
@@ -26,6 +26,7 @@ struct FramePeek: View {
     }
 
     var body: some View {
+        @Bindable var appViewModel = appViewModel
         contentWithObservers
             .sheet(isPresented: $showTabChoiceDialog) {
                 tabChoiceSheet
@@ -619,13 +620,13 @@ struct FramePeek: View {
 // Helper view to observe extendedInfo changes for each tab
 private struct TabNameObserver: View {
     let tab: TabItem
-    @ObservedObject var tabManager: TabManager
-    @ObservedObject private var viewModel: FramePeekViewModel
+    var tabManager: TabManager
+    var viewModel: FramePeekViewModel
 
     init(tab: TabItem, tabManager: TabManager) {
         self.tab = tab
         self.tabManager = tabManager
-        self._viewModel = ObservedObject(wrappedValue: tab.viewModel)
+        self.viewModel = tab.viewModel
     }
 
     var body: some View {
@@ -676,5 +677,5 @@ private struct WindowConfigurator: NSViewRepresentable {
 
 #Preview {
     FramePeek()
-        .environmentObject(FramePeekViewModel())
+        .environment(FramePeekViewModel())
 }

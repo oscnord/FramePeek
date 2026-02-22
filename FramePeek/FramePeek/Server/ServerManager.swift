@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Observation
 import Hummingbird
 import FramePeekCore
 
@@ -52,14 +53,15 @@ public struct ServerConfiguration: Codable, Sendable {
 
 /// Manages the embedded HTTP server lifecycle
 @MainActor
-public final class ServerManager: ObservableObject {
-    
-    // MARK: - Published Properties
-    
-    @Published public private(set) var isRunning: Bool = false
-    @Published public private(set) var startedAt: Date?
-    @Published public private(set) var lastError: String?
-    @Published public var configuration: ServerConfiguration
+@Observable
+public final class ServerManager {
+
+    // MARK: - Properties
+
+    public private(set) var isRunning: Bool = false
+    public private(set) var startedAt: Date?
+    public private(set) var lastError: String?
+    public var configuration: ServerConfiguration
     
     // MARK: - Public Properties
     
@@ -94,7 +96,7 @@ public final class ServerManager: ObservableObject {
     
     // MARK: - Private Properties
     
-    private var serverTask: Task<Void, Error>?
+    @ObservationIgnored private var serverTask: Task<Void, Error>?
     
     // MARK: - Singleton
     

@@ -6,7 +6,7 @@ import QuartzCore
 import FramePeekCore
 
 struct VideoPlayerView: View {
-    @ObservedObject private var manager = PlayerViewModelManager.shared
+    var manager = PlayerViewModelManager.shared
 
     private var viewModel: FramePeekViewModel? {
         manager.activeViewModel

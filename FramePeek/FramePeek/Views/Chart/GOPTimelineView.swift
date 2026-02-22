@@ -6,7 +6,7 @@ struct GOPTimelineView: View {
     let domainSeconds: Double
     let visibleTimeRange: ClosedRange<Double>?
     let showFrameTypes: Bool
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     let onGOPClick: (Int) -> Void
 
     @State private var isDragging = false

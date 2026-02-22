@@ -6,17 +6,19 @@
 //
 
 import Foundation
+import Observation
 import FramePeekCore
 
 /// Actor managing the analysis job queue
 @MainActor
-public final class JobQueue: ObservableObject {
-    
-    // MARK: - Published Properties
-    
-    @Published public private(set) var activeJobs: [AnalysisJob] = []
-    @Published public private(set) var completedJobs: [CompletedJob] = []
-    @Published public private(set) var isProcessing: Bool = false
+@Observable
+public final class JobQueue {
+
+    // MARK: - Properties
+
+    public private(set) var activeJobs: [AnalysisJob] = []
+    public private(set) var completedJobs: [CompletedJob] = []
+    public private(set) var isProcessing: Bool = false
     
     // MARK: - Configuration
     
@@ -28,8 +30,8 @@ public final class JobQueue: ObservableObject {
     
     // MARK: - Private Properties
     
-    private var processingTasks: [String: Task<Void, Never>] = [:]
-    private let historyStore: JobHistoryStore
+    @ObservationIgnored private var processingTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored private let historyStore: JobHistoryStore
     
     // MARK: - Initialization
     

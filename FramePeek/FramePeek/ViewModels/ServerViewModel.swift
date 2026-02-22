@@ -7,101 +7,73 @@
 
 import Foundation
 import SwiftUI
-import Combine
 import FramePeekCore
 
 /// ViewModel for the Server tab UI
 @MainActor
-public final class ServerViewModel: ObservableObject {
-    
-    // MARK: - Published Properties
-    
+@Observable
+public final class ServerViewModel {
+
+    // MARK: - Properties
+
     /// Reference to the server manager
     public let serverManager: ServerManager
-    
+
     /// Whether the settings sheet is shown
-    @Published public var showSettings: Bool = false
-    
+    public var showSettings: Bool = false
+
     /// Whether the JSON result sheet is shown
-    @Published public var showResultSheet: Bool = false
-    
+    public var showResultSheet: Bool = false
+
     /// Selected job for viewing results
-    @Published public var selectedJobId: String?
-    
+    public var selectedJobId: String?
+
     /// Error alert message
-    @Published public var errorMessage: String?
-    @Published public var showError: Bool = false
-    
-    // MARK: - Private
-    
-    private var cancellables = Set<AnyCancellable>()
-    
-    // MARK: - Computed Properties
-    
+    public var errorMessage: String?
+    public var showError: Bool = false
+
+    // MARK: - Computed Properties (pass-through via @Observable)
+
     public var isRunning: Bool {
         serverManager.isRunning
     }
-    
+
     public var serverURL: String {
         serverManager.serverURL
     }
-    
+
     public var uptime: String {
         serverManager.uptimeFormatted
     }
-    
+
     public var configuration: ServerConfiguration {
         serverManager.configuration
     }
-    
+
     public var activeJobs: [AnalysisJob] {
         serverManager.jobQueue.activeJobs
     }
-    
+
     public var completedJobs: [CompletedJob] {
         serverManager.jobQueue.completedJobs
     }
-    
+
     public var activeJobCount: Int {
         serverManager.jobQueue.activeJobs.count
     }
-    
+
     public var apiKey: String {
         serverManager.configuration.apiKey
     }
-    
+
     public var requestLog: [RequestLogEntry] {
         serverManager.requestLogger.entries
     }
-    
+
     // MARK: - Initialization
-    
+
     public init() {
         self.serverManager = ServerManager.shared
-        
-        // Forward objectWillChange from ServerManager to this ViewModel
-        serverManager.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-        
-        // Forward objectWillChange from JobQueue to this ViewModel
-        serverManager.jobQueue.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-        
-        // Forward objectWillChange from RequestLogger to this ViewModel
-        serverManager.requestLogger.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
     }
     
     // MARK: - Request Log

@@ -6,7 +6,7 @@ struct AudioWaveformView: View {
     let trackInfo: AudioTrackInfo
     let samples: [WaveformSample]
     let duration: Double
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
 
     // MARK: - Cached Display Samples
 

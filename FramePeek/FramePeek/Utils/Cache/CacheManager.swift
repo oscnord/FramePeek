@@ -1,6 +1,6 @@
 import Foundation
 import CryptoKit
-import Combine
+import Observation
 
 // MARK: - Cache Configuration
 
@@ -55,11 +55,12 @@ public struct CachedFrameInfo: Codable {
 // MARK: - Cache Manager
 
 @MainActor
-public final class CacheManager: ObservableObject {
+@Observable
+public final class CacheManager {
     public static let shared = CacheManager()
 
-    @Published public private(set) var currentCacheSize: Int64 = 0
-    @Published public private(set) var isCalculatingSize: Bool = false
+    public private(set) var currentCacheSize: Int64 = 0
+    public private(set) var isCalculatingSize: Bool = false
 
     private let fileManager = FileManager.default
     private let encoder = PropertyListEncoder()

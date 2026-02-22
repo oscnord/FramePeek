@@ -4,14 +4,15 @@ import FramePeekCore
 
 /// Shared manager to track the active ViewModel for the video player window
 @MainActor
-final class PlayerViewModelManager: ObservableObject {
+@Observable
+final class PlayerViewModelManager {
     static let shared = PlayerViewModelManager()
 
-    @Published var activeViewModel: FramePeekViewModel?
-    @Published var seekTime: Double?
-    @Published var currentPlaybackTime: Double?
+    var activeViewModel: FramePeekViewModel?
+    var seekTime: Double?
+    var currentPlaybackTime: Double?
 
-    private var seekClearTask: Task<Void, Never>?
+    @ObservationIgnored private var seekClearTask: Task<Void, Never>?
 
     private init() {}
 

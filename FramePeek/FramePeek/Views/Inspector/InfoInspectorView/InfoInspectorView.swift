@@ -5,7 +5,7 @@ import AppKit
 #endif
 
 struct InfoInspectorView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
 
     @State var copiedBannerText: String?
 

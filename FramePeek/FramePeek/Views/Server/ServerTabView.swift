@@ -10,15 +10,16 @@ import FramePeekCore
 
 /// Main view for the Server tab
 struct ServerTabView: View {
-    @StateObject private var viewModel = ServerViewModel()
+    @State private var viewModel = ServerViewModel()
     @State private var selectedTab: ServerSubTab = .server
-    
+
     enum ServerSubTab: String, CaseIterable {
         case server = "Server"
         case apiDocs = "API Docs"
     }
-    
+
     var body: some View {
+        @Bindable var viewModel = viewModel
         VStack(spacing: 0) {
             // Tab picker
             Picker("", selection: $selectedTab) {
@@ -30,28 +31,28 @@ struct ServerTabView: View {
             .padding(.horizontal)
             .padding(.top, DesignSystem.Padding.lg)
             .padding(.bottom, DesignSystem.Padding.md)
-            
+
             // Tab content
             switch selectedTab {
             case .server:
-                ServerContentView(viewModel: viewModel)
+                ServerContentView(viewModel: self.viewModel)
             case .apiDocs:
-                APIDocumentationView(viewModel: viewModel)
+                APIDocumentationView(viewModel: self.viewModel)
             }
         }
         .frame(minWidth: 600, minHeight: 400)
         .sheet(isPresented: $viewModel.showSettings) {
-            ServerSettingsSheet(viewModel: viewModel)
+            ServerSettingsSheet(viewModel: self.viewModel)
         }
         .sheet(isPresented: $viewModel.showResultSheet) {
-            if let jobId = viewModel.selectedJobId {
-                JobResultSheet(viewModel: viewModel, jobId: jobId)
+            if let jobId = self.viewModel.selectedJobId {
+                JobResultSheet(viewModel: self.viewModel, jobId: jobId)
             }
         }
         .alert("Error", isPresented: $viewModel.showError) {
-            Button("OK") { viewModel.showError = false }
+            Button("OK") { self.viewModel.showError = false }
         } message: {
-            Text(viewModel.errorMessage ?? "An error occurred")
+            Text(self.viewModel.errorMessage ?? "An error occurred")
         }
     }
 }
@@ -59,7 +60,7 @@ struct ServerTabView: View {
 // MARK: - Server Content View
 
 struct ServerContentView: View {
-    @ObservedObject var viewModel: ServerViewModel
+    var viewModel: ServerViewModel
     
     var body: some View {
         ScrollView {
@@ -84,7 +85,7 @@ struct ServerContentView: View {
 // MARK: - Server Status Section
 
 struct ServerStatusSection: View {
-    @ObservedObject var viewModel: ServerViewModel
+    var viewModel: ServerViewModel
     
     // Timer to update uptime display
     @State private var uptimeRefreshTrigger = false
@@ -210,7 +211,7 @@ struct ServerStatusSection: View {
 // MARK: - Request Log Section
 
 struct RequestLogSection: View {
-    @ObservedObject var viewModel: ServerViewModel
+    var viewModel: ServerViewModel
     
     var body: some View {
         GroupBox {
@@ -389,7 +390,7 @@ struct RequestLogRow: View {
 // MARK: - Active Jobs Section
 
 struct ActiveJobsSection: View {
-    @ObservedObject var viewModel: ServerViewModel
+    var viewModel: ServerViewModel
     
     var body: some View {
         GroupBox {
@@ -542,7 +543,7 @@ struct PhaseIndicator: View {
 // MARK: - Job History Section
 
 struct JobHistorySection: View {
-    @ObservedObject var viewModel: ServerViewModel
+    var viewModel: ServerViewModel
     
     var body: some View {
         GroupBox {
@@ -593,7 +594,7 @@ struct JobHistorySection: View {
 
 struct JobHistoryRow: View {
     let job: CompletedJob
-    @ObservedObject var viewModel: ServerViewModel
+    var viewModel: ServerViewModel
     
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.lg) {
@@ -670,7 +671,7 @@ struct JobHistoryRow: View {
 // MARK: - API Documentation View
 
 struct APIDocumentationView: View {
-    @ObservedObject var viewModel: ServerViewModel
+    var viewModel: ServerViewModel
     @State private var copiedEndpoint: String?
     
     var body: some View {
@@ -946,7 +947,7 @@ struct OptionBadge: View {
 // MARK: - Server Settings Sheet
 
 struct ServerSettingsSheet: View {
-    @ObservedObject var viewModel: ServerViewModel
+    var viewModel: ServerViewModel
     @Environment(\.dismiss) private var dismiss
     
     @State private var port: Int
@@ -1040,7 +1041,7 @@ struct ServerSettingsSheet: View {
 // MARK: - Job Result Sheet
 
 struct JobResultSheet: View {
-    @ObservedObject var viewModel: ServerViewModel
+    var viewModel: ServerViewModel
     let jobId: String
     @Environment(\.dismiss) private var dismiss
     

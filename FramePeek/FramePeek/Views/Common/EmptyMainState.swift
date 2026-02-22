@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct EmptyMainState: View {
-    @StateObject private var fileHistory = FileHistoryManager.shared
+    @State private var fileHistory = FileHistoryManager.shared
     let onFileSelected: (URL) -> Void
     let onOpenFile: () -> Void
     var isDropTargeted: Bool = false

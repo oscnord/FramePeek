@@ -2,7 +2,7 @@ import SwiftUI
 import FramePeekCore
 
 struct GOPStructureView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     @State private var showGOPInfoPopover = false
     @State private var selectedRangeStart: Double = 0
     @State private var selectedRangeEnd: Double = 60

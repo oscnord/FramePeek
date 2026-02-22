@@ -11,9 +11,9 @@ enum SidebarSelection: Hashable {
 // MARK: - Sidebar Tab Bar View
 
 struct SidebarTabBarView: View {
-    @ObservedObject var tabManager: TabManager
+    var tabManager: TabManager
     @Binding var showServerTab: Bool
-    @StateObject private var serverManager = ServerManager.shared
+    @State private var serverManager = ServerManager.shared
 
     private var sidebarSelection: Binding<SidebarSelection?> {
         Binding<SidebarSelection?>(
@@ -146,13 +146,13 @@ struct SidebarTabRow: View {
     let tabManager: TabManager
     let onClose: () -> Void
 
-    @ObservedObject private var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
 
     init(tab: TabItem, tabManager: TabManager, onClose: @escaping () -> Void) {
         self.tab = tab
         self.tabManager = tabManager
         self.onClose = onClose
-        self._viewModel = ObservedObject(wrappedValue: tab.viewModel)
+        self.viewModel = tab.viewModel
     }
 
     var body: some View {

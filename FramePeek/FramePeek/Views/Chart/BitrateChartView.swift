@@ -3,8 +3,8 @@ import Charts
 import FramePeekCore
 
 struct BitrateChartView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
-    @ObservedObject private var playerManager = PlayerViewModelManager.shared
+    var viewModel: FramePeekViewModel
+    var playerManager = PlayerViewModelManager.shared
 
     // MARK: - Cached Display Samples
 
@@ -160,7 +160,9 @@ struct BitrateChartView: View {
 
     // MARK: - Chart Card
 
+    @ViewBuilder
     private var chartCard: some View {
+        @Bindable var viewModel = viewModel
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
                 .fill(DesignSystem.Materials.thin)

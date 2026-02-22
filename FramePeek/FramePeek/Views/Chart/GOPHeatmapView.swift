@@ -75,7 +75,7 @@ struct GOPHeatmapView: View {
     let segments: [GOPSegment]
     let domainSeconds: Double
     let visibleTimeRange: ClosedRange<Double>?
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     let onGOPSelect: (Int) -> Void
 
     @State private var hoveredGOP: DisplayGOP?

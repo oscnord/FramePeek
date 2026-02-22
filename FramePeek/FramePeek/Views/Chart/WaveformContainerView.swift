@@ -3,7 +3,7 @@ import AVFoundation
 import FramePeekCore
 
 struct WaveformContainerView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
 
     private var audioTracks: [AudioTrackInfo] {
         viewModel.extendedInfo?.audioTracks ?? []
@@ -14,6 +14,7 @@ struct WaveformContainerView: View {
     }
 
     var body: some View {
+        @Bindable var viewModel = viewModel
         Group {
             if hasTracks {
                 VStack(spacing: DesignSystem.Spacing.sm) {

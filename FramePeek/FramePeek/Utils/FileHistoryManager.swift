@@ -1,14 +1,16 @@
 import Foundation
+import Observation
 
 /// Manages the history of recently opened files
 @MainActor
-class FileHistoryManager: ObservableObject {
+@Observable
+class FileHistoryManager {
     static let shared = FileHistoryManager()
 
     private let maxHistoryCount = 10
     private let userDefaultsKey = "recentFileURLs"
 
-    @Published private(set) var recentFiles: [URL] = []
+    private(set) var recentFiles: [URL] = []
 
     private init() {
         loadHistory()

@@ -3,7 +3,7 @@ import Charts
 import FramePeekCore
 
 struct SyncAnalysisView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     @State private var showFrameIntervalInfoPopover = false
 
     // MARK: - Cached Display Samples
