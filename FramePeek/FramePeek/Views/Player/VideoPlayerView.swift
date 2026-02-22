@@ -988,36 +988,26 @@ struct VideoPlayerView: View {
 
     /// Gets the amplitude at the current time from waveform samples
     private func getAmplitudeAtTime(_ time: Double, samples: [WaveformSample]) -> Double? {
-        guard !samples.isEmpty else { return nil }
-
-        let sortedSamples = samples.sorted { $0.time < $1.time }
-
-        // Find closest sample
-        var closestSample = sortedSamples.first!
-        var minDistance = abs(closestSample.time - time)
-
-        for sample in sortedSamples {
-            let distance = abs(sample.time - time)
-            if distance < minDistance {
-                minDistance = distance
-                closestSample = sample
-            }
+        guard let idx = binarySearchClosest(in: samples, targetTime: time, timeKeyPath: \.time) else {
+            return nil
         }
-
-        return closestSample.amplitude
+        return samples[idx].amplitude
     }
 
     /// Gets the current GOP index and total GOPs
     private func getGOPAtTime(_ time: Double, analysis: GOPAnalysisResult) -> (index: Int, total: Int)? {
         guard !analysis.segments.isEmpty else { return nil }
 
-        for (index, segment) in analysis.segments.enumerated() {
+        let idx = lowerBound(in: analysis.segments, targetTime: time, timeKeyPath: \.startTime)
+        let checkIndex = idx > 0 ? idx - 1 : 0
+
+        for i in checkIndex...min(idx, analysis.segments.count - 1) {
+            let segment = analysis.segments[i]
             if time >= segment.startTime && time < segment.endTime {
-                return (index, analysis.segments.count)
+                return (i, analysis.segments.count)
             }
         }
 
-        // If past all segments, return last one
         if time >= (analysis.segments.last?.endTime ?? 0) {
             return (analysis.segments.count - 1, analysis.segments.count)
         }
@@ -1029,59 +1019,66 @@ struct VideoPlayerView: View {
     private func getFrameTypeAtTime(_ time: Double, analysis: GOPAnalysisResult) -> FrameType? {
         guard !analysis.segments.isEmpty else { return nil }
 
-        // Find the GOP containing this time
-        for segment in analysis.segments {
-            if time >= segment.startTime && time < segment.endTime {
-                // Find frame within this GOP
-                if let frames = segment.frames, !frames.isEmpty {
-                    for (index, frame) in frames.enumerated() {
-                        let nextFrameTime = index + 1 < frames.count ? frames[index + 1].time : segment.endTime
-                        if time >= frame.time && time < nextFrameTime {
-                            return frame.type
+        // Binary search for the GOP containing this time
+        let idx = lowerBound(in: analysis.segments, targetTime: time, timeKeyPath: \.startTime)
+        let checkIndex = idx > 0 ? idx - 1 : 0
+
+        var segment: GOPSegment?
+        for i in checkIndex...min(idx, analysis.segments.count - 1) {
+            let s = analysis.segments[i]
+            if time >= s.startTime && time < s.endTime {
+                segment = s
+                break
+            }
+        }
+
+        if let segment = segment {
+            if let frames = segment.frames, !frames.isEmpty {
+                if let frameIdx = binarySearchClosest(in: frames, targetTime: time, timeKeyPath: \.time) {
+                    let frame = frames[frameIdx]
+                    let nextFrameTime = frameIdx + 1 < frames.count ? frames[frameIdx + 1].time : segment.endTime
+                    if time >= frame.time && time < nextFrameTime {
+                        return frame.type
+                    }
+                    if frameIdx + 1 < frames.count {
+                        let nextFrame = frames[frameIdx + 1]
+                        let afterTime = frameIdx + 2 < frames.count ? frames[frameIdx + 2].time : segment.endTime
+                        if time >= nextFrame.time && time < afterTime {
+                            return nextFrame.type
                         }
                     }
                 }
-                
-                // No frame data for this segment - try to extrapolate from representative GOP
-                if let repGOP = analysis.representativeGOP,
-                   let repFrames = repGOP.frames,
-                   !repFrames.isEmpty,
-                   analysis.structureType.isFixed {
-                    // Calculate position within GOP
-                    let gopDuration = segment.endTime - segment.startTime
-                    let positionInGOP = time - segment.startTime
-                    let normalizedPosition = gopDuration > 0 ? positionInGOP / gopDuration : 0
-                    
-                    // Map to frame index in representative pattern
-                    let frameIndex = Int(normalizedPosition * Double(repFrames.count))
-                    let clampedIndex = min(max(0, frameIndex), repFrames.count - 1)
-                    return repFrames[clampedIndex].type
-                }
-                
-                // Fallback: first frame is always I-frame
-                if time < segment.startTime + 0.04 { // ~1 frame at 24fps
-                    return .i
-                }
-                return nil
             }
+
+            if let repGOP = analysis.representativeGOP,
+               let repFrames = repGOP.frames,
+               !repFrames.isEmpty,
+               analysis.structureType.isFixed {
+                let gopDuration = segment.endTime - segment.startTime
+                let positionInGOP = time - segment.startTime
+                let normalizedPosition = gopDuration > 0 ? positionInGOP / gopDuration : 0
+                let frameIndex = Int(normalizedPosition * Double(repFrames.count))
+                let clampedIndex = min(max(0, frameIndex), repFrames.count - 1)
+                return repFrames[clampedIndex].type
+            }
+
+            if time < segment.startTime + 0.04 {
+                return .i
+            }
+            return nil
         }
-        
-        // Time is beyond analyzed segments - try to extrapolate if we have a fixed pattern
+
+        // Time beyond analyzed segments — extrapolate
         if analysis.structureType.isFixed,
            let repGOP = analysis.representativeGOP,
            let repFrames = repGOP.frames,
            !repFrames.isEmpty,
            let lastSegment = analysis.segments.last {
-            // Estimate GOP duration from representative
             let gopDuration = repGOP.endTime - repGOP.startTime
             guard gopDuration > 0 else { return nil }
-            
-            // Calculate which GOP this time would be in
             let timeFromLastGOP = time - lastSegment.endTime
             let positionInGOP = timeFromLastGOP.truncatingRemainder(dividingBy: gopDuration)
             let normalizedPosition = positionInGOP / gopDuration
-            
-            // Map to frame index in representative pattern
             let frameIndex = Int(normalizedPosition * Double(repFrames.count))
             let clampedIndex = min(max(0, frameIndex), repFrames.count - 1)
             return repFrames[clampedIndex].type
@@ -1094,17 +1091,16 @@ struct VideoPlayerView: View {
     private func getKeyframeDistances(_ time: Double, keyframes: [KeyframeThumbnail]) -> (prev: Double?, next: Double?)? {
         guard !keyframes.isEmpty else { return nil }
 
-        let sortedKeyframes = keyframes.sorted { $0.time < $1.time }
-        var prevDistance: Double?
-        var nextDistance: Double?
+        let idx = lowerBound(in: keyframes, targetTime: time, timeKeyPath: \.time)
 
-        for keyframe in sortedKeyframes {
-            if keyframe.time <= time {
-                prevDistance = time - keyframe.time
-            } else {
-                nextDistance = keyframe.time - time
-                break
-            }
+        let prevDistance: Double? = idx > 0 ? time - keyframes[idx - 1].time : nil
+        let nextDistance: Double? = idx < keyframes.count ? keyframes[idx].time - time : nil
+
+        // Edge case: if idx points to exact match or element before time
+        if idx < keyframes.count && keyframes[idx].time <= time {
+            let adjustedPrev = time - keyframes[idx].time
+            let adjustedNext: Double? = idx + 1 < keyframes.count ? keyframes[idx + 1].time - time : nil
+            return (adjustedPrev, adjustedNext)
         }
 
         return (prevDistance, nextDistance)
@@ -1114,54 +1110,55 @@ struct VideoPlayerView: View {
     private func getBitrateAtTime(_ time: Double, samples: [BitrateSample]) -> Double? {
         guard !samples.isEmpty else { return nil }
 
-        // Find the sample that contains this time
-        // Samples have a time (end of window) and duration (window size)
-        for sample in samples {
+        if let idx = binarySearchClosest(in: samples, targetTime: time, timeKeyPath: \.time) {
+            let sample = samples[idx]
             let windowStart = sample.time - sample.duration
             let windowEnd = sample.time
-
             if time >= windowStart && time <= windowEnd {
                 return sample.bitrate
             }
         }
 
-        // Use generic interpolation helper
-        return interpolateValue(
-            at: time,
+        guard let (s1, s2, t) = binarySearchInterpolationPair(
             in: samples,
-            timeKeyPath: \.time,
-            valueKeyPath: \.bitrate
-        )
+            targetTime: time,
+            timeKeyPath: \.time
+        ) else {
+            if let idx = binarySearchClosest(in: samples, targetTime: time, timeKeyPath: \.time) {
+                return samples[idx].bitrate
+            }
+            return nil
+        }
+
+        return s1.bitrate + (s2.bitrate - s1.bitrate) * t
     }
 
     /// Finds the color sample at a given time by finding the nearest sample or interpolating
     private func getColorSampleAtTime(_ time: Double, samples: [ColorSample]) -> ColorSample? {
         guard !samples.isEmpty else { return nil }
 
-        let sortedSamples = samples.sorted { $0.time < $1.time }
-
-        // Before first sample
-        if time <= sortedSamples.first?.time ?? 0 {
-            return sortedSamples.first
-        }
-
-        // After last sample
-        if time >= sortedSamples.last?.time ?? 0 {
-            return sortedSamples.last
-        }
-
-        // Find two samples to interpolate between
-        guard let (sample1, sample2, t) = findInterpolationPair(at: time, in: sortedSamples, timeKeyPath: \.time) else {
+        guard let idx = binarySearchClosest(in: samples, targetTime: time, timeKeyPath: \.time) else {
             return nil
         }
 
-        // Interpolate brightness
-        let interpolatedBrightness = linearInterpolate(sample1.brightness, sample2.brightness, t: t)
+        let closest = samples[idx]
+        if abs(closest.time - time) < 0.5 {
+            return closest
+        }
 
-        // Interpolate color temperature if both samples have it
+        guard let (sample1, sample2, t) = binarySearchInterpolationPair(
+            in: samples,
+            targetTime: time,
+            timeKeyPath: \.time
+        ) else {
+            return closest
+        }
+
+        let interpolatedBrightness = sample1.brightness + (sample2.brightness - sample1.brightness) * t
+
         let interpolatedTemperature: Double?
         if let temp1 = sample1.colorTemperature, let temp2 = sample2.colorTemperature {
-            interpolatedTemperature = linearInterpolate(temp1, temp2, t: t)
+            interpolatedTemperature = temp1 + (temp2 - temp1) * t
         } else {
             interpolatedTemperature = sample1.colorTemperature ?? sample2.colorTemperature
         }
@@ -1173,60 +1170,6 @@ struct VideoPlayerView: View {
             histogram: nil
         )
     }
-}
-
-// MARK: - Interpolation Helpers
-
-/// Performs linear interpolation between two values
-private func linearInterpolate(_ v1: Double, _ v2: Double, t: Double) -> Double {
-    v1 + (v2 - v1) * t
-}
-
-/// Finds two adjacent samples for interpolation and returns them with the interpolation factor
-private func findInterpolationPair<T>(
-    at time: Double,
-    in sortedSamples: [T],
-    timeKeyPath: KeyPath<T, Double>
-) -> (T, T, Double)? {
-    for i in 0..<sortedSamples.count - 1 {
-        let sample1 = sortedSamples[i]
-        let sample2 = sortedSamples[i + 1]
-        let time1 = sample1[keyPath: timeKeyPath]
-        let time2 = sample2[keyPath: timeKeyPath]
-
-        if time >= time1 && time <= time2 {
-            let t = (time - time1) / (time2 - time1)
-            return (sample1, sample2, t)
-        }
-    }
-    return nil
-}
-
-/// Generic interpolation for samples with time and a numeric value
-private func interpolateValue<T>(
-    at time: Double,
-    in samples: [T],
-    timeKeyPath: KeyPath<T, Double>,
-    valueKeyPath: KeyPath<T, Double>
-) -> Double? {
-    let sortedSamples = samples.sorted { $0[keyPath: timeKeyPath] < $1[keyPath: timeKeyPath] }
-
-    // Before first sample
-    if time < sortedSamples.first?[keyPath: timeKeyPath] ?? 0 {
-        return sortedSamples.first?[keyPath: valueKeyPath]
-    }
-
-    // After last sample
-    if time > sortedSamples.last?[keyPath: timeKeyPath] ?? 0 {
-        return sortedSamples.last?[keyPath: valueKeyPath]
-    }
-
-    // Find pair and interpolate
-    guard let (sample1, sample2, t) = findInterpolationPair(at: time, in: sortedSamples, timeKeyPath: timeKeyPath) else {
-        return nil
-    }
-
-    return linearInterpolate(sample1[keyPath: valueKeyPath], sample2[keyPath: valueKeyPath], t: t)
 }
 
 // MARK: - AVPlayerView Wrapper (using Apple's default controls)
