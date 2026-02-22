@@ -235,7 +235,7 @@ struct FramePeek: View {
                                             set: { viewModel.visibleTimeRange = $0 }
                                         ),
                                         frameRate: viewModel.effectiveFPS,
-                                        currentPlaybackTime: viewModel.currentPlaybackTime,
+                                        currentPlaybackTime: PlayerViewModelManager.shared.currentPlaybackTime,
                                         isVisible: $isTimelineVisible
                                     )
                                     .frame(maxWidth: .infinity)

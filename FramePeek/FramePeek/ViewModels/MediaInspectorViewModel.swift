@@ -88,9 +88,6 @@ final class FramePeekViewModel: ObservableObject {
     @Published var containerAnalysis: ContainerAnalysisResult?
     @Published var isAnalyzingContainer: Bool = false
 
-    // Playback position
-    @Published var currentPlaybackTime: Double?
-
     // Always use second-based visualization mode
     var visualizationMode: BitrateVisualizationMode { .second }
 

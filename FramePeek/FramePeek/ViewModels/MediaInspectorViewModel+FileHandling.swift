@@ -225,7 +225,6 @@ extension FramePeekViewModel {
         isAnalyzingSync = false
         colorSamples = []
         isAnalyzingColor = false
-        currentPlaybackTime = nil
         containerAnalysis = nil
         isAnalyzingContainer = false
     }

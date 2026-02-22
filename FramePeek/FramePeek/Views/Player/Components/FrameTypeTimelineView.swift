@@ -69,24 +69,24 @@ struct FrameTypeTimelineView: View {
             return extrapolateFramesForWindow(windowStart: windowStart, windowEnd: windowEnd)
         }
 
-        // Otherwise, use analyzed segments only
+        guard !segments.isEmpty else { return [] }
+
+        // Binary search for first relevant segment
+        let startIdx = max(0, lowerBound(in: segments, targetTime: windowStart, timeKeyPath: \.startTime) - 1)
+        let endIdx = min(segments.count, lowerBound(in: segments, targetTime: windowEnd, timeKeyPath: \.startTime) + 1)
+
         var frames: [FrameInfo] = []
 
-        for segment in segments {
-            // Skip segments entirely outside window
+        for i in startIdx..<endIdx {
+            let segment = segments[i]
             if segment.endTime < windowStart || segment.startTime > windowEnd {
                 continue
             }
 
             if let segmentFrames = segment.frames, !segmentFrames.isEmpty {
-                // Add individual frames within window
-                for frame in segmentFrames {
-                    if frame.time >= windowStart && frame.time <= windowEnd {
-                        frames.append(frame)
-                    }
-                }
+                let frameRange = indicesInRange(in: segmentFrames, from: windowStart, to: windowEnd, timeKeyPath: \.time)
+                frames.append(contentsOf: segmentFrames[frameRange])
             } else {
-                // No frame data - synthesize frames based on frame count or representative GOP
                 let synthesizedFrames = synthesizeFrames(for: segment, windowStart: windowStart, windowEnd: windowEnd)
                 frames.append(contentsOf: synthesizedFrames)
             }

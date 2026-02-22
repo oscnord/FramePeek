@@ -5,7 +5,8 @@ import FramePeekCore
 
 struct ColorAnalysisView: View {
     @ObservedObject var viewModel: FramePeekViewModel
-    
+    @ObservedObject private var playerManager = PlayerViewModelManager.shared
+
     @AppStorage("waveformScale") private var waveformScaleRaw: String = WaveformScale.percentage.rawValue
     @AppStorage("vectorscopeShowReferenceBoxes") private var showReferenceBoxes: Bool = true
     @AppStorage("generateWaveformData") private var generateWaveformData: Bool = true
@@ -31,7 +32,7 @@ struct ColorAnalysisView: View {
     
     /// The time to use for scope display - playback time takes priority, falls back to visible range center
     private var currentScopeTime: Double? {
-        if let playbackTime = viewModel.currentPlaybackTime {
+        if let playbackTime = playerManager.currentPlaybackTime {
             return playbackTime
         }
         if let range = viewModel.visibleTimeRange {

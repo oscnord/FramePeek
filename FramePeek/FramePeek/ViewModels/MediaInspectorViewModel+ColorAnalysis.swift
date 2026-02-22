@@ -159,25 +159,31 @@ extension FramePeekViewModel {
     
     /// Gets waveform data at a specific time
     func waveformDataAtTime(_ time: Double) -> WaveformData? {
-        // Find the closest sample to the requested time
-        guard !professionalColorAnalysis.isEmpty else { return nil }
-        
-        let closest = professionalColorAnalysis.min { abs($0.time - time) < abs($1.time - time) }
-        return closest?.waveformData
+        guard let idx = binarySearchClosest(
+            in: professionalColorAnalysis,
+            targetTime: time,
+            timeKeyPath: \.time
+        ) else { return nil }
+        return professionalColorAnalysis[idx].waveformData
     }
     
     /// Gets vectorscope data at a specific time
     func vectorscopeDataAtTime(_ time: Double) -> VectorscopeData? {
-        guard !professionalColorAnalysis.isEmpty else { return nil }
-        
-        let closest = professionalColorAnalysis.min { abs($0.time - time) < abs($1.time - time) }
-        return closest?.vectorscopeData
+        guard let idx = binarySearchClosest(
+            in: professionalColorAnalysis,
+            targetTime: time,
+            timeKeyPath: \.time
+        ) else { return nil }
+        return professionalColorAnalysis[idx].vectorscopeData
     }
     
     /// Gets frame analysis at a specific time
     func frameAnalysisAtTime(_ time: Double) -> FrameColorAnalysis? {
-        guard !professionalColorAnalysis.isEmpty else { return nil }
-        
-        return professionalColorAnalysis.min { abs($0.time - time) < abs($1.time - time) }
+        guard let idx = binarySearchClosest(
+            in: professionalColorAnalysis,
+            targetTime: time,
+            timeKeyPath: \.time
+        ) else { return nil }
+        return professionalColorAnalysis[idx]
     }
 }

@@ -44,7 +44,5 @@ final class PlayerViewModelManager: ObservableObject {
 
     func updatePlaybackTime(_ time: Double) {
         currentPlaybackTime = time
-        // Also update the active view model
-        activeViewModel?.currentPlaybackTime = time
     }
 }

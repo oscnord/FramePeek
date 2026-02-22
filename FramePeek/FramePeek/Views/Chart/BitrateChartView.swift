@@ -4,6 +4,7 @@ import FramePeekCore
 
 struct BitrateChartView: View {
     @ObservedObject var viewModel: FramePeekViewModel
+    @ObservedObject private var playerManager = PlayerViewModelManager.shared
 
     // MARK: - Display Settings
 
@@ -254,7 +255,7 @@ struct BitrateChartView: View {
             }
 
             // Playback position indicator
-            if let playbackTime = viewModel.currentPlaybackTime {
+            if let playbackTime = playerManager.currentPlaybackTime {
                 RuleMark(x: .value("Playback", playbackTime))
                     .foregroundStyle(.blue.opacity(0.8))
                     .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.thick))
