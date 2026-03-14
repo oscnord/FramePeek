@@ -175,7 +175,7 @@ struct GOPStructureView: View {
                     if let analysis {
                         StatPill(title: String(localized: "GOPs"), value: "\(analysis.stats.gopCount)")
                         if let avg = analysis.stats.avgDuration {
-                            StatPill(title: String(localized: "Avg"), value: String(format: "%.2fs", avg))
+                            StatPill(title: String(localized: "Avg"), value: "\(avg.formatted(.number.precision(.fractionLength(2))))s")
                         }
                         if let pattern = patternInfo(stats: analysis.stats) {
                             StatPill(title: String(localized: "Pattern"), value: pattern.label)

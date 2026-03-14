@@ -79,7 +79,7 @@ public final class JobQueue {
         // Update job status
         if let index = activeJobs.firstIndex(where: { $0.id == jobId }) {
             activeJobs[index].status = .cancelled
-            activeJobs[index].completedAt = Date()
+            activeJobs[index].completedAt = Date.now
             
             // Move to completed
             let job = activeJobs.remove(at: index)
@@ -127,7 +127,7 @@ public final class JobQueue {
         // Start processing
         let job = activeJobs[index]
         activeJobs[index].status = .processing
-        activeJobs[index].startedAt = Date()
+        activeJobs[index].startedAt = Date.now
         
         let task = Task {
             await processJob(job)
@@ -148,7 +148,7 @@ public final class JobQueue {
                 if let index = activeJobs.firstIndex(where: { $0.id == job.id }) {
                     activeJobs[index].status = .complete
                     activeJobs[index].progress = 1.0
-                    activeJobs[index].completedAt = Date()
+                    activeJobs[index].completedAt = Date.now
                     activeJobs[index].result = result
                     
                     // Move to completed
@@ -177,7 +177,7 @@ public final class JobQueue {
             let failedJob: AnalysisJob? = await MainActor.run {
                 if let index = activeJobs.firstIndex(where: { $0.id == job.id }) {
                     activeJobs[index].status = .failed
-                    activeJobs[index].completedAt = Date()
+                    activeJobs[index].completedAt = Date.now
                     activeJobs[index].error = error.localizedDescription
                     
                     // Move to completed

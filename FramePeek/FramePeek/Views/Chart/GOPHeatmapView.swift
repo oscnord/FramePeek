@@ -346,6 +346,7 @@ struct GOPHeatmapView: View {
                             onGOPSelect(gop.originalIndices.lowerBound)
                         }
                     }
+                    .accessibilityAddTraits(.isButton)
 
                 // Selection indicator - top accent bar
                 if let selectedIndex = viewModel.selectedGOPIndex,
@@ -443,7 +444,7 @@ struct GOPHeatmapView: View {
             if w > 20 && !gop.isAggregated {
                 let frameCountText = Text("\(gop.frameCount)")
                     .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.9))
                 context.draw(frameCountText, at: CGPoint(x: x + w / 2, y: y + 10))
             }
 
@@ -568,7 +569,7 @@ struct GOPHeatmapView: View {
                     }
 
                     context.draw(
-                        Text(text).font(.system(size: 10, design: .monospaced)).foregroundColor(DesignSystem.Colors.Chart.axisLabel),
+                        Text(text).font(.system(size: 10, design: .monospaced)).foregroundStyle(DesignSystem.Colors.Chart.axisLabel),
                         at: CGPoint(x: textX + 20, y: 14)
                     )
                 }

@@ -32,7 +32,7 @@ public struct RequestLogEntry: Identifiable, Sendable {
         webhookError: String? = nil
     ) {
         self.id = UUID()
-        self.timestamp = Date()
+        self.timestamp = Date.now
         self.method = method
         self.path = path
         self.statusCode = statusCode

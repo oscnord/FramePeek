@@ -92,38 +92,25 @@ struct SafeAreaGuidesOverlay: View {
     
     // MARK: - Aspect Ratio Guides
     
+    @ViewBuilder
     private func aspectRatioGuide(guide: SafeAreaGuideType, videoFrame: CGRect) -> some View {
-        guard let targetAspect = guide.aspectRatio else {
-            return AnyView(EmptyView())
-        }
-        
-        let videoAspect = videoFrame.width / videoFrame.height
-        
-        var guideWidth: CGFloat
-        var guideHeight: CGFloat
-        
-        if targetAspect > videoAspect {
-            // Target is wider than video - fit to width, letterbox height
-            guideWidth = videoFrame.width
-            guideHeight = videoFrame.width / targetAspect
-        } else {
-            // Target is taller than video - fit to height, pillarbox width
-            guideHeight = videoFrame.height
-            guideWidth = videoFrame.height * targetAspect
-        }
-        
-        // Ensure guide doesn't exceed video bounds
-        guideWidth = min(guideWidth, videoFrame.width)
-        guideHeight = min(guideHeight, videoFrame.height)
-        
-        return AnyView(
+        if let targetAspect = guide.aspectRatio {
+            let videoAspect = videoFrame.width / videoFrame.height
+
+            let guideWidth: CGFloat = min(
+                targetAspect > videoAspect ? videoFrame.width : videoFrame.height * targetAspect,
+                videoFrame.width
+            )
+            let guideHeight: CGFloat = min(
+                targetAspect > videoAspect ? videoFrame.width / targetAspect : videoFrame.height,
+                videoFrame.height
+            )
+
             ZStack(alignment: .topLeading) {
-                // Guide rectangle
                 Rectangle()
                     .strokeBorder(guideColor.opacity(guideOpacity), lineWidth: lineWidth)
                     .frame(width: guideWidth, height: guideHeight)
-                
-                // Label
+
                 Text(guide.shortLabel)
                     .font(labelFont)
                     .foregroundStyle(guideColor.opacity(guideOpacity))
@@ -133,7 +120,7 @@ struct SafeAreaGuidesOverlay: View {
                 x: videoFrame.midX,
                 y: videoFrame.midY
             )
-        )
+        }
     }
     
     // MARK: - Center Crosshair

@@ -158,7 +158,7 @@ public final class CacheManager {
             samples: samples,
             isPartial: isPartial,
             partialDurationSeconds: partialDurationSeconds,
-            createdAt: Date()
+            createdAt: Date.now
         )
 
         let fileURL = cacheURL.appendingPathComponent("\(key).\(CacheConfig.waveformFileExtension)")
@@ -230,7 +230,7 @@ public final class CacheManager {
             segments: cachedSegments,
             isPartial: isPartial,
             partialDurationSeconds: partialDurationSeconds,
-            createdAt: Date(),
+            createdAt: Date.now,
             isPreview: isPreview,
             scannedUntilSeconds: scannedUntilSeconds,
             structureType: structureType,

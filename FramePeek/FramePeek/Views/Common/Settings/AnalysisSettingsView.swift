@@ -303,7 +303,7 @@ struct AnalysisSettingsView: View {
         
         Task {
             // Small delay for UI feedback
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            try? await Task.sleep(for: .milliseconds(200))
             
             if let path = DoviToolManager.shared.findDoviTool() {
                 await MainActor.run {
@@ -323,7 +323,7 @@ struct AnalysisSettingsView: View {
         doviToolStatus = .checking
         
         Task {
-            try? await Task.sleep(nanoseconds: 100_000_000)
+            try? await Task.sleep(for: .milliseconds(100))
             
             // If user has set a manual path, verify it
             if !doviToolPath.isEmpty {

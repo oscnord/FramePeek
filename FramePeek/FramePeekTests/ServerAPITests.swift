@@ -843,7 +843,7 @@ struct AnalysisJobTests {
     @Test func analysisJob_durationFormatted_milliseconds() {
         let url = URL(fileURLWithPath: "/path/to/video.mp4")
         var job = AnalysisJob(fileURL: url, options: .metadataOnly, source: .api)
-        job.startedAt = Date()
+        job.startedAt = Date.now
         job.completedAt = job.startedAt?.addingTimeInterval(0.5)
         
         #expect(job.durationFormatted == "500ms")
@@ -852,7 +852,7 @@ struct AnalysisJobTests {
     @Test func analysisJob_durationFormatted_seconds() {
         let url = URL(fileURLWithPath: "/path/to/video.mp4")
         var job = AnalysisJob(fileURL: url, options: .metadataOnly, source: .api)
-        job.startedAt = Date()
+        job.startedAt = Date.now
         job.completedAt = job.startedAt?.addingTimeInterval(5.5)
         
         #expect(job.durationFormatted == "5.5s")
@@ -861,7 +861,7 @@ struct AnalysisJobTests {
     @Test func analysisJob_durationFormatted_minutes() {
         let url = URL(fileURLWithPath: "/path/to/video.mp4")
         var job = AnalysisJob(fileURL: url, options: .metadataOnly, source: .api)
-        job.startedAt = Date()
+        job.startedAt = Date.now
         job.completedAt = job.startedAt?.addingTimeInterval(125)  // 2m 5s
         
         #expect(job.durationFormatted == "2m 5s")
@@ -876,8 +876,8 @@ struct CompletedJobTests {
         let url = URL(fileURLWithPath: "/path/to/video.mp4")
         var job = AnalysisJob(fileURL: url, options: .metadataOnly, source: .api)
         job.status = .complete
-        job.startedAt = Date().addingTimeInterval(-10)
-        job.completedAt = Date()
+        job.startedAt = Date.now.addingTimeInterval(-10)
+        job.completedAt = Date.now
         
         let completed = CompletedJob(from: job)
         
@@ -892,7 +892,7 @@ struct CompletedJobTests {
         let url = URL(fileURLWithPath: "/path/to/video.mp4")
         var job = AnalysisJob(fileURL: url, options: .metadataOnly, source: .api)
         job.status = .complete
-        job.startedAt = Date()
+        job.startedAt = Date.now
         job.completedAt = job.startedAt?.addingTimeInterval(5.5)
         
         let completed = CompletedJob(from: job)
@@ -905,8 +905,8 @@ struct CompletedJobTests {
         var job = AnalysisJob(fileURL: url, options: .metadataOnly, source: .api)
         job.status = .failed
         job.error = "File could not be opened"
-        job.startedAt = Date()
-        job.completedAt = Date()
+        job.startedAt = Date.now
+        job.completedAt = Date.now
         
         let completed = CompletedJob(from: job)
         

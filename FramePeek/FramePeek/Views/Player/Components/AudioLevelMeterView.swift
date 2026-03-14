@@ -31,7 +31,7 @@ struct AudioLevelMeterView: View {
         if db <= -60 {
             return "-∞ dB"
         }
-        return String(format: "%.0f dB", db)
+        return "\(db.formatted(.number.precision(.fractionLength(0)))) dB"
     }
 
     var body: some View {

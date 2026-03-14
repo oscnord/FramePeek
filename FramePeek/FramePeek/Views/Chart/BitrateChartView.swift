@@ -339,6 +339,7 @@ struct BitrateChartView: View {
                             PlayerViewModelManager.shared.seekToTime(time)
                         }
                     }
+                    .accessibilityAddTraits(.isButton)
             }
         }
         .drawingGroup()

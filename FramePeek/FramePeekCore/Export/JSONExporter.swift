@@ -32,7 +32,7 @@ public struct JSONExporter {
     public static func exportMultiple(_ results: [AnalysisResult], prettyPrint: Bool = false) throws -> Data {
         let wrapper = MultiFileOutput(
             version: AnalysisResult.schemaVersion,
-            generatedAt: Date(),
+            generatedAt: Date.now,
             files: results
         )
         let encoder = makeEncoder(prettyPrint: prettyPrint)

@@ -70,7 +70,7 @@ public func extractWaveformFast(
             currentWindowSamples.reserveCapacity(8192) // Buffer for samples in current window
             
             // Progress tracking for UI updates
-            var lastYieldTime = Date()
+            var lastYieldTime = Date.now
             var lastYieldedCount = 0
             let yieldInterval: TimeInterval = 0.15
             
@@ -162,7 +162,7 @@ public func extractWaveformFast(
                 }
                 
                 // Progressive UI updates
-                let now = Date()
+                let now = Date.now
                 if now.timeIntervalSince(lastYieldTime) >= yieldInterval && results.count > lastYieldedCount {
                     let newSamples = Array(results[lastYieldedCount...])
                     continuation.yield(WaveformUpdate(appendedSamples: newSamples, isFinished: false))

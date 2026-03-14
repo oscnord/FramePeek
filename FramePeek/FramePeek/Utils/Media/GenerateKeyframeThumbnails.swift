@@ -196,7 +196,7 @@ public func GenerateKeyframeThumbnailsStream(
                     finished || completed >= total
                 }
                 if isDone { break }
-                try? await Task.sleep(nanoseconds: 100_000_000)
+                try? await Task.sleep(for: .milliseconds(100))
             }
 
             if Task.isCancelled {

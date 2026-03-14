@@ -31,7 +31,7 @@ final class PlayerViewModelManager {
         // This task can be cancelled if a new seek happens
         seekClearTask = Task {
             do {
-                try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                try await Task.sleep(for: .milliseconds(100))
                 // Only clear if task wasn't cancelled
                 if !Task.isCancelled {
                     seekTime = nil

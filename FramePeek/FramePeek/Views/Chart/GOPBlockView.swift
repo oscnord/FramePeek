@@ -149,6 +149,7 @@ struct GOPBlockView: View {
         .onTapGesture {
             onClick()
         }
+        .accessibilityAddTraits(.isButton)
         .help(tooltipText)
     }
     

@@ -68,7 +68,7 @@ struct SyncStatusIndicator: View {
 
     private func formatOffset(_ ms: Double) -> String {
         let sign = ms >= 0 ? "+" : ""
-        return String(format: "%@%.0fms", sign, ms)
+        return "\(sign)\(ms.formatted(.number.precision(.fractionLength(0))))ms"
     }
 }
 

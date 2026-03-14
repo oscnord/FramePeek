@@ -9,16 +9,16 @@ struct TimelineView: View {
     var currentPlaybackTime: Double?
     @Binding var isVisible: Bool
 
-    @State var isDraggingRange = false
-    @State var dragStartRange: ClosedRange<Double>?
-    @State var dragStartLocation: CGFloat?
-    @State var selectionDragStart: CGFloat?
-    @State var selectionDragCurrent: CGFloat?
-    @State var isResizingLeft = false
-    @State var isResizingRight = false
-    @State var dragStartX: CGFloat?
-    @State var isHoveringResetButton = false
-    @State var dragPreviewRange: ClosedRange<Double>? // Local preview during drag to avoid triggering chart updates
+    @State private var isDraggingRange = false
+    @State private var dragStartRange: ClosedRange<Double>?
+    @State private var dragStartLocation: CGFloat?
+    @State private var selectionDragStart: CGFloat?
+    @State private var selectionDragCurrent: CGFloat?
+    @State private var isResizingLeft = false
+    @State private var isResizingRight = false
+    @State private var dragStartX: CGFloat?
+    @State private var isHoveringResetButton = false
+    @State private var dragPreviewRange: ClosedRange<Double>? // Local preview during drag to avoid triggering chart updates
 
     /// Normalized visible time range - converts full duration ranges to nil
     /// Uses dragPreviewRange during drag for smooth performance
@@ -643,7 +643,7 @@ private class TimelineTrackingView: NSView {
 
         // Check for double-tap
         if !isDragging, let lastTime = lastClickTime, let lastLoc = lastClickLocation {
-            let timeSinceLastClick = Date().timeIntervalSince(lastTime)
+            let timeSinceLastClick = Date.now.timeIntervalSince(lastTime)
             let distance = sqrt(pow(location.x - lastLoc.x, 2) + pow(location.y - lastLoc.y, 2))
 
             if timeSinceLastClick < 0.5 && distance < 5 {
@@ -659,7 +659,7 @@ private class TimelineTrackingView: NSView {
             }
         }
 
-        lastClickTime = Date()
+        lastClickTime = Date.now
         lastClickLocation = location
         mouseDownLocation = nil
         isDragging = false

@@ -73,7 +73,7 @@ struct AboutView: View {
     }
 
     private var copyrightYear: String {
-        let year = Calendar.current.component(.year, from: Date())
+        let year = Calendar.current.component(.year, from: Date.now)
         return String(format: "© %d", year)
     }
 }

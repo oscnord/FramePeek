@@ -88,7 +88,7 @@ public func extractWaveform(
             windowSamples.reserveCapacity(Int(actualWindowSize * 48000)) // Pre-allocate for typical sample rates
 
             var bufferIndex = 0
-            var lastYieldTime = Date()
+            var lastYieldTime = Date.now
             var lastYieldedCount = 0
             let yieldInterval: TimeInterval = 0.1 // Yield every 100ms for UI responsiveness
             var shouldBreak = false
@@ -205,7 +205,7 @@ public func extractWaveform(
                     }
 
                     // Yield progressive updates periodically
-                    let now = Date()
+                    let now = Date.now
                     if now.timeIntervalSince(lastYieldTime) >= yieldInterval && allSamples.count > lastYieldedCount {
                         let newSamples = Array(allSamples[lastYieldedCount...])
                         continuation.yield(WaveformUpdate(appendedSamples: newSamples, isFinished: false))

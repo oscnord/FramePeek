@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import HTTPTypes
 import Observation
 import Hummingbird
 import FramePeekCore
@@ -71,7 +72,7 @@ public final class ServerManager {
     /// Server uptime in seconds
     public var uptime: TimeInterval {
         guard let started = startedAt else { return 0 }
-        return Date().timeIntervalSince(started)
+        return Date.now.timeIntervalSince(started)
     }
     
     /// Formatted uptime string
@@ -154,7 +155,7 @@ public final class ServerManager {
                                 method: method,
                                 path: path,
                                 statusCode: 401,
-                                duration: Date().timeIntervalSince(start)
+                                duration: Date.now.timeIntervalSince(start)
                             )
                         }
                         throw HTTPError(.unauthorized, message: "Unauthorized")
@@ -163,19 +164,19 @@ public final class ServerManager {
                 
                 // Health endpoint
                 router.get("/health") { _, _ -> HealthResponse in
-                    let start = Date()
+                    let start = Date.now
                     let response = HealthResponse(
                         status: "healthy",
                         version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
                         uptime: await MainActor.run { ServerManager.shared.uptime }
                     )
-                    Task { @MainActor in requestLogger.log(method: "GET", path: "/health", statusCode: 200, duration: Date().timeIntervalSince(start)) }
+                    Task { @MainActor in requestLogger.log(method: "GET", path: "/health", statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                     return response
                 }
                 
                 // Info endpoint
                 router.get("/info") { request, _ -> ServerInfoResponse in
-                    let start = Date()
+                    let start = Date.now
                     try requireAuthorization(request, method: "GET", path: "/info", start: start)
                     let (activeCount, pendingCount) = await MainActor.run {
                         (jobQueue.activeJobs.count, jobQueue.pendingCount)
@@ -187,13 +188,13 @@ public final class ServerManager {
                         activeJobs: activeCount,
                         queuedJobs: pendingCount
                     )
-                    Task { @MainActor in requestLogger.log(method: "GET", path: "/info", statusCode: 200, duration: Date().timeIntervalSince(start)) }
+                    Task { @MainActor in requestLogger.log(method: "GET", path: "/info", statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                     return response
                 }
                 
                 // Analyze by path endpoint
                 router.post("/analyze/path") { request, context -> JobCreatedResponse in
-                    let start = Date()
+                    let start = Date.now
                     do {
                         try requireAuthorization(request, method: "POST", path: "/analyze/path", start: start)
                         let body = try await request.decode(as: AnalyzePathRequest.self, context: context)
@@ -201,7 +202,7 @@ public final class ServerManager {
                         let url = URL(fileURLWithPath: body.path)
                         
                         guard FileManager.default.fileExists(atPath: url.path) else {
-                            Task { @MainActor in requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 404, duration: Date().timeIntervalSince(start)) }
+                            Task { @MainActor in requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 404, duration: Date.now.timeIntervalSince(start)) }
                             throw HTTPError(.notFound, message: "File not found: \(body.path)")
                         }
                         
@@ -212,19 +213,19 @@ public final class ServerManager {
                             jobQueue.enqueue(job)
                         }
                         
-                        Task { @MainActor in requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 202, duration: Date().timeIntervalSince(start)) }
+                        Task { @MainActor in requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 202, duration: Date.now.timeIntervalSince(start)) }
                         return JobCreatedResponse(job: enqueuedJob)
                     } catch let error as HTTPError {
                         throw error
                     } catch {
-                        Task { @MainActor in requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 400, duration: Date().timeIntervalSince(start)) }
+                        Task { @MainActor in requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 400, duration: Date.now.timeIntervalSince(start)) }
                         throw HTTPError(.badRequest, message: error.localizedDescription)
                     }
                 }
                 
                 // List jobs endpoint
                 router.get("/jobs") { request, _ -> JobListResponse in
-                    let start = Date()
+                    let start = Date.now
                     try requireAuthorization(request, method: "GET", path: "/jobs", start: start)
                     let (activeJobs, completedJobs) = await MainActor.run {
                         (jobQueue.activeJobs, Array(jobQueue.completedJobs.prefix(20)))
@@ -252,13 +253,13 @@ public final class ServerManager {
                         )
                     }
                     
-                    Task { @MainActor in requestLogger.log(method: "GET", path: "/jobs", statusCode: 200, duration: Date().timeIntervalSince(start)) }
+                    Task { @MainActor in requestLogger.log(method: "GET", path: "/jobs", statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                     return JobListResponse(activeJobs: active, recentJobs: recent)
                 }
                 
                 // Get job by ID endpoint
                 router.get("/jobs/{id}") { request, context -> JobStatusResponse in
-                    let start = Date()
+                    let start = Date.now
                     let jobId = try context.parameters.require("id", as: String.self)
                     let path = "/jobs/\(jobId)"
                     try requireAuthorization(request, method: "GET", path: path, start: start)
@@ -268,7 +269,7 @@ public final class ServerManager {
                     }
                     
                     if let job = activeJob {
-                        Task { @MainActor in requestLogger.log(method: "GET", path: path, statusCode: 200, duration: Date().timeIntervalSince(start)) }
+                        Task { @MainActor in requestLogger.log(method: "GET", path: path, statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                         return JobStatusResponse(from: job)
                     }
                     
@@ -284,17 +285,17 @@ public final class ServerManager {
                         job.error = completed.error
                         job.result = completed.decodeResult()
                         
-                        Task { @MainActor in requestLogger.log(method: "GET", path: path, statusCode: 200, duration: Date().timeIntervalSince(start)) }
+                        Task { @MainActor in requestLogger.log(method: "GET", path: path, statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                         return JobStatusResponse(from: job)
                     }
                     
-                    Task { @MainActor in requestLogger.log(method: "GET", path: path, statusCode: 404, duration: Date().timeIntervalSince(start)) }
+                    Task { @MainActor in requestLogger.log(method: "GET", path: path, statusCode: 404, duration: Date.now.timeIntervalSince(start)) }
                     throw HTTPError(.notFound, message: "Job not found: \(jobId)")
                 }
                 
                 // Cancel job endpoint
                 router.delete("/jobs/{id}") { request, context -> CancelResponse in
-                    let start = Date()
+                    let start = Date.now
                     let jobId = try context.parameters.require("id", as: String.self)
                     let path = "/jobs/\(jobId)"
                     try requireAuthorization(request, method: "DELETE", path: path, start: start)
@@ -304,10 +305,10 @@ public final class ServerManager {
                     }
                     
                     if cancelled {
-                        Task { @MainActor in requestLogger.log(method: "DELETE", path: path, statusCode: 200, duration: Date().timeIntervalSince(start)) }
+                        Task { @MainActor in requestLogger.log(method: "DELETE", path: path, statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                         return CancelResponse(id: jobId, cancelled: true)
                     } else {
-                        Task { @MainActor in requestLogger.log(method: "DELETE", path: path, statusCode: 404, duration: Date().timeIntervalSince(start)) }
+                        Task { @MainActor in requestLogger.log(method: "DELETE", path: path, statusCode: 404, duration: Date.now.timeIntervalSince(start)) }
                         throw HTTPError(.notFound, message: "Job not found or already completed: \(jobId)")
                     }
                 }
@@ -328,7 +329,7 @@ public final class ServerManager {
             try await waitForServerReadiness(host: probeHost, port: port)
             
             isRunning = true
-            startedAt = Date()
+            startedAt = Date.now
             beginMonitoringServerTask(task, generation: generation)
             
             // Save configuration
@@ -502,8 +503,8 @@ func isServerRequestAuthorized(
         }
     }
 
-    if let xAPIKeyHeader = HTTPField.Name("x-api-key"),
-       let xAPIKey = headers[xAPIKeyHeader]?.trimmingCharacters(in: .whitespacesAndNewlines),
+    let xAPIKeyHeader = HTTPField.Name("x-api-key")!
+    if let xAPIKey = headers[xAPIKeyHeader]?.trimmingCharacters(in: .whitespacesAndNewlines),
        xAPIKey == expectedKey {
         return true
     }

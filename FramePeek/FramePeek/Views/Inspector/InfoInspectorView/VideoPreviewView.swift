@@ -87,6 +87,7 @@ struct VideoPreviewView: View {
                     PlayerViewModelManager.shared.setActiveViewModel(viewModel)
                     openWindow(id: "videoPlayer")
                 }
+                .accessibilityAddTraits(.isButton)
                 .onAppear {
                     loadThumbnail(url: videoURL)
                 }
