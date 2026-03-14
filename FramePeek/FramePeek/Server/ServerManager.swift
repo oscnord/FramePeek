@@ -97,6 +97,8 @@ public final class ServerManager {
     // MARK: - Private Properties
     
     @ObservationIgnored private var serverTask: Task<Void, Error>?
+    @ObservationIgnored private var serverMonitorTask: Task<Void, Never>?
+    @ObservationIgnored private var serverGeneration: UInt64 = 0
     
     // MARK: - Singleton
     
@@ -121,14 +123,43 @@ public final class ServerManager {
         // Capture values needed for the server
         let port = configuration.port
         let bindAddress = configuration.effectiveBindAddress
+        let requiresAuth = configuration.requiresAuth
+        let apiKey = configuration.apiKey
         let jobQueue = self.jobQueue
         let requestLogger = self.requestLogger
+        let probeHost = serverReadinessProbeHost(bindAddress: bindAddress)
+        
+        serverGeneration &+= 1
+        let generation = serverGeneration
         
         do {
             // Start in background task
-            serverTask = Task.detached {
+            let task = Task.detached {
                 // Build router with routes
                 let router = Router()
+                
+                func requireAuthorization(
+                    _ request: Request,
+                    method: String,
+                    path: String,
+                    start: Date
+                ) throws {
+                    guard isServerRequestAuthorized(
+                        headers: request.headers,
+                        requiresAuth: requiresAuth,
+                        apiKey: apiKey
+                    ) else {
+                        Task { @MainActor in
+                            requestLogger.log(
+                                method: method,
+                                path: path,
+                                statusCode: 401,
+                                duration: Date().timeIntervalSince(start)
+                            )
+                        }
+                        throw HTTPError(.unauthorized, message: "Unauthorized")
+                    }
+                }
                 
                 // Health endpoint
                 router.get("/health") { _, _ -> HealthResponse in
@@ -143,8 +174,9 @@ public final class ServerManager {
                 }
                 
                 // Info endpoint
-                router.get("/info") { _, _ -> ServerInfoResponse in
+                router.get("/info") { request, _ -> ServerInfoResponse in
                     let start = Date()
+                    try requireAuthorization(request, method: "GET", path: "/info", start: start)
                     let (activeCount, pendingCount) = await MainActor.run {
                         (jobQueue.activeJobs.count, jobQueue.pendingCount)
                     }
@@ -163,6 +195,7 @@ public final class ServerManager {
                 router.post("/analyze/path") { request, context -> JobCreatedResponse in
                     let start = Date()
                     do {
+                        try requireAuthorization(request, method: "POST", path: "/analyze/path", start: start)
                         let body = try await request.decode(as: AnalyzePathRequest.self, context: context)
                         
                         let url = URL(fileURLWithPath: body.path)
@@ -190,8 +223,9 @@ public final class ServerManager {
                 }
                 
                 // List jobs endpoint
-                router.get("/jobs") { _, _ -> JobListResponse in
+                router.get("/jobs") { request, _ -> JobListResponse in
                     let start = Date()
+                    try requireAuthorization(request, method: "GET", path: "/jobs", start: start)
                     let (activeJobs, completedJobs) = await MainActor.run {
                         (jobQueue.activeJobs, Array(jobQueue.completedJobs.prefix(20)))
                     }
@@ -223,10 +257,11 @@ public final class ServerManager {
                 }
                 
                 // Get job by ID endpoint
-                router.get("/jobs/{id}") { _, context -> JobStatusResponse in
+                router.get("/jobs/{id}") { request, context -> JobStatusResponse in
                     let start = Date()
                     let jobId = try context.parameters.require("id", as: String.self)
                     let path = "/jobs/\(jobId)"
+                    try requireAuthorization(request, method: "GET", path: path, start: start)
                     
                     let (activeJob, completedJob) = await MainActor.run {
                         (jobQueue.job(withId: jobId), jobQueue.completedJob(withId: jobId))
@@ -258,10 +293,11 @@ public final class ServerManager {
                 }
                 
                 // Cancel job endpoint
-                router.delete("/jobs/{id}") { _, context -> CancelResponse in
+                router.delete("/jobs/{id}") { request, context -> CancelResponse in
                     let start = Date()
                     let jobId = try context.parameters.require("id", as: String.self)
                     let path = "/jobs/\(jobId)"
+                    try requireAuthorization(request, method: "DELETE", path: path, start: start)
                     
                     let cancelled = await MainActor.run {
                         jobQueue.cancel(jobId: jobId)
@@ -286,17 +322,25 @@ public final class ServerManager {
                 
                 try await app.runService()
             }
+            serverTask = task
             
-            // Give server a moment to start
-            try await Task.sleep(for: .milliseconds(100))
+            // Verify server is reachable before declaring it running.
+            try await waitForServerReadiness(host: probeHost, port: port)
             
             isRunning = true
             startedAt = Date()
+            beginMonitoringServerTask(task, generation: generation)
             
             // Save configuration
             saveConfiguration()
             
         } catch {
+            serverTask?.cancel()
+            serverTask = nil
+            serverMonitorTask?.cancel()
+            serverMonitorTask = nil
+            isRunning = false
+            startedAt = nil
             lastError = error.localizedDescription
             throw error
         }
@@ -304,7 +348,11 @@ public final class ServerManager {
     
     /// Stop the server
     public func stop() async {
-        guard isRunning else { return }
+        guard isRunning || serverTask != nil else { return }
+        
+        serverGeneration &+= 1
+        serverMonitorTask?.cancel()
+        serverMonitorTask = nil
         
         serverTask?.cancel()
         serverTask = nil
@@ -332,6 +380,69 @@ public final class ServerManager {
     public func regenerateAPIKey() {
         configuration.apiKey = UUID().uuidString
         saveConfiguration()
+    }
+    
+    // MARK: - Lifecycle Monitoring
+    
+    private func beginMonitoringServerTask(_ task: Task<Void, Error>, generation: UInt64) {
+        serverMonitorTask?.cancel()
+        serverMonitorTask = Task { [weak self] in
+            do {
+                try await task.value
+                await MainActor.run {
+                    guard let self, self.serverGeneration == generation else { return }
+                    self.isRunning = false
+                    self.startedAt = nil
+                    self.serverTask = nil
+                }
+            } catch is CancellationError {
+                // Expected during normal shutdown.
+            } catch {
+                await MainActor.run {
+                    guard let self, self.serverGeneration == generation else { return }
+                    self.lastError = error.localizedDescription
+                    self.isRunning = false
+                    self.startedAt = nil
+                    self.serverTask = nil
+                }
+            }
+        }
+    }
+    
+    private func waitForServerReadiness(
+        host: String,
+        port: Int,
+        timeout: Duration = .seconds(3)
+    ) async throws {
+        guard let url = URL(string: "http://\(host):\(port)/health") else {
+            throw HTTPError(.internalServerError, message: "Invalid server probe URL")
+        }
+        
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        
+        while clock.now < deadline {
+            if Task.isCancelled {
+                throw CancellationError()
+            }
+            
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 0.25
+            
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+                if let statusCode = (response as? HTTPURLResponse)?.statusCode,
+                   (200..<500).contains(statusCode) {
+                    return
+                }
+            } catch {
+                // Retry until timeout.
+            }
+            
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        
+        throw HTTPError(.serviceUnavailable, message: "Server failed to start on \(host):\(port)")
     }
     
     // MARK: - Configuration Persistence
@@ -363,6 +474,41 @@ public final class ServerManager {
             print("Failed to save server configuration: \(error)")
         }
     }
+}
+
+func serverReadinessProbeHost(bindAddress: String) -> String {
+    bindAddress == "0.0.0.0" ? "127.0.0.1" : bindAddress
+}
+
+func isServerRequestAuthorized(
+    headers: HTTPFields,
+    requiresAuth: Bool,
+    apiKey: String
+) -> Bool {
+    guard requiresAuth else { return true }
+    let expectedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !expectedKey.isEmpty else { return false }
+
+    if let authorization = headers[.authorization]?.trimmingCharacters(in: .whitespacesAndNewlines) {
+        let lowercased = authorization.lowercased()
+        if lowercased.hasPrefix("bearer ") {
+            let bearerToken = String(authorization.dropFirst("Bearer ".count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if bearerToken == expectedKey {
+                return true
+            }
+        } else if authorization == expectedKey {
+            return true
+        }
+    }
+
+    if let xAPIKeyHeader = HTTPField.Name("x-api-key"),
+       let xAPIKey = headers[xAPIKeyHeader]?.trimmingCharacters(in: .whitespacesAndNewlines),
+       xAPIKey == expectedKey {
+        return true
+    }
+
+    return false
 }
 
 // MARK: - Response Types
