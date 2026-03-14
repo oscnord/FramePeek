@@ -96,3 +96,16 @@ public func extractBitratesFast(
         continuation.onTermination = { _ in task.cancel() }
     }
 }
+
+@inline(__always)
+func appendBitrateSampleRespectingLimit(
+    _ sample: BitrateSample,
+    to pending: inout [BitrateSample],
+    totalEmitted: inout Int,
+    maxSamples: Int
+) -> Bool {
+    guard totalEmitted < maxSamples else { return false }
+    pending.append(sample)
+    totalEmitted += 1
+    return true
+}

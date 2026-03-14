@@ -315,9 +315,6 @@ private func analyzeFrameTiming(asset: AVAsset, videoTrack: AVAssetTrack) async 
     var frameIndex = 0
     var hasGaps = false
 
-    // Early termination: if we've collected enough samples and processed significant portion
-    let earlyTerminationThreshold = max(1000, estimatedFrameCount / 2)
-
     while let sampleBuffer = output.copyNextSampleBuffer() {
         if Task.isCancelled { break }
 
@@ -351,9 +348,9 @@ private func analyzeFrameTiming(asset: AVAsset, videoTrack: AVAssetTrack) async 
         previousPTS = pts
         frameIndex += 1
 
-        // Early termination: if we have enough samples and processed enough frames
-        if intervals.count >= targetSamples && frameCount >= earlyTerminationThreshold {
-            break
+        // Keep cancellation responsive on long files while scanning full timeline for late gaps.
+        if frameCount % 5000 == 0 {
+            await Task.yield()
         }
     }
 

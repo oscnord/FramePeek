@@ -20,6 +20,7 @@ public func extractWithCursor(
 
     var pending: [BitrateSample] = []
     pending.reserveCapacity(options.emitEveryNSamples)
+    var totalEmitted = 0
 
     // FPS stats
     var sumInterval = 0.0
@@ -138,8 +139,15 @@ public func extractWithCursor(
                     let bitrate = (Double(totalBytes) * 8.0) / actualDuration
                     let sampleTime = bucketStart + bucketSize / 2.0
 
-                    pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
-                    lastEmittedBucket = prevBucketIndex
+                    let sample = BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration)
+                    if appendBitrateSampleRespectingLimit(
+                        sample,
+                        to: &pending,
+                        totalEmitted: &totalEmitted,
+                        maxSamples: options.maxSamples
+                    ) {
+                        lastEmittedBucket = prevBucketIndex
+                    }
 
                     // Remove emitted bucket to prevent unbounded memory growth
                     bucketFrames.removeValue(forKey: prevBucketIndex)
@@ -173,8 +181,10 @@ public func extractWithCursor(
     let endTime = allRawFrames.map(\.pts).max() ?? startPTS
     let totalDuration = endTime - startPTS + defaultFrameDuration
     let numBuckets = Int(ceil(totalDuration / bucketSize))
+    var reachedEmissionLimit = totalEmitted >= options.maxSamples
 
     for bucketIndex in (lastEmittedBucket + 1)..<numBuckets {
+        if reachedEmissionLimit { break }
         let bucketStart = startPTS + Double(bucketIndex) * bucketSize
 
         let frames = bucketFrames[bucketIndex] ?? []
@@ -196,7 +206,16 @@ public func extractWithCursor(
             let bitrate = (Double(totalBytes) * 8.0) / actualDuration
             let sampleTime = bucketStart + bucketSize / 2.0
 
-            pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
+            let sample = BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration)
+            if !appendBitrateSampleRespectingLimit(
+                sample,
+                to: &pending,
+                totalEmitted: &totalEmitted,
+                maxSamples: options.maxSamples
+            ) {
+                reachedEmissionLimit = true
+                break
+            }
 
             if pending.count >= options.emitEveryNSamples {
                 continuation.yield(makeUpdate())
