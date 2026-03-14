@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Observation
 
 /// A single logged API request
 public struct RequestLogEntry: Identifiable, Sendable {
@@ -31,7 +32,7 @@ public struct RequestLogEntry: Identifiable, Sendable {
         webhookError: String? = nil
     ) {
         self.id = UUID()
-        self.timestamp = Date()
+        self.timestamp = Date.now
         self.method = method
         self.path = path
         self.statusCode = statusCode
@@ -80,8 +81,9 @@ public struct RequestLogEntry: Identifiable, Sendable {
 
 /// Manages the request log with a fixed capacity
 @MainActor
-public final class RequestLogger: ObservableObject {
-    @Published public private(set) var entries: [RequestLogEntry] = []
+@Observable
+public final class RequestLogger {
+    public private(set) var entries: [RequestLogEntry] = []
     
     public let maxEntries: Int
     

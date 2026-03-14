@@ -2,7 +2,7 @@ import SwiftUI
 import FramePeekCore
 
 struct GOPStructureSection: View {
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
 
     private var analysis: GOPAnalysisResult? { viewModel.gopAnalysis }
 

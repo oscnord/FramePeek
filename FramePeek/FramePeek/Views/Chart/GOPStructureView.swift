@@ -2,7 +2,7 @@ import SwiftUI
 import FramePeekCore
 
 struct GOPStructureView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     @State private var showGOPInfoPopover = false
     @State private var selectedRangeStart: Double = 0
     @State private var selectedRangeEnd: Double = 60
@@ -29,15 +29,21 @@ struct GOPStructureView: View {
 
     private var frameTypeStats: (iCount: Int, pCount: Int, bCount: Int, unknownCount: Int, total: Int)? {
         guard let analysis else { return nil }
-        let allFrames = analysis.segments.compactMap { $0.frames }.flatMap { $0 }
-        guard !allFrames.isEmpty else { return nil }
-
-        let iCount = allFrames.filter { $0.type == .i }.count
-        let pCount = allFrames.filter { $0.type == .p }.count
-        let bCount = allFrames.filter { $0.type == .b }.count
-        let unknownCount = allFrames.filter { $0.type == .unknown }.count
-
-        return (iCount, pCount, bCount, unknownCount, allFrames.count)
+        var iCount = 0, pCount = 0, bCount = 0, unknownCount = 0, total = 0
+        for segment in analysis.segments {
+            guard let frames = segment.frames else { continue }
+            for frame in frames {
+                switch frame.type {
+                case .i: iCount += 1
+                case .p: pCount += 1
+                case .b: bCount += 1
+                case .unknown: unknownCount += 1
+                }
+                total += 1
+            }
+        }
+        guard total > 0 else { return nil }
+        return (iCount, pCount, bCount, unknownCount, total)
     }
 
     private var hasFrameTypes: Bool {
@@ -169,7 +175,7 @@ struct GOPStructureView: View {
                     if let analysis {
                         StatPill(title: String(localized: "GOPs"), value: "\(analysis.stats.gopCount)")
                         if let avg = analysis.stats.avgDuration {
-                            StatPill(title: String(localized: "Avg"), value: String(format: "%.2fs", avg))
+                            StatPill(title: String(localized: "Avg"), value: "\(avg.formatted(.number.precision(.fractionLength(2))))s")
                         }
                         if let pattern = patternInfo(stats: analysis.stats) {
                             StatPill(title: String(localized: "Pattern"), value: pattern.label)

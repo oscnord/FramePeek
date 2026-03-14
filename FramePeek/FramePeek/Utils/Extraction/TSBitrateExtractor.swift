@@ -145,9 +145,10 @@ public func extractTS(
     var frameIndex = 0
     var bucketIndex = 0
     var lastEmittedBucket = -1
+    var reachedEmissionLimit = false
 
     for (pts, _) in allSamples {
-        if Task.isCancelled { break }
+        if Task.isCancelled || reachedEmissionLimit { break }
 
         let currentBucket = Int(floor((pts - startTime) / bucketSize))
 
@@ -197,9 +198,18 @@ public func extractTS(
 
                 let sampleTime = bucketStart + bucketSize / 2.0
 
-                pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
-                totalEmitted += 1
-                lastEmittedBucket = bucketIndex
+                let sample = BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration)
+                if appendBitrateSampleRespectingLimit(
+                    sample,
+                    to: &pending,
+                    totalEmitted: &totalEmitted,
+                    maxSamples: options.maxSamples
+                ) {
+                    lastEmittedBucket = bucketIndex
+                } else {
+                    reachedEmissionLimit = true
+                    break
+                }
 
                 if pending.count >= options.emitEveryNSamples {
                     continuation.yield(makeUpdate())
@@ -211,7 +221,7 @@ public func extractTS(
         }
     }
 
-    while bucketIndex < numBuckets {
+    while bucketIndex < numBuckets && !reachedEmissionLimit {
         let bucketStart = startTime + Double(bucketIndex) * bucketSize
         let bucketEnd = bucketStart + bucketSize
 
@@ -257,8 +267,16 @@ public func extractTS(
 
             let sampleTime = bucketStart + bucketSize / 2.0
 
-            pending.append(BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration))
-            totalEmitted += 1
+            let sample = BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration)
+            if !appendBitrateSampleRespectingLimit(
+                sample,
+                to: &pending,
+                totalEmitted: &totalEmitted,
+                maxSamples: options.maxSamples
+            ) {
+                reachedEmissionLimit = true
+                break
+            }
 
             if pending.count >= options.emitEveryNSamples {
                 continuation.yield(makeUpdate())

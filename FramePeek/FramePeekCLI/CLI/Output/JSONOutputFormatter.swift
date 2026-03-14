@@ -8,7 +8,7 @@ struct JSONOutputFormatter: OutputFormatter {
     func format(results: [FileAnalysisResult]) throws -> String {
         let output = CLIOutput(
             version: "1.0",
-            generatedAt: ISO8601DateFormatter().string(from: Date()),
+            generatedAt: ISO8601DateFormatter().string(from: Date.now),
             files: results.map { fileResult in
                 CLIFileOutput(
                     path: fileResult.path,

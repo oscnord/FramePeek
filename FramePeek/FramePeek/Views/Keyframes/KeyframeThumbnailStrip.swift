@@ -141,7 +141,7 @@ private struct ScrollableThumbnailView: View {
                         if isHovering {
                             // Throttle hover updates to reduce lag
                             hoverUpdateTask = Task { @MainActor in
-                                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms delay
+                                try? await Task.sleep(for: .milliseconds(100))
                                 if !Task.isCancelled && !isScrolling {
                                     hoveredThumb = thumb
                                     hoveredIndex = index
@@ -256,11 +256,11 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
             self._canScrollRight = canScrollRight
         }
 
-        private var lastUpdateTime: Date = Date()
+        private var lastUpdateTime: Date = .now
         private let updateInterval: TimeInterval = 0.05 // Throttle to 20fps for scroll updates
 
         @objc func updateScrollState() {
-            let now = Date()
+            let now = Date.now
             guard now.timeIntervalSince(lastUpdateTime) >= updateInterval else { return }
             lastUpdateTime = now
 

@@ -92,8 +92,8 @@ public func analyzeColor(
                 sampleCount += 1
 
                 if currentTime - lastEmittedTime >= effectiveSampleInterval * 10 {
-                    let sortedSamples = colorSamples.sorted { $0.time < $1.time }
-                    continuation.yield(sortedSamples)
+                    // Samples are appended chronologically, no sort needed for progressive emission
+                    continuation.yield(colorSamples)
                     lastEmittedTime = currentTime
                 }
 

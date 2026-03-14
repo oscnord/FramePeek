@@ -5,7 +5,7 @@ import FramePeekCore
 struct CollapsibleWaveformTrack: View {
     let trackInfo: AudioTrackInfo
     let duration: Double
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     @Binding var expandedTracks: Set<Int>
 
     private var isExpanded: Bool {

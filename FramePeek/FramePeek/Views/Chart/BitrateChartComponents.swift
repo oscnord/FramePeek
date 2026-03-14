@@ -32,7 +32,7 @@ struct StatPill: View {
 }
 
 struct ChartHeaderRow: View {
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     @Binding var visibleTimeRange: ClosedRange<Double>?
     @State private var showingLegend = false
 

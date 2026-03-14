@@ -75,13 +75,17 @@ struct GOPHeatmapView: View {
     let segments: [GOPSegment]
     let domainSeconds: Double
     let visibleTimeRange: ClosedRange<Double>?
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     let onGOPSelect: (Int) -> Void
 
     @State private var hoveredGOP: DisplayGOP?
     @State private var hoverLocation: CGPoint = .zero
     @State private var containerSize: CGSize = .zero
-    
+
+    // Cached displayGOPs to avoid recomputing on every render
+    @State private var cachedDisplayGOPs: [DisplayGOP] = []
+    @State private var lastDisplayGOPsInputHash: Int = 0
+
     // Tooltip dimensions (approximate)
     private let tooltipWidth: CGFloat = 180
     private let tooltipHeight: CGFloat = 180
@@ -102,13 +106,26 @@ struct GOPHeatmapView: View {
         }
     }
 
-    private var displayGOPs: [DisplayGOP] {
-        prepareDisplayGOPs(
+    private var displayGOPsInputHash: Int {
+        var hasher = Hasher()
+        hasher.combine(segments.count)
+        hasher.combine(visibleTimeRange?.lowerBound)
+        hasher.combine(visibleTimeRange?.upperBound)
+        // Also include the last segment's end time to detect data changes at same count
+        if let last = segments.last {
+            hasher.combine(last.endTime)
+        }
+        return hasher.finalize()
+    }
+
+    private func recomputeDisplayGOPs() {
+        cachedDisplayGOPs = prepareDisplayGOPs(
             segments: filteredSegments,
             allSegments: segments,
             maxCount: HeatmapConfig.maxDisplayGOPs,
             domain: effectiveDomain
         )
+        lastDisplayGOPsInputHash = displayGOPsInputHash
     }
 
     private var stats: GOPStats {
@@ -197,9 +214,17 @@ struct GOPHeatmapView: View {
         .gesture(zoomGesture)
         .gesture(panGesture)
         .onAppear {
+            recomputeDisplayGOPs()
             triggerPreload()
         }
+        .onChange(of: segments.count) { _, _ in
+            let hash = displayGOPsInputHash
+            if hash != lastDisplayGOPsInputHash {
+                recomputeDisplayGOPs()
+            }
+        }
         .onChange(of: visibleTimeRange) { _, _ in
+            recomputeDisplayGOPs()
             triggerPreload()
         }
         .onChange(of: viewModel.isAnalyzingGOP) { wasAnalyzing, isAnalyzing in
@@ -213,7 +238,7 @@ struct GOPHeatmapView: View {
     // MARK: - Preload
     
     private func triggerPreload() {
-        let visibleIndices = displayGOPs.flatMap { gop in
+        let visibleIndices = cachedDisplayGOPs.flatMap { gop in
             Array(gop.originalIndices)
         }
         viewModel.preloadFrameDetailsForVisibleGOPs(indices: visibleIndices)
@@ -321,10 +346,11 @@ struct GOPHeatmapView: View {
                             onGOPSelect(gop.originalIndices.lowerBound)
                         }
                     }
+                    .accessibilityAddTraits(.isButton)
 
                 // Selection indicator - top accent bar
                 if let selectedIndex = viewModel.selectedGOPIndex,
-                   let gop = displayGOPs.first(where: { $0.originalIndices.contains(selectedIndex) }) {
+                   let gop = cachedDisplayGOPs.first(where: { $0.originalIndices.contains(selectedIndex) }) {
                     selectionIndicator(for: gop, width: width)
                 }
                 
@@ -366,9 +392,9 @@ struct GOPHeatmapView: View {
         let chartTop: CGFloat = HeatmapConfig.labelHeight
         let chartHeight = height - chartTop
 
-        let maxFrames = max(1, displayGOPs.map(\.frameCount).max() ?? 1)
+        let maxFrames = max(1, cachedDisplayGOPs.map(\.frameCount).max() ?? 1)
 
-        for gop in displayGOPs {
+        for gop in cachedDisplayGOPs {
             let startRatio = max(0, (gop.startTime - domain.start) / domainDuration)
             let endRatio = min(1, (gop.endTime - domain.start) / domainDuration)
             let x = CGFloat(startRatio) * width
@@ -418,7 +444,7 @@ struct GOPHeatmapView: View {
             if w > 20 && !gop.isAggregated {
                 let frameCountText = Text("\(gop.frameCount)")
                     .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.9))
                 context.draw(frameCountText, at: CGPoint(x: x + w / 2, y: y + 10))
             }
 
@@ -443,7 +469,7 @@ struct GOPHeatmapView: View {
         let domain = effectiveDomain
         let domainDuration = max(0.001, domain.end - domain.start)
 
-        for gop in displayGOPs {
+        for gop in cachedDisplayGOPs {
             guard gop.hasFrameTypes else { continue }
 
             let startRatio = max(0, (gop.startTime - domain.start) / domainDuration)
@@ -543,7 +569,7 @@ struct GOPHeatmapView: View {
                     }
 
                     context.draw(
-                        Text(text).font(.system(size: 10, design: .monospaced)).foregroundColor(DesignSystem.Colors.Chart.axisLabel),
+                        Text(text).font(.system(size: 10, design: .monospaced)).foregroundStyle(DesignSystem.Colors.Chart.axisLabel),
                         at: CGPoint(x: textX + 20, y: 14)
                     )
                 }
@@ -694,7 +720,7 @@ struct GOPHeatmapView: View {
         let domainDuration = max(0.001, domain.end - domain.start)
         let time = domain.start + Double(location.x / width) * domainDuration
 
-        hoveredGOP = displayGOPs.first { gop in
+        hoveredGOP = cachedDisplayGOPs.first { gop in
             time >= gop.startTime && time < gop.endTime
         }
     }
@@ -847,9 +873,16 @@ private func createDisplayGOP(from segment: GOPSegment, indices: ClosedRange<Int
     let frames = segment.frames ?? []
     let totalFrames = max(1, frames.count)
 
-    let iCount = frames.filter { $0.type == .i }.count
-    let pCount = frames.filter { $0.type == .p }.count
-    let bCount = frames.filter { $0.type == .b }.count
+    // Single-pass frame type counting
+    var iCount = 0, pCount = 0, bCount = 0
+    for frame in frames {
+        switch frame.type {
+        case .i: iCount += 1
+        case .p: pCount += 1
+        case .b: bCount += 1
+        case .unknown: break
+        }
+    }
 
     let variance = stats.avgDuration > 0 ? (segment.duration - stats.avgDuration) / stats.avgDuration : 0
 
@@ -874,14 +907,19 @@ private func createAggregatedDisplayGOP(from segments: [GOPSegment], indices: Cl
     let totalDuration = segments.map(\.duration).reduce(0, +)
     let totalFrameCount = segments.compactMap(\.frameCount).reduce(0, +)
 
-    // Aggregate frame types
+    // Aggregate frame types (single-pass)
     var totalI = 0, totalP = 0, totalB = 0, total = 0
     for segment in segments {
         if let frames = segment.frames {
-            totalI += frames.filter { $0.type == .i }.count
-            totalP += frames.filter { $0.type == .p }.count
-            totalB += frames.filter { $0.type == .b }.count
-            total += frames.count
+            for frame in frames {
+                switch frame.type {
+                case .i: totalI += 1
+                case .p: totalP += 1
+                case .b: totalB += 1
+                case .unknown: break
+                }
+                total += 1
+            }
         }
     }
 

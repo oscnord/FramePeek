@@ -6,17 +6,19 @@
 //
 
 import Foundation
+import Observation
 import FramePeekCore
 
 /// Actor managing the analysis job queue
 @MainActor
-public final class JobQueue: ObservableObject {
-    
-    // MARK: - Published Properties
-    
-    @Published public private(set) var activeJobs: [AnalysisJob] = []
-    @Published public private(set) var completedJobs: [CompletedJob] = []
-    @Published public private(set) var isProcessing: Bool = false
+@Observable
+public final class JobQueue {
+
+    // MARK: - Properties
+
+    public private(set) var activeJobs: [AnalysisJob] = []
+    public private(set) var completedJobs: [CompletedJob] = []
+    public private(set) var isProcessing: Bool = false
     
     // MARK: - Configuration
     
@@ -28,8 +30,8 @@ public final class JobQueue: ObservableObject {
     
     // MARK: - Private Properties
     
-    private var processingTasks: [String: Task<Void, Never>] = [:]
-    private let historyStore: JobHistoryStore
+    @ObservationIgnored private var processingTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored private let historyStore: JobHistoryStore
     
     // MARK: - Initialization
     
@@ -77,7 +79,7 @@ public final class JobQueue: ObservableObject {
         // Update job status
         if let index = activeJobs.firstIndex(where: { $0.id == jobId }) {
             activeJobs[index].status = .cancelled
-            activeJobs[index].completedAt = Date()
+            activeJobs[index].completedAt = Date.now
             
             // Move to completed
             let job = activeJobs.remove(at: index)
@@ -125,7 +127,7 @@ public final class JobQueue: ObservableObject {
         // Start processing
         let job = activeJobs[index]
         activeJobs[index].status = .processing
-        activeJobs[index].startedAt = Date()
+        activeJobs[index].startedAt = Date.now
         
         let task = Task {
             await processJob(job)
@@ -146,7 +148,7 @@ public final class JobQueue: ObservableObject {
                 if let index = activeJobs.firstIndex(where: { $0.id == job.id }) {
                     activeJobs[index].status = .complete
                     activeJobs[index].progress = 1.0
-                    activeJobs[index].completedAt = Date()
+                    activeJobs[index].completedAt = Date.now
                     activeJobs[index].result = result
                     
                     // Move to completed
@@ -175,7 +177,7 @@ public final class JobQueue: ObservableObject {
             let failedJob: AnalysisJob? = await MainActor.run {
                 if let index = activeJobs.firstIndex(where: { $0.id == job.id }) {
                     activeJobs[index].status = .failed
-                    activeJobs[index].completedAt = Date()
+                    activeJobs[index].completedAt = Date.now
                     activeJobs[index].error = error.localizedDescription
                     
                     // Move to completed

@@ -26,7 +26,7 @@ enum TimestampDataProvider {
             data.gopDuration = segment.duration
             
             // Frame type - only if cached
-            if let cachedFrames = viewModel.gopFrameDetailsCache[segment.id] {
+            if let cachedFrames = viewModel.getCachedGOPFrameDetails(for: segment.id) {
                 data.frameType = getFrameTypeAt(time: time, frames: cachedFrames)
             } else if let frames = segment.frames, !frames.isEmpty {
                 data.frameType = getFrameTypeAt(time: time, frames: frames)
@@ -58,170 +58,127 @@ enum TimestampDataProvider {
     
     // MARK: - GOP Helpers
     
-    /// Finds the GOP segment containing the given timestamp
+    /// Finds the GOP segment containing the given timestamp using binary search
     static func findGOPAt(time: Double, segments: [GOPSegment]) -> (index: Int, segment: GOPSegment)? {
-        for (index, segment) in segments.enumerated() {
-            if time >= segment.startTime && time < segment.endTime {
-                return (index, segment)
+        guard !segments.isEmpty else { return nil }
+
+        // Binary search: find first segment whose startTime >= time
+        let idx = lowerBound(in: segments, targetTime: time, timeKeyPath: \.startTime)
+
+        // Check the segment at idx (if startTime == time, it contains our time)
+        if idx < segments.count {
+            let seg = segments[idx]
+            if time >= seg.startTime && time < seg.endTime {
+                return (idx, seg)
             }
         }
-        // If time is exactly at the end of the last segment
+
+        // Check the previous segment (time might fall within it)
+        if idx > 0 {
+            let seg = segments[idx - 1]
+            if time >= seg.startTime && time < seg.endTime {
+                return (idx - 1, seg)
+            }
+        }
+
+        // Edge case: time is exactly at the end of the last segment
         if let lastIndex = segments.indices.last,
            let last = segments.last,
            abs(time - last.endTime) < 0.001 {
             return (lastIndex, last)
         }
+
         return nil
     }
     
-    /// Gets the frame type at a specific time from a list of frames
+    /// Gets the frame type at a specific time from a list of frames using binary search
     static func getFrameTypeAt(time: Double, frames: [FrameInfo]) -> FrameType? {
-        // Find the frame closest to this time
-        let sortedFrames = frames.sorted { $0.time < $1.time }
-        
-        // Find frame containing or closest to this time
-        var closestFrame: FrameInfo?
-        var closestDistance = Double.infinity
-        
-        for frame in sortedFrames {
-            let distance = abs(frame.time - time)
-            if distance < closestDistance {
-                closestDistance = distance
-                closestFrame = frame
-            }
+        guard let idx = binarySearchClosest(in: frames, targetTime: time, timeKeyPath: \.time) else {
+            return nil
         }
-        
-        return closestFrame?.type
+        return frames[idx].type
     }
     
     // MARK: - Bitrate Helpers
     
-    /// Interpolates bitrate at a given timestamp
+    /// Interpolates bitrate at a given timestamp using binary search
     static func interpolateBitrate(at time: Double, samples: [BitrateSample]) -> Double? {
         guard !samples.isEmpty else { return nil }
-        
-        let sortedSamples = samples.sorted { $0.time < $1.time }
-        
-        // Before first sample
-        if time <= sortedSamples.first?.time ?? 0 {
-            return sortedSamples.first?.bitrate
+
+        // Edge cases: before first or after last
+        if time <= samples.first!.time { return samples.first!.bitrate }
+        if time >= samples.last!.time { return samples.last!.bitrate }
+
+        // Binary search for interpolation pair
+        if let (s1, s2, t) = binarySearchInterpolationPair(in: samples, targetTime: time, timeKeyPath: \.time) {
+            return s1.bitrate + (s2.bitrate - s1.bitrate) * t
         }
-        
-        // After last sample
-        if time >= sortedSamples.last?.time ?? 0 {
-            return sortedSamples.last?.bitrate
-        }
-        
-        // Find two samples to interpolate between
-        for i in 0..<sortedSamples.count - 1 {
-            let s1 = sortedSamples[i]
-            let s2 = sortedSamples[i + 1]
-            
-            if time >= s1.time && time <= s2.time {
-                let t = (time - s1.time) / (s2.time - s1.time)
-                return s1.bitrate + (s2.bitrate - s1.bitrate) * t
-            }
-        }
-        
-        return sortedSamples.first?.bitrate
+
+        return samples.first?.bitrate
     }
     
     // MARK: - Waveform Helpers
     
-    /// Interpolates audio amplitude at a given timestamp
+    /// Interpolates audio amplitude at a given timestamp using binary search
     static func interpolateWaveform(at time: Double, samples: [WaveformSample]) -> Double? {
         guard !samples.isEmpty else { return nil }
-        
-        let sortedSamples = samples.sorted { $0.time < $1.time }
-        
-        // Before first sample
-        if time <= sortedSamples.first?.time ?? 0 {
-            return sortedSamples.first?.amplitude
+
+        // Edge cases: before first or after last
+        if time <= samples.first!.time { return samples.first!.amplitude }
+        if time >= samples.last!.time { return samples.last!.amplitude }
+
+        // Binary search for interpolation pair
+        if let (s1, s2, t) = binarySearchInterpolationPair(in: samples, targetTime: time, timeKeyPath: \.time) {
+            return s1.amplitude + (s2.amplitude - s1.amplitude) * t
         }
-        
-        // After last sample
-        if time >= sortedSamples.last?.time ?? 0 {
-            return sortedSamples.last?.amplitude
-        }
-        
-        // Find two samples to interpolate between
-        for i in 0..<sortedSamples.count - 1 {
-            let s1 = sortedSamples[i]
-            let s2 = sortedSamples[i + 1]
-            
-            if time >= s1.time && time <= s2.time {
-                let t = (time - s1.time) / (s2.time - s1.time)
-                return s1.amplitude + (s2.amplitude - s1.amplitude) * t
-            }
-        }
-        
-        return sortedSamples.first?.amplitude
+
+        return samples.first?.amplitude
     }
     
     // MARK: - Keyframe Helpers
     
-    /// Finds the nearest keyframe to the given timestamp
+    /// Finds the nearest keyframe to the given timestamp using binary search
     /// Returns (distance in seconds, isAtKeyframe)
     static func findNearestKeyframe(to time: Double, keyframes: [KeyframeThumbnail], threshold: Double = 0.05) -> (Double, Bool) {
         guard !keyframes.isEmpty else { return (0, false) }
-        
-        var nearestDistance = Double.infinity
-        
-        for keyframe in keyframes {
-            let distance = abs(keyframe.time - time)
-            if distance < nearestDistance {
-                nearestDistance = distance
-            }
+
+        guard let idx = binarySearchClosest(in: keyframes, targetTime: time, timeKeyPath: \.time) else {
+            return (0, false)
         }
-        
+
+        let nearestDistance = abs(keyframes[idx].time - time)
         let isAtKeyframe = nearestDistance < threshold
         return (nearestDistance, isAtKeyframe)
     }
     
     // MARK: - Color Helpers
     
-    /// Interpolates color data at a given timestamp
+    /// Interpolates color data at a given timestamp using binary search
     static func interpolateColor(at time: Double, samples: [ColorSample]) -> (brightness: Double, colorTemperature: Double?)? {
         guard !samples.isEmpty else { return nil }
-        
-        let sortedSamples = samples.sorted { $0.time < $1.time }
-        
-        // Before first sample
-        if time <= sortedSamples.first?.time ?? 0 {
-            if let first = sortedSamples.first {
-                return (first.brightness, first.colorTemperature)
-            }
-            return nil
+
+        // Edge cases: before first or after last
+        if time <= samples.first!.time {
+            return (samples.first!.brightness, samples.first!.colorTemperature)
         }
-        
-        // After last sample
-        if time >= sortedSamples.last?.time ?? 0 {
-            if let last = sortedSamples.last {
-                return (last.brightness, last.colorTemperature)
-            }
-            return nil
+        if time >= samples.last!.time {
+            return (samples.last!.brightness, samples.last!.colorTemperature)
         }
-        
-        // Find two samples to interpolate between
-        for i in 0..<sortedSamples.count - 1 {
-            let s1 = sortedSamples[i]
-            let s2 = sortedSamples[i + 1]
-            
-            if time >= s1.time && time <= s2.time {
-                let t = (time - s1.time) / (s2.time - s1.time)
-                let brightness = s1.brightness + (s2.brightness - s1.brightness) * t
-                
-                var colorTemp: Double?
-                if let t1 = s1.colorTemperature, let t2 = s2.colorTemperature {
-                    colorTemp = t1 + (t2 - t1) * t
-                } else {
-                    colorTemp = s1.colorTemperature ?? s2.colorTemperature
-                }
-                
-                return (brightness, colorTemp)
+
+        // Binary search for interpolation pair
+        if let (s1, s2, t) = binarySearchInterpolationPair(in: samples, targetTime: time, timeKeyPath: \.time) {
+            let brightness = s1.brightness + (s2.brightness - s1.brightness) * t
+
+            var colorTemp: Double?
+            if let t1 = s1.colorTemperature, let t2 = s2.colorTemperature {
+                colorTemp = t1 + (t2 - t1) * t
+            } else {
+                colorTemp = s1.colorTemperature ?? s2.colorTemperature
             }
+
+            return (brightness, colorTemp)
         }
-        
+
         return nil
     }
 }

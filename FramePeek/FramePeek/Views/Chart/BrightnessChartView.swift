@@ -8,8 +8,16 @@ struct BrightnessChartView: View {
 
     private let maxDisplayPoints = 500
 
-    private var displaySamples: [ColorSample] {
-        downsampleColorSamples(samples, targetCount: maxDisplayPoints)
+    // MARK: - Cached Display Samples
+
+    @State private var cachedDisplaySamples: [ColorSample] = []
+    @State private var lastDisplaySamplesInputHash: Int = 0
+
+    private func recomputeDisplaySamples() {
+        let inputHash = samples.count
+        guard inputHash != lastDisplaySamplesInputHash else { return }
+        lastDisplaySamplesInputHash = inputHash
+        cachedDisplaySamples = downsampleColorSamples(samples, targetCount: maxDisplayPoints)
     }
 
     private var maxTime: Double {
@@ -26,7 +34,7 @@ struct BrightnessChartView: View {
                 let calculatedHeight = max(geometry.size.width * 0.15, 150) // 15% of width, min 150
 
                 Chart {
-                    ForEach(displaySamples) { sample in
+                    ForEach(cachedDisplaySamples) { sample in
                         LineMark(
                             x: .value("Time (s)", sample.time),
                             y: .value("Brightness", sample.brightness)
@@ -91,6 +99,8 @@ struct BrightnessChartView: View {
             .frame(height: 150) // Minimum height fallback
         }
         .padding(.bottom, DesignSystem.Padding.md)
+        .onAppear { recomputeDisplaySamples() }
+        .onChange(of: samples.count) { _, _ in recomputeDisplaySamples() }
     }
 }
 

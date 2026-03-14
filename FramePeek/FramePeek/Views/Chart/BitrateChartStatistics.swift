@@ -152,22 +152,22 @@ struct BitrateChartStatistics {
 
     var headerPeakText: String {
         if samples.isEmpty { return "—" }
-        return String(format: "%.0f kb/s", maxBitrateKbps)
+        return "\(maxBitrateKbps.formatted(.number.precision(.fractionLength(0)))) kb/s"
     }
 
     var headerDurationText: String {
         if samples.isEmpty { return "—" }
-        return String(format: "%.0f s", maxTime)
+        return "\(maxTime.formatted(.number.precision(.fractionLength(0)))) s"
     }
 
     var headerAvgText: String {
         if samples.isEmpty { return "—" }
-        return String(format: "%.0f kb/s", avgBitrateKbps)
+        return "\(avgBitrateKbps.formatted(.number.precision(.fractionLength(0)))) kb/s"
     }
 
     var headerStdDevText: String {
         if samples.isEmpty { return "—" }
-        return String(format: "±%.0f", stdDevKbps)
+        return "±\(stdDevKbps.formatted(.number.precision(.fractionLength(0))))"
     }
 
     func niceStep(forMax max: Double, targetTicks: Int) -> Double {

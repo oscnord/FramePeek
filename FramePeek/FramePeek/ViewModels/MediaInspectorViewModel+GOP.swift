@@ -72,14 +72,14 @@ extension FramePeekViewModel {
         let segment = analysis.segments[index]
         
         // Check cache first
-        if let cached = gopFrameDetailsCache[segment.id] {
+        if let cached = getCachedGOPFrameDetails(for: segment.id) {
             selectedGOPFrameDetails = cached
             return
         }
-        
+
         // If segment already has frames populated, use them
         if let existingFrames = segment.frames, !existingFrames.isEmpty {
-            gopFrameDetailsCache[segment.id] = existingFrames
+            cacheGOPFrameDetails(existingFrames, for: segment.id)
             selectedGOPFrameDetails = existingFrames
             return
         }
@@ -120,8 +120,8 @@ extension FramePeekViewModel {
         }
         
         // Cache and set result
-        gopFrameDetailsCache[segment.id] = result.frames
-        
+        cacheGOPFrameDetails(result.frames, for: segment.id)
+
         // Only update if this GOP is still selected
         if selectedGOPIndex == index {
             selectedGOPFrameDetails = result.frames
@@ -132,67 +132,63 @@ extension FramePeekViewModel {
     func preloadFrameDetailsForVisibleGOPs(indices: [Int]) {
         // Cancel any existing preload task
         frameDetailPreloadTask?.cancel()
-        
+
         guard codecSupportsFrameTypes,
               let analysis = gopAnalysis,
               let url = currentVideoURL else {
             return
         }
-        
+
+        // Capture all needed MainActor state ONCE to avoid bouncing
+        let cachedIds = Set(gopFrameDetailsCache.keys)
+        let currentPreloading = preloadingGOPIndices
+
         // Filter to indices that aren't cached yet and aren't already preloading
         let indicesToPreload = indices.filter { index in
             guard index < analysis.segments.count else { return false }
             let segment = analysis.segments[index]
-            return gopFrameDetailsCache[segment.id] == nil &&
-                   !preloadingGOPIndices.contains(index) &&
+            return !cachedIds.contains(segment.id) &&
+                   !currentPreloading.contains(index) &&
                    (segment.frames == nil || segment.frames!.isEmpty)
         }
-        
+
         // Limit batch size
         let batchIndices = Array(indicesToPreload.prefix(5))
         guard !batchIndices.isEmpty else { return }
-        
+
         preloadingGOPIndices.formUnion(batchIndices)
-        
+
+        // Capture segments info needed for background work
+        let segmentInfos: [(index: Int, id: UUID, timeRange: ClosedRange<Double>)] = batchIndices.compactMap { index in
+            guard index < analysis.segments.count else { return nil }
+            let segment = analysis.segments[index]
+            return (index, segment.id, segment.startTime...segment.endTime)
+        }
+
         frameDetailPreloadTask = Task.detached(priority: .utility) { [weak self] in
             let asset = AVURLAsset(url: url)
-            
-            for index in batchIndices {
+
+            for info in segmentInfos {
                 if Task.isCancelled { break }
-                
-                guard let strongSelf = await MainActor.run(body: { self }),
-                      let analysis = await strongSelf.gopAnalysis,
-                      index < analysis.segments.count else {
-                    continue
-                }
-                
-                let segment = analysis.segments[index]
-                
-                // Skip if already cached
-                if await strongSelf.gopFrameDetailsCache[segment.id] != nil {
-                    await MainActor.run {
-                        _ = strongSelf.preloadingGOPIndices.remove(index)
-                    }
-                    continue
-                }
-                
-                let timeRange = segment.startTime...segment.endTime
-                let result = await FrameDetailExtractor.extractFrameDetails(from: asset, timeRange: timeRange)
-                
+
+                let result = await FrameDetailExtractor.extractFrameDetails(from: asset, timeRange: info.timeRange)
+
                 if Task.isCancelled { break }
-                
+
+                // Single MainActor bounce per segment for the final UI update
                 await MainActor.run {
-                    strongSelf.preloadingGOPIndices.remove(index)
-                    
+                    guard let self else { return }
+                    self.preloadingGOPIndices.remove(info.index)
+
                     if let result, result.codecSupportsFrameTypes {
-                        strongSelf.gopFrameDetailsCache[segment.id] = result.frames
-                        
+                        self.cacheGOPFrameDetails(result.frames, for: info.id)
+
                         // If this is the currently selected GOP, update selectedGOPFrameDetails
-                        if strongSelf.selectedGOPIndex == index {
-                            strongSelf.selectedGOPFrameDetails = result.frames
+                        if self.selectedGOPIndex == info.index {
+                            self.selectedGOPFrameDetails = result.frames
                         }
                     } else if result != nil {
-                        strongSelf.codecSupportsFrameTypes = false
+                        self.codecSupportsFrameTypes = false
                     }
                 }
             }
@@ -204,6 +200,7 @@ extension FramePeekViewModel {
         frameDetailPreloadTask?.cancel()
         frameDetailPreloadTask = nil
         gopFrameDetailsCache.removeAll()
+        gopCacheAccessOrder.removeAll()
         selectedGOPFrameDetails = nil
         preloadingGOPIndices.removeAll()
         codecSupportsFrameTypes = true
@@ -281,12 +278,15 @@ extension FramePeekViewModel {
             var latestStructureType: GOPStructureType = .unknown
             var latestRepresentativeGOP: GOPSegment?
             var latestRepresentativeGOPIndex: Int?
+            var lastUIUpdate = ContinuousClock.now
+            var pendingUIUpdate = false
 
             for await update in extractGOPSegments(asset: asset, options: options) {
                 if Task.isCancelled { return }
 
                 if !update.appendedSegments.isEmpty {
                     allSegments.append(contentsOf: update.appendedSegments)
+                    pendingUIUpdate = true
                 }
 
                 latestStructureType = update.structureType
@@ -298,26 +298,37 @@ extension FramePeekViewModel {
                     })
                 }
 
-                let segmentsSnapshot = allSegments
                 let isPreview = update.isPreview
                 let scannedUntilSeconds = update.scannedUntilSeconds
                 let isFinished = update.isFinished
-                let structureType = latestStructureType
-                let representativeGOP = latestRepresentativeGOP
 
-                await MainActor.run {
-                    self.gopAnalysis = GOPAnalysisResult(
-                        segments: segmentsSnapshot,
-                        isPreview: isPreview,
-                        scannedUntilSeconds: scannedUntilSeconds,
-                        isFinished: isFinished,
-                        structureType: structureType,
-                        representativeGOP: representativeGOP
-                    )
-                    self.gopLoadedFromCache = false  // No longer from cache
+                // Batch UI updates: push every 200ms or on finish
+                let now = ContinuousClock.now
+                let shouldUpdate = isFinished ||
+                                   (pendingUIUpdate && now - lastUIUpdate >= .milliseconds(200))
 
-                    if isFinished {
-                        self.isAnalyzingGOP = false
+                if shouldUpdate {
+                    lastUIUpdate = now
+                    pendingUIUpdate = false
+
+                    let segmentsSnapshot = allSegments
+                    let structureType = latestStructureType
+                    let representativeGOP = latestRepresentativeGOP
+
+                    await MainActor.run {
+                        self.gopAnalysis = GOPAnalysisResult(
+                            segments: segmentsSnapshot,
+                            isPreview: isPreview,
+                            scannedUntilSeconds: scannedUntilSeconds,
+                            isFinished: isFinished,
+                            structureType: structureType,
+                            representativeGOP: representativeGOP
+                        )
+                        self.gopLoadedFromCache = false  // No longer from cache
+
+                        if isFinished {
+                            self.isAnalyzingGOP = false
+                        }
                     }
                 }
 

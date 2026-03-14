@@ -4,7 +4,7 @@ import FramePeekCore
 struct GOPDetailsPanel: View {
     let segment: GOPSegment
     let index: Int
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     
     /// Frame details - uses ViewModel state (on-demand loaded) with fallback to segment.frames
     private var frameDetails: [FrameInfo]? {

@@ -3,7 +3,13 @@ import Charts
 import FramePeekCore
 
 struct BitrateChartView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
+    var playerManager = PlayerViewModelManager.shared
+
+    // MARK: - Cached Display Samples
+
+    @State private var cachedDisplaySamples: [BitrateSample] = []
+    @State private var lastDisplaySamplesInputHash: Int = 0
 
     // MARK: - Display Settings
 
@@ -26,15 +32,26 @@ struct BitrateChartView: View {
         )
     }
 
-    /// Downsampled samples for efficient chart rendering using LTTB algorithm
-    private var displaySamples: [BitrateSample] {
+    /// Recomputes downsampled display samples only when inputs change
+    private func recomputeDisplaySamples() {
+        let inputHash = combineHashValues(viewModel.samples.count, viewModel.visibleTimeRange?.hashValue ?? 0)
+        guard inputHash != lastDisplaySamplesInputHash else { return }
+        lastDisplaySamplesInputHash = inputHash
+
         let filteredSamples: [BitrateSample]
         if let range = viewModel.visibleTimeRange {
             filteredSamples = viewModel.samples.filter { range.contains($0.time) }
         } else {
             filteredSamples = viewModel.samples
         }
-        return downsampleLTTB(filteredSamples, targetCount: maxDisplayPoints)
+        cachedDisplaySamples = downsampleLTTB(filteredSamples, targetCount: maxDisplayPoints)
+    }
+
+    private func combineHashValues(_ a: Int, _ b: Int) -> Int {
+        var hasher = Hasher()
+        hasher.combine(a)
+        hasher.combine(b)
+        return hasher.finalize()
     }
 
     private var yTickStep: Double {
@@ -143,7 +160,9 @@ struct BitrateChartView: View {
 
     // MARK: - Chart Card
 
+    @ViewBuilder
     private var chartCard: some View {
+        @Bindable var viewModel = viewModel
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.xlarge, style: .continuous)
                 .fill(DesignSystem.Materials.thin)
@@ -198,7 +217,7 @@ struct BitrateChartView: View {
 
     private var chart: some View {
         Chart {
-            ForEach(displaySamples) { sample in
+            ForEach(cachedDisplaySamples) { sample in
                 AreaMark(
                     x: .value("Time (s)", sample.time),
                     y: .value("Bitrate (kbps)", sample.bitrate / 1000.0)
@@ -254,7 +273,7 @@ struct BitrateChartView: View {
             }
 
             // Playback position indicator
-            if let playbackTime = viewModel.currentPlaybackTime {
+            if let playbackTime = playerManager.currentPlaybackTime {
                 RuleMark(x: .value("Playback", playbackTime))
                     .foregroundStyle(.blue.opacity(0.8))
                     .lineStyle(StrokeStyle(lineWidth: DesignSystem.Borders.thick))
@@ -320,10 +339,14 @@ struct BitrateChartView: View {
                             PlayerViewModelManager.shared.seekToTime(time)
                         }
                     }
+                    .accessibilityAddTraits(.isButton)
             }
         }
         .drawingGroup()
         .frame(minHeight: 400)
+        .onAppear { recomputeDisplaySamples() }
+        .onChange(of: viewModel.samples.count) { _, _ in recomputeDisplaySamples() }
+        .onChange(of: viewModel.visibleTimeRange) { _, _ in recomputeDisplaySamples() }
     }
 
     // MARK: - Overlay

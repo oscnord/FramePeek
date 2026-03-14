@@ -66,6 +66,7 @@ extension FramePeekViewModel {
 
             let thumbnailSize = await MainActor.run { self.thumbnailSize.cgSize }
 
+            var seenTimes = Set<Double>()
             for await thumbnailBatch in GenerateKeyframeThumbnailsStream(
                 asset: asset,
                 keyframeTimes: targetTimes,  // Use target times directly - generator will find nearest frame
@@ -75,13 +76,17 @@ extension FramePeekViewModel {
             ) {
                 if Task.isCancelled { break }
 
+                // Filter duplicates using O(1) Set lookup instead of contains(where:)
+                let uniqueBatch = thumbnailBatch.filter { seenTimes.insert($0.time).inserted }
+
                 await MainActor.run {
-                    self.keyframeThumbs.append(contentsOf: thumbnailBatch)
-                    self.keyframeThumbs.sort { $0.time < $1.time }
+                    self.keyframeThumbs.append(contentsOf: uniqueBatch)
                 }
             }
 
+            // Single sort after all batches complete
             await MainActor.run {
+                self.keyframeThumbs.sort { $0.time < $1.time }
                 self.isGeneratingThumbnails = false
             }
         }
@@ -124,22 +129,9 @@ extension FramePeekViewModel {
             for i in 0..<maxThumbnails {
                 let targetTime = Double(i) * interval
 
-                // Find nearest keyframe to this target time using binary search for efficiency
-                var bestTime: Double?
-                var bestDistance = Double.greatestFiniteMagnitude
-
-                for keyframeTime in sortedKeyframes {
-                    let distance = abs(keyframeTime - targetTime)
-                    if distance < bestDistance {
-                        bestDistance = distance
-                        bestTime = keyframeTime
-                    } else {
-                        // Since sorted, we can break early
-                        break
-                    }
-                }
-
-                if let nearest = bestTime {
+                // Use binary search to find nearest keyframe — O(log n) instead of O(n)
+                if let idx = binarySearchClosest(in: sortedKeyframes, targetTime: targetTime, timeKeyPath: \.self) {
+                    let nearest = sortedKeyframes[idx]
                     // Avoid duplicates
                     if selected.isEmpty || abs(selected.last! - nearest) > 0.001 {
                         selected.append(nearest)
@@ -171,6 +163,7 @@ extension FramePeekViewModel {
 
             let thumbnailSize = await MainActor.run { self.thumbnailSize.cgSize }
 
+            var seenTimes = Set<Double>()
             for await thumbnailBatch in GenerateKeyframeThumbnailsStream(
                 asset: asset,
                 keyframeTimes: selectedTimes,
@@ -180,13 +173,17 @@ extension FramePeekViewModel {
             ) {
                 if Task.isCancelled { break }
 
+                // Filter duplicates using O(1) Set lookup
+                let uniqueBatch = thumbnailBatch.filter { seenTimes.insert($0.time).inserted }
+
                 await MainActor.run {
-                    self.keyframeThumbs.append(contentsOf: thumbnailBatch)
-                    self.keyframeThumbs.sort { $0.time < $1.time }
+                    self.keyframeThumbs.append(contentsOf: uniqueBatch)
                 }
             }
 
+            // Single sort after all batches complete
             await MainActor.run {
+                self.keyframeThumbs.sort { $0.time < $1.time }
                 self.isGeneratingThumbnails = false
             }
         }

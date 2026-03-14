@@ -16,7 +16,7 @@ extension InfoInspectorView {
     func showCopied(_ message: String) {
         copiedBannerText = message
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            try? await Task.sleep(for: .seconds(1.2))
             if copiedBannerText == message {
                 copiedBannerText = nil
             }

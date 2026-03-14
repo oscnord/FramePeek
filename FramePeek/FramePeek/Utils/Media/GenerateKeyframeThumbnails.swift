@@ -3,6 +3,32 @@ import AppKit
 import CoreImage
 import os
 
+/// Binary search for nearest value in a sorted array of Doubles.
+/// - Complexity: O(log n)
+private func findNearestTime(in sortedTimes: [Double], target: Double) -> Double? {
+    guard !sortedTimes.isEmpty else { return nil }
+
+    var low = 0
+    var high = sortedTimes.count - 1
+
+    while low < high {
+        let mid = low + (high - low) / 2
+        if sortedTimes[mid] < target {
+            low = mid + 1
+        } else {
+            high = mid
+        }
+    }
+
+    // low is the first element >= target. Check if previous is closer.
+    if low > 0 {
+        let distCurrent = abs(sortedTimes[low] - target)
+        let distPrev = abs(sortedTimes[low - 1] - target)
+        return distPrev <= distCurrent ? sortedTimes[low - 1] : sortedTimes[low]
+    }
+    return sortedTimes[low]
+}
+
 /// Simple, direct sRGB conversion for HDR content
 /// This is the simplest possible approach - just convert everything to sRGB using CoreImage
 private func convertToSRGBSimple(_ cgImage: CGImage) -> CGImage? {
@@ -56,8 +82,10 @@ public func GenerateKeyframeThumbnailsStream(
             let chosen: [Double]
 
             if keyframeTimes.count <= maxThumbnails {
-                chosen = keyframeTimes
+                chosen = keyframeTimes.sorted()
             } else {
+                // Sort once for binary search
+                let sortedKeyframeTimes = keyframeTimes.sorted()
                 var selectedTimes: [Double] = []
                 selectedTimes.reserveCapacity(maxThumbnails)
 
@@ -65,17 +93,19 @@ public func GenerateKeyframeThumbnailsStream(
 
                 for i in 0..<maxThumbnails {
                     let targetTime = Double(i) * interval
-                    if let nearest = keyframeTimes.min(by: { abs($0 - targetTime) < abs($1 - targetTime) }) {
+                    // Use binary search to find nearest keyframe — O(log n) instead of O(n)
+                    let nearest = findNearestTime(in: sortedKeyframeTimes, target: targetTime)
+                    if let nearest {
                         if selectedTimes.isEmpty || abs(selectedTimes.last! - nearest) > 0.001 {
                             selectedTimes.append(nearest)
                         }
                     }
                 }
 
-                if let first = keyframeTimes.first, !selectedTimes.contains(where: { abs($0 - first) < 0.001 }) {
+                if let first = sortedKeyframeTimes.first, !selectedTimes.contains(where: { abs($0 - first) < 0.001 }) {
                     selectedTimes.insert(first, at: 0)
                 }
-                if let last = keyframeTimes.last, !selectedTimes.contains(where: { abs($0 - last) < 0.001 }) {
+                if let last = sortedKeyframeTimes.last, !selectedTimes.contains(where: { abs($0 - last) < 0.001 }) {
                     selectedTimes.append(last)
                 }
 
@@ -166,7 +196,7 @@ public func GenerateKeyframeThumbnailsStream(
                     finished || completed >= total
                 }
                 if isDone { break }
-                try? await Task.sleep(nanoseconds: 100_000_000)
+                try? await Task.sleep(for: .milliseconds(100))
             }
 
             if Task.isCancelled {

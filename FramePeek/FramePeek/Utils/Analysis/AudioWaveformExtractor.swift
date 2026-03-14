@@ -88,7 +88,7 @@ public func extractWaveform(
             windowSamples.reserveCapacity(Int(actualWindowSize * 48000)) // Pre-allocate for typical sample rates
 
             var bufferIndex = 0
-            var lastYieldTime = Date()
+            var lastYieldTime = Date.now
             var lastYieldedCount = 0
             let yieldInterval: TimeInterval = 0.1 // Yield every 100ms for UI responsiveness
             var shouldBreak = false
@@ -205,7 +205,7 @@ public func extractWaveform(
                     }
 
                     // Yield progressive updates periodically
-                    let now = Date()
+                    let now = Date.now
                     if now.timeIntervalSince(lastYieldTime) >= yieldInterval && allSamples.count > lastYieldedCount {
                         let newSamples = Array(allSamples[lastYieldedCount...])
                         continuation.yield(WaveformUpdate(appendedSamples: newSamples, isFinished: false))
@@ -232,17 +232,18 @@ public func extractWaveform(
                 allSamples.append(newSample)
             }
 
-            // Downsample if needed
-            let finalSamples: [WaveformSample]
             if allSamples.count > maxSamples {
-                finalSamples = downsampleWaveformLTTB(allSamples, targetCount: maxSamples)
+                // Downsampling needed — yield the complete downsampled result
+                // Consumer must treat isFinished as a full replacement
+                let finalSamples = downsampleWaveformLTTB(allSamples, targetCount: maxSamples)
+                continuation.yield(WaveformUpdate(appendedSamples: finalSamples, isFinished: true))
             } else {
-                finalSamples = allSamples
+                // No downsampling needed — just yield any remaining un-yielded samples
+                let remaining = lastYieldedCount < allSamples.count
+                    ? Array(allSamples[lastYieldedCount...])
+                    : []
+                continuation.yield(WaveformUpdate(appendedSamples: remaining, isFinished: true))
             }
-
-            // FIX: After downsampling, indices no longer correspond to pre-downsampling array
-            // Always yield the complete final result to avoid index mismatches
-            continuation.yield(WaveformUpdate(appendedSamples: finalSamples, isFinished: true))
             continuation.finish()
         }
 

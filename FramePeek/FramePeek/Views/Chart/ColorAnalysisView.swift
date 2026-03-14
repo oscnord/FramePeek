@@ -4,8 +4,9 @@ import AVFoundation
 import FramePeekCore
 
 struct ColorAnalysisView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
-    
+    var viewModel: FramePeekViewModel
+    var playerManager = PlayerViewModelManager.shared
+
     @AppStorage("waveformScale") private var waveformScaleRaw: String = WaveformScale.percentage.rawValue
     @AppStorage("vectorscopeShowReferenceBoxes") private var showReferenceBoxes: Bool = true
     @AppStorage("generateWaveformData") private var generateWaveformData: Bool = true
@@ -31,7 +32,7 @@ struct ColorAnalysisView: View {
     
     /// The time to use for scope display - playback time takes priority, falls back to visible range center
     private var currentScopeTime: Double? {
-        if let playbackTime = viewModel.currentPlaybackTime {
+        if let playbackTime = playerManager.currentPlaybackTime {
             return playbackTime
         }
         if let range = viewModel.visibleTimeRange {
@@ -79,9 +80,24 @@ struct ColorAnalysisView: View {
         viewModel.aggregatedColorStats
     }
 
-    private var aggregatedHistogram: ColorHistogram? {
+    @State private var cachedAggregatedHistogram: ColorHistogram?
+    @State private var lastHistogramInputHash: Int = 0
+
+    private var histogramInputHash: Int {
+        var hasher = Hasher()
+        hasher.combine(viewModel.professionalColorAnalysis.count)
+        hasher.combine(viewModel.visibleTimeRange?.lowerBound)
+        hasher.combine(viewModel.visibleTimeRange?.upperBound)
+        return hasher.finalize()
+    }
+
+    private func recomputeAggregatedHistogram() {
         let samplesWithHist = displaySamples.compactMap { $0.histogram }
-        guard !samplesWithHist.isEmpty else { return nil }
+        guard !samplesWithHist.isEmpty else {
+            cachedAggregatedHistogram = nil
+            lastHistogramInputHash = histogramInputHash
+            return
+        }
 
         var redSum = Array(repeating: 0.0, count: 256)
         var greenSum = Array(repeating: 0.0, count: 256)
@@ -96,11 +112,12 @@ struct ColorAnalysisView: View {
         }
 
         let count = Double(samplesWithHist.count)
-        return ColorHistogram(
+        cachedAggregatedHistogram = ColorHistogram(
             red: redSum.map { $0 / count },
             green: greenSum.map { $0 / count },
             blue: blueSum.map { $0 / count }
         )
+        lastHistogramInputHash = histogramInputHash
     }
 
     var body: some View {
@@ -130,6 +147,21 @@ struct ColorAnalysisView: View {
             .task {
                 // Detect HDR type when view appears
                 await viewModel.detectHDRType()
+            }
+            .onAppear {
+                recomputeAggregatedHistogram()
+            }
+            .onChange(of: viewModel.professionalColorAnalysis.count) { _, _ in
+                let hash = histogramInputHash
+                if hash != lastHistogramInputHash {
+                    recomputeAggregatedHistogram()
+                }
+            }
+            .onChange(of: viewModel.visibleTimeRange) { _, _ in
+                let hash = histogramInputHash
+                if hash != lastHistogramInputHash {
+                    recomputeAggregatedHistogram()
+                }
             }
         }
     }

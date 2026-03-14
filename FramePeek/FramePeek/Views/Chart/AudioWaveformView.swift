@@ -6,16 +6,30 @@ struct AudioWaveformView: View {
     let trackInfo: AudioTrackInfo
     let samples: [WaveformSample]
     let duration: Double
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
 
-    private var displaySamples: [WaveformSample] {
-        let filteredSamples: [WaveformSample]
+    // MARK: - Cached Display Samples
+
+    @State private var cachedDisplaySamples: [WaveformSample] = []
+    @State private var lastDisplaySamplesInputHash: Int = 0
+
+    private func recomputeDisplaySamples() {
+        let inputHash = combineHashValues(samples.count, viewModel.visibleTimeRange?.hashValue ?? 0)
+        guard inputHash != lastDisplaySamplesInputHash else { return }
+        lastDisplaySamplesInputHash = inputHash
+
         if let range = viewModel.visibleTimeRange {
-            filteredSamples = samples.filter { range.contains($0.time) }
+            cachedDisplaySamples = samples.filter { range.contains($0.time) }
         } else {
-            filteredSamples = samples
+            cachedDisplaySamples = samples
         }
-        return filteredSamples
+    }
+
+    private func combineHashValues(_ a: Int, _ b: Int) -> Int {
+        var hasher = Hasher()
+        hasher.combine(a)
+        hasher.combine(b)
+        return hasher.finalize()
     }
     
     /// Time domain for the current view
@@ -41,14 +55,14 @@ struct AudioWaveformView: View {
                             .stroke(DesignSystem.Colors.Chart.grid.opacity(0.3), lineWidth: 0.5)
                     )
 
-                if displaySamples.isEmpty {
+                if cachedDisplaySamples.isEmpty {
                     // Empty state
                     Text("No waveform data")
                         .font(.caption)
                         .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                 } else {
                     // Waveform path - gradient from bottom (darker) to top (lighter)
-                    WaveformShape(samples: displaySamples, height: calculatedHeight)
+                    WaveformShape(samples: cachedDisplaySamples, height: calculatedHeight)
                         .fill(
                             LinearGradient(
                                 colors: [
@@ -69,6 +83,9 @@ struct AudioWaveformView: View {
             .frame(height: calculatedHeight)
         }
         .frame(height: 80) // Minimum height fallback
+        .onAppear { recomputeDisplaySamples() }
+        .onChange(of: samples.count) { _, _ in recomputeDisplaySamples() }
+        .onChange(of: viewModel.visibleTimeRange) { _, _ in recomputeDisplaySamples() }
     }
     
     // MARK: - Cross-Chart Sync Indicator

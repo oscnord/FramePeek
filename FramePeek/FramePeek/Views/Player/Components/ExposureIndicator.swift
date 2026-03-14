@@ -156,23 +156,23 @@ struct ExposureDetailView: View {
                 Text("Avg")
                     .font(.system(size: 9))
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                Text(String(format: "%.0f%%", lum.average * 100))
+                Text("\((lum.average * 100).formatted(.number.precision(.fractionLength(0))))%")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
             }
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("Min")
                     .font(.system(size: 9))
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                Text(String(format: "%.0f%%", lum.min * 100))
+                Text("\((lum.min * 100).formatted(.number.precision(.fractionLength(0))))%")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
             }
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text("Max")
                     .font(.system(size: 9))
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-                Text(String(format: "%.0f%%", lum.max * 100))
+                Text("\((lum.max * 100).formatted(.number.precision(.fractionLength(0))))%")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
             }
             
@@ -239,9 +239,9 @@ struct ExposureDetailView: View {
     
     private func formatContrastRatio(_ ratio: Double) -> String {
         if ratio >= 1000 {
-            return String(format: "%.1fK:1", ratio / 1000)
+            return "\((ratio / 1000).formatted(.number.precision(.fractionLength(1))))K:1"
         } else {
-            return String(format: "%.0f:1", ratio)
+            return "\(ratio.formatted(.number.precision(.fractionLength(0)))):1"
         }
     }
 }

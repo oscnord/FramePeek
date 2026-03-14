@@ -23,19 +23,26 @@ struct BitrateSparklineView: View {
         self.height = height
     }
 
-    private var windowSamples: [BitrateSample] {
+    private var windowSamples: ArraySlice<BitrateSample> {
         let windowStart = max(0, currentTime - windowSeconds)
         let windowEnd = currentTime
-        return samples.filter { $0.time >= windowStart && $0.time <= windowEnd }
-            .sorted { $0.time < $1.time }
+        let range = indicesInRange(
+            in: samples,
+            from: windowStart,
+            to: windowEnd,
+            timeKeyPath: \.time
+        )
+        return samples[range]
     }
 
     private var bitrateRange: (min: Double, max: Double) {
         guard !windowSamples.isEmpty else { return (0, 1) }
-        let bitrates = windowSamples.map(\.bitrate)
-        let minBitrate = bitrates.min() ?? 0
-        let maxBitrate = bitrates.max() ?? 1
-        // Add 10% padding to range
+        var minBitrate = Double.greatestFiniteMagnitude
+        var maxBitrate = -Double.greatestFiniteMagnitude
+        for sample in windowSamples {
+            if sample.bitrate < minBitrate { minBitrate = sample.bitrate }
+            if sample.bitrate > maxBitrate { maxBitrate = sample.bitrate }
+        }
         let padding = (maxBitrate - minBitrate) * 0.1
         return (max(0, minBitrate - padding), maxBitrate + padding)
     }

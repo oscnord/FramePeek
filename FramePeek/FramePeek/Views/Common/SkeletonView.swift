@@ -12,20 +12,19 @@ struct SkeletonView: View {
             .fill(DesignSystem.Materials.ultraThin)
             .frame(width: width, height: height)
             .overlay(
-                GeometryReader { _ in
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.clear,
-                            Color.white.opacity(0.1),
-                            Color.clear
-                        ]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .frame(width: 200)
-                    .offset(x: shimmerOffset)
-                    .blur(radius: 10)
-                }
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.clear,
+                        Color.white.opacity(0.1),
+                        Color.clear
+                    ]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: 200)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .offset(x: shimmerOffset)
+                .blur(radius: 10)
             )
             .clipped()
             .onAppear {

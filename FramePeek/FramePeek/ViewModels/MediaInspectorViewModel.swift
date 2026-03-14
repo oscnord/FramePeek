@@ -5,91 +5,102 @@ import SwiftUI
 import FramePeekCore
 
 @MainActor
-final class FramePeekViewModel: ObservableObject {
-    @Published var samples: [BitrateSample] = []
-    @Published var extendedInfo: ExtendedVideoInfo?
-    @Published var effectiveFPS: Double?
-    @Published var minInterval: Double?
-    @Published var maxInterval: Double?
-    @Published var hoveredSample: BitrateSample?
-    @Published var hoveredTimestamp: Double?  // Shared hover state for cross-chart sync
-    @Published var isAnalyzing: Bool = false
-    @Published var durationSeconds: Double = 0
-    @Published var keyframeThumbs: [KeyframeThumbnail] = []
-    @Published var hoveredKeyframeTime: Double?  // Shared hover state for syncing thumbnails and chart
-    @Published var visibleTimeRange: ClosedRange<Double>? // Zoom state
-    @Published var isGeneratingThumbnails: Bool = false
+@Observable
+final class FramePeekViewModel {
+    var samples: [BitrateSample] = []
+    var extendedInfo: ExtendedVideoInfo?
+    var effectiveFPS: Double?
+    var minInterval: Double?
+    var maxInterval: Double?
+    var hoveredSample: BitrateSample?
+    var hoveredTimestamp: Double?  // Shared hover state for cross-chart sync
+    var isAnalyzing: Bool = false
+    var durationSeconds: Double = 0
+    var keyframeThumbs: [KeyframeThumbnail] = []
+    var hoveredKeyframeTime: Double?  // Shared hover state for syncing thumbnails and chart
+    var visibleTimeRange: ClosedRange<Double>? // Zoom state
+    var isGeneratingThumbnails: Bool = false
 
     // GOP analysis
-    @Published var gopAnalysis: GOPAnalysisResult?
-    @Published var isAnalyzingGOP: Bool = false
-    @Published var selectedGOPIndex: Int? // Selected GOP for details view
-    @Published var gopLoadedFromCache: Bool = false  // Cache status indicator
-    
+    var gopAnalysis: GOPAnalysisResult?
+    var isAnalyzingGOP: Bool = false
+    var selectedGOPIndex: Int? // Selected GOP for details view
+    var gopLoadedFromCache: Bool = false  // Cache status indicator
+
     // GOP frame detail extraction (on-demand loading)
-    @Published var selectedGOPFrameDetails: [FrameInfo]?
-    @Published var isLoadingGOPFrameDetails: Bool = false
-    @Published var gopFrameDetailsCache: [UUID: [FrameInfo]] = [:]
-    @Published var preloadingGOPIndices: Set<Int> = []
-    @Published var codecSupportsFrameTypes: Bool = true
-    var frameDetailPreloadTask: Task<Void, Never>?
+    var selectedGOPFrameDetails: [FrameInfo]?
+    var isLoadingGOPFrameDetails: Bool = false
+    var gopFrameDetailsCache: [UUID: [FrameInfo]] = [:]
+    @ObservationIgnored var gopCacheAccessOrder: [UUID] = []
+    @ObservationIgnored let gopCacheMaxSize = 50
+    var preloadingGOPIndices: Set<Int> = []
+    var codecSupportsFrameTypes: Bool = true
+    @ObservationIgnored var frameDetailPreloadTask: Task<Void, Never>?
 
     // UI
-    @Published var showAboutView: Bool = false
-    @Published var showSettingsView: Bool = false
+    var showAboutView: Bool = false
+    var showSettingsView: Bool = false
 
     // Tab choice dialog
-    @Published var showTabChoiceDialog: Bool = false
-    @Published var pendingURLForTabChoice: URL?
+    var showTabChoiceDialog: Bool = false
+    var pendingURLForTabChoice: URL?
 
     // Signal to open file in new tab (set by view model, handled by FramePeek.swift)
-    @Published var shouldOpenInNewTab: URL?
+    var shouldOpenInNewTab: URL?
 
     // Settings loaded from AppStorage (synced on init and when needed)
-    @Published var samplingMode: SamplingMode = .auto
-    @Published var samplingIntervalSeconds: Double = 0.5   // used if mode == .interval
-    @Published var maxPointsTarget: Int = 2000             // used if mode == .auto / caps
-    @Published var emitEveryNSamples: Int = 100            // UI update batch size
-    @Published var preferAccuracy: Bool = false             // Use reader path for accurate bitrate (slower but matches ffprobe)
+    var samplingMode: SamplingMode = .auto
+    var samplingIntervalSeconds: Double = 0.5   // used if mode == .interval
+    var maxPointsTarget: Int = 2000             // used if mode == .auto / caps
+    var emitEveryNSamples: Int = 100            // UI update batch size
+    var preferAccuracy: Bool = false             // Use reader path for accurate bitrate (slower but matches ffprobe)
 
     // Thumbnails settings
-    @Published var autoGenerateThumbnails: Bool = true
-    @Published var maxThumbnails: Int = 200
-    @Published var thumbnailSize: ThumbnailSize = .medium
+    var autoGenerateThumbnails: Bool = true
+    var maxThumbnails: Int = 200
+    var thumbnailSize: ThumbnailSize = .medium
 
     // Chart Display settings
-    @Published var chartMaxDisplayPoints: Int = 1_000
-    @Published var chartMaxDisplayPointsZoomed: Int = 2_000
+    var chartMaxDisplayPoints: Int = 1_000
+    var chartMaxDisplayPointsZoomed: Int = 2_000
 
     // Waveform settings
-    @Published var waveformData: [Int: [WaveformSample]] = [:] // Dictionary keyed by track index
-    @Published var isExtractingWaveforms: Bool = false
-    @Published var expandedWaveformTracks: Set<Int> = [] // Tracks that are expanded/visible
-    @Published var waveformHeight: WaveformHeight = .normal
-    @Published var waveformLoadedFromCache: Bool = false  // Cache status indicator
+    var waveformData: [Int: [WaveformSample]] = [:] // Dictionary keyed by track index
+    var isExtractingWaveforms: Bool = false
+    var expandedWaveformTracks: Set<Int> = [] // Tracks that are expanded/visible
+    var waveformHeight: WaveformHeight = .normal
+    var waveformLoadedFromCache: Bool = false  // Cache status indicator
 
     // Sync analysis
-    @Published var syncAnalysisResult: SyncAnalysisResult?
-    @Published var frameTimingSamples: [FrameTimingSample] = []
-    @Published var isAnalyzingSync: Bool = false
+    var syncAnalysisResult: SyncAnalysisResult?
+    var frameTimingSamples: [FrameTimingSample] = []
+    var isAnalyzingSync: Bool = false
 
-    // Color analysis (legacy)
-    @Published var colorSamples: [ColorSample] = []
-    @Published var isAnalyzingColor: Bool = false
-    
+    // Color analysis (legacy) — computed from professionalColorAnalysis with caching
+    @ObservationIgnored var legacySamplesCache: [ColorSample]?
+    @ObservationIgnored var legacySamplesCacheCount: Int = 0
+    var colorSamples: [ColorSample] {
+        if legacySamplesCacheCount == professionalColorAnalysis.count,
+           let cached = legacySamplesCache {
+            return cached
+        }
+        let converted = convertToLegacyColorSamples(professionalColorAnalysis)
+        legacySamplesCache = converted
+        legacySamplesCacheCount = professionalColorAnalysis.count
+        return converted
+    }
+    var isAnalyzingColor: Bool = false
+
     // Professional color analysis
-    @Published var professionalColorAnalysis: [FrameColorAnalysis] = []
-    @Published var colorAnalysisProgress: Double = 0
-    @Published var currentFrameAnalysis: FrameColorAnalysis?  // For real-time overlay
-    @Published var hdrContentType: HDRContentType = .sdr
-    @Published var dolbyVisionConfig: DolbyVisionConfig?
+    var professionalColorAnalysis: [FrameColorAnalysis] = []
+    var colorAnalysisProgress: Double = 0
+    var currentFrameAnalysis: FrameColorAnalysis?  // For real-time overlay
+    var hdrContentType: HDRContentType = .sdr
+    var dolbyVisionConfig: DolbyVisionConfig?
 
     // Container analysis
-    @Published var containerAnalysis: ContainerAnalysisResult?
-    @Published var isAnalyzingContainer: Bool = false
-
-    // Playback position
-    @Published var currentPlaybackTime: Double?
+    var containerAnalysis: ContainerAnalysisResult?
+    var isAnalyzingContainer: Bool = false
 
     // Always use second-based visualization mode
     var visualizationMode: BitrateVisualizationMode { .second }
@@ -105,6 +116,25 @@ final class FramePeekViewModel: ObservableObject {
         let hasInvalidDuration = durationSeconds <= 0 || !durationSeconds.isFinite
 
         return hasNoSamples && (hasNoVideoTrack || hasInvalidDuration)
+    }
+
+    // MARK: - GOP Frame Details LRU Cache
+
+    func cacheGOPFrameDetails(_ details: [FrameInfo], for id: UUID) {
+        gopFrameDetailsCache[id] = details
+        gopCacheAccessOrder.removeAll { $0 == id }
+        gopCacheAccessOrder.append(id)
+        while gopCacheAccessOrder.count > gopCacheMaxSize {
+            let evictedID = gopCacheAccessOrder.removeFirst()
+            gopFrameDetailsCache.removeValue(forKey: evictedID)
+        }
+    }
+
+    func getCachedGOPFrameDetails(for id: UUID) -> [FrameInfo]? {
+        guard let details = gopFrameDetailsCache[id] else { return nil }
+        gopCacheAccessOrder.removeAll { $0 == id }
+        gopCacheAccessOrder.append(id)
+        return details
     }
 
     init() {
@@ -168,17 +198,17 @@ final class FramePeekViewModel: ObservableObject {
     }
 
     var pendingURL: URL?
-    private var currentURL: URL?  // Store current URL for re-analysis
-    @Published var currentVideoURL: URL?  // Current video URL for player window
-    var rawFrames: [RawFrame] = []  // Store raw frame data for re-aggregation
-    var infoTask: Task<Void, Never>?
-    var thumbnailTask: Task<Void, Never>?
-    var framesTask: Task<Void, Never>?
-    var gopTask: Task<Void, Never>?
-    var waveformTasks: [Int: Task<Void, Never>] = [:] // Dictionary of extraction tasks per track
-    var syncTask: Task<Void, Never>?
-    var colorAnalysisTask: Task<Void, Never>?
-    var containerTask: Task<Void, Never>?
+    @ObservationIgnored private var currentURL: URL?  // Store current URL for re-analysis
+    var currentVideoURL: URL?  // Current video URL for player window
+    @ObservationIgnored var rawFrames: [RawFrame] = []  // Store raw frame data for re-aggregation
+    @ObservationIgnored var infoTask: Task<Void, Never>?
+    @ObservationIgnored var thumbnailTask: Task<Void, Never>?
+    @ObservationIgnored var framesTask: Task<Void, Never>?
+    @ObservationIgnored var gopTask: Task<Void, Never>?
+    @ObservationIgnored var waveformTasks: [Int: Task<Void, Never>] = [:] // Dictionary of extraction tasks per track
+    @ObservationIgnored var syncTask: Task<Void, Never>?
+    @ObservationIgnored var colorAnalysisTask: Task<Void, Never>?
+    @ObservationIgnored var containerTask: Task<Void, Never>?
 
     enum SamplingMode: String, CaseIterable, Identifiable {
         case auto

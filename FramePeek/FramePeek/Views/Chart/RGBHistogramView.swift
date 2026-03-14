@@ -136,6 +136,7 @@ struct RGBHistogramView: View {
                                 histogramPath(data: histogram.green, color: .green, width: width, height: height)
                                 histogramPath(data: histogram.blue, color: .blue, width: width, height: height)
                             }
+                            .drawingGroup()
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
                         }
                         .frame(height: 130)
@@ -237,12 +238,13 @@ struct RGBHistogramView: View {
     }
 
     private func formatFrequency(_ value: Double) -> String {
+        let pct = value * 100
         if value >= 0.01 {
-            return String(format: "%.1f%%", value * 100)
+            return "\(pct.formatted(.number.precision(.fractionLength(1))))%"
         } else if value > 0.001 {
-            return String(format: "%.2f%%", value * 100)
+            return "\(pct.formatted(.number.precision(.fractionLength(2))))%"
         } else if value > 0 {
-            return String(format: "%.3f%%", value * 100)
+            return "\(pct.formatted(.number.precision(.fractionLength(3))))%"
         } else {
             return "0%"
         }

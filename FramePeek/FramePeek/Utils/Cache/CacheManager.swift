@@ -1,6 +1,6 @@
 import Foundation
 import CryptoKit
-import Combine
+import Observation
 
 // MARK: - Cache Configuration
 
@@ -55,11 +55,12 @@ public struct CachedFrameInfo: Codable {
 // MARK: - Cache Manager
 
 @MainActor
-public final class CacheManager: ObservableObject {
+@Observable
+public final class CacheManager {
     public static let shared = CacheManager()
 
-    @Published public private(set) var currentCacheSize: Int64 = 0
-    @Published public private(set) var isCalculatingSize: Bool = false
+    public private(set) var currentCacheSize: Int64 = 0
+    public private(set) var isCalculatingSize: Bool = false
 
     private let fileManager = FileManager.default
     private let encoder = PropertyListEncoder()
@@ -157,7 +158,7 @@ public final class CacheManager: ObservableObject {
             samples: samples,
             isPartial: isPartial,
             partialDurationSeconds: partialDurationSeconds,
-            createdAt: Date()
+            createdAt: Date.now
         )
 
         let fileURL = cacheURL.appendingPathComponent("\(key).\(CacheConfig.waveformFileExtension)")
@@ -229,7 +230,7 @@ public final class CacheManager: ObservableObject {
             segments: cachedSegments,
             isPartial: isPartial,
             partialDurationSeconds: partialDurationSeconds,
-            createdAt: Date(),
+            createdAt: Date.now,
             isPreview: isPreview,
             scannedUntilSeconds: scannedUntilSeconds,
             structureType: structureType,

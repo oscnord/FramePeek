@@ -4,14 +4,15 @@ import FramePeekCore
 
 /// Shared manager to track the active ViewModel for the video player window
 @MainActor
-final class PlayerViewModelManager: ObservableObject {
+@Observable
+final class PlayerViewModelManager {
     static let shared = PlayerViewModelManager()
 
-    @Published var activeViewModel: FramePeekViewModel?
-    @Published var seekTime: Double?
-    @Published var currentPlaybackTime: Double?
+    var activeViewModel: FramePeekViewModel?
+    var seekTime: Double?
+    var currentPlaybackTime: Double?
 
-    private var seekClearTask: Task<Void, Never>?
+    @ObservationIgnored private var seekClearTask: Task<Void, Never>?
 
     private init() {}
 
@@ -30,7 +31,7 @@ final class PlayerViewModelManager: ObservableObject {
         // This task can be cancelled if a new seek happens
         seekClearTask = Task {
             do {
-                try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                try await Task.sleep(for: .milliseconds(100))
                 // Only clear if task wasn't cancelled
                 if !Task.isCancelled {
                     seekTime = nil
@@ -44,7 +45,5 @@ final class PlayerViewModelManager: ObservableObject {
 
     func updatePlaybackTime(_ time: Double) {
         currentPlaybackTime = time
-        // Also update the active view model
-        activeViewModel?.currentPlaybackTime = time
     }
 }

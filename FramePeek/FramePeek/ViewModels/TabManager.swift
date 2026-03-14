@@ -15,9 +15,10 @@ struct TabItem: Identifiable, Equatable {
 }
 
 @MainActor
-final class TabManager: ObservableObject {
-    @Published var tabs: [TabItem] = []
-    @Published var selectedTabId: UUID?
+@Observable
+final class TabManager {
+    var tabs: [TabItem] = []
+    var selectedTabId: UUID?
 
     var currentTab: TabItem? {
         guard let selectedTabId = selectedTabId else { return nil }
@@ -73,7 +74,7 @@ final class TabManager: ObservableObject {
 
     func updateTabDisplayName(id: UUID, name: String) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-        // Create a new struct instance to ensure @Published triggers
+        // Create a new struct instance to ensure observation triggers
         var updatedTab = tabs[index]
         updatedTab.displayName = name
         tabs[index] = updatedTab

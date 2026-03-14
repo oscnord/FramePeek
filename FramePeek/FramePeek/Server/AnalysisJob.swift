@@ -62,7 +62,7 @@ public struct AnalysisJob: Identifiable, Sendable {
         self.fileURL = fileURL
         self.fileName = fileURL.lastPathComponent
         self.options = options
-        self.createdAt = Date()
+        self.createdAt = Date.now
         self.source = source
         self.webhook = webhook
         self.status = .pending
@@ -93,7 +93,7 @@ public struct AnalysisJob: Identifiable, Sendable {
     /// Duration of the job (if completed or in progress)
     public var duration: TimeInterval? {
         guard let started = startedAt else { return nil }
-        let end = completedAt ?? Date()
+        let end = completedAt ?? Date.now
         return end.timeIntervalSince(started)
     }
     
@@ -142,7 +142,7 @@ public struct CompletedJob: Identifiable, Codable, Sendable {
         self.filePath = job.fileURL.path
         self.source = job.source
         self.createdAt = job.createdAt
-        self.completedAt = job.completedAt ?? Date()
+        self.completedAt = job.completedAt ?? Date.now
         self.duration = job.duration ?? 0
         self.status = job.status
         self.error = job.error
@@ -178,7 +178,7 @@ public struct CompletedJob: Identifiable, Codable, Sendable {
     public var relativeTimeString: String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: completedAt, relativeTo: Date())
+        return formatter.localizedString(for: completedAt, relativeTo: Date.now)
     }
 }
 

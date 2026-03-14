@@ -68,8 +68,8 @@ struct VectorscopeView: View {
             
             if let point = hoveredPoint {
                 HStack(spacing: DesignSystem.Spacing.xs) {
-                    Text(String(format: "U: %.2f", point.u))
-                    Text(String(format: "V: %.2f", point.v))
+                    Text("U: \(point.u.formatted(.number.precision(.fractionLength(2))))")
+                    Text("V: \(point.v.formatted(.number.precision(.fractionLength(2))))")
                 }
                 .font(.caption)
                 .fontWeight(.medium)

@@ -4,7 +4,7 @@ import AppKit
 import FramePeekCore
 
 struct VideoPreviewView: View {
-    @ObservedObject var viewModel: FramePeekViewModel
+    var viewModel: FramePeekViewModel
     @Environment(\.openWindow) private var openWindow
 
     @State private var thumbnailImage: NSImage?
@@ -87,6 +87,7 @@ struct VideoPreviewView: View {
                     PlayerViewModelManager.shared.setActiveViewModel(viewModel)
                     openWindow(id: "videoPlayer")
                 }
+                .accessibilityAddTraits(.isButton)
                 .onAppear {
                     loadThumbnail(url: videoURL)
                 }
