@@ -32,14 +32,12 @@ extension FramePeekViewModel {
 
         if !rawFrames.isEmpty {
             // Calculate bitrate for all 1-second windows from raw frames
+            // rawFrames is pre-sorted by PTS at storage time
             let estimatedFPS = effectiveFPS ?? 30.0
             let defaultFrameDuration = 1.0 / estimatedFPS
-            let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
 
-            guard !sortedFrames.isEmpty else { return }
-
-            let startTime = sortedFrames.first!.pts
-            let endTime = sortedFrames.last!.pts
+            let startTime = rawFrames.first!.pts
+            let endTime = rawFrames.last!.pts
             let totalDuration = endTime - startTime + defaultFrameDuration
             let numBuckets = Int(ceil(totalDuration / 1.0))
 
@@ -54,15 +52,15 @@ extension FramePeekViewModel {
                 let bucketEnd = bucketStart + 1.0
 
                 // Advance to first frame in this bucket
-                while frameIndex < sortedFrames.count && sortedFrames[frameIndex].pts < bucketStart {
+                while frameIndex < rawFrames.count && rawFrames[frameIndex].pts < bucketStart {
                     frameIndex += 1
                 }
 
                 // Sum frames in bucket [bucketStart, bucketEnd)
                 var totalBytes: Int64 = 0
                 var tempIndex = frameIndex
-                while tempIndex < sortedFrames.count && sortedFrames[tempIndex].pts < bucketEnd {
-                    totalBytes += sortedFrames[tempIndex].size
+                while tempIndex < rawFrames.count && rawFrames[tempIndex].pts < bucketEnd {
+                    totalBytes += rawFrames[tempIndex].size
                     tempIndex += 1
                 }
 
@@ -229,9 +227,9 @@ extension FramePeekViewModel {
                 if Task.isCancelled { return }
 
                 await MainActor.run {
-                    // Store raw frames from final update
+                    // Store raw frames from final update (pre-sorted by PTS for downstream consumers)
                     if update.isFinished && !update.rawFrames.isEmpty {
-                        self.rawFrames = update.rawFrames
+                        self.rawFrames = update.rawFrames.sorted { $0.pts < $1.pts }
                         // Re-aggregate with current visualization mode
                         self.reAggregateSamples()
                     } else if !update.appendedSamples.isEmpty {

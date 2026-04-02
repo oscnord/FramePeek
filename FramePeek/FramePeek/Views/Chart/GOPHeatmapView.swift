@@ -86,6 +86,10 @@ struct GOPHeatmapView: View {
     @State private var cachedDisplayGOPs: [DisplayGOP] = []
     @State private var lastDisplayGOPsInputHash: Int = 0
 
+    // Cached stats to avoid O(n) scans on every body evaluation
+    @State private var cachedAllSegmentsStats: GOPStats?
+    @State private var lastAllStatsSegmentCount: Int = 0
+
     // Tooltip dimensions (approximate)
     private let tooltipWidth: CGFloat = 180
     private let tooltipHeight: CGFloat = 180
@@ -128,8 +132,14 @@ struct GOPHeatmapView: View {
         lastDisplayGOPsInputHash = displayGOPsInputHash
     }
 
-    private var stats: GOPStats {
-        calculateStats(segments: filteredSegments)
+    private var allSegmentsStats: GOPStats {
+        cachedAllSegmentsStats ?? GOPStats(avgDuration: 1.0, minDuration: 0, maxDuration: 1, avgFrameCount: 30.0)
+    }
+
+    private func recomputeAllSegmentsStats() {
+        guard segments.count != lastAllStatsSegmentCount else { return }
+        lastAllStatsSegmentCount = segments.count
+        cachedAllSegmentsStats = calculateStats(segments: segments)
     }
 
     private var hasFrameTypes: Bool {
@@ -214,10 +224,12 @@ struct GOPHeatmapView: View {
         .gesture(zoomGesture)
         .gesture(panGesture)
         .onAppear {
+            recomputeAllSegmentsStats()
             recomputeDisplayGOPs()
             triggerPreload()
         }
         .onChange(of: segments.count) { _, _ in
+            recomputeAllSegmentsStats()
             let hash = displayGOPsInputHash
             if hash != lastDisplayGOPsInputHash {
                 recomputeDisplayGOPs()
@@ -287,8 +299,8 @@ struct GOPHeatmapView: View {
         let bgPath = Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 4)
         context.fill(bgPath, with: .color(Color.secondary.opacity(0.08)))
 
-        // Draw GOPs as simple bars with duration-based coloring
-        let stats = calculateStats(segments: segments)
+        // Draw GOPs as simple bars with duration-based coloring (uses cached stats)
+        let stats = allSegmentsStats
         for segment in segments {
             let startRatio = max(0, (segment.startTime - domain.start) / domainDuration)
             let endRatio = min(1, (segment.endTime - domain.start) / domainDuration)
@@ -841,10 +853,13 @@ private func prepareDisplayGOPs(
 
     let stats = calculateStats(segments: allSegments)
 
+    // O(n) dictionary build for O(1) index lookups (replaces O(n²) firstIndex calls)
+    let indexMap = Dictionary(allSegments.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { _, last in last })
+
     // If under max count, no aggregation needed
     if segments.count <= maxCount {
         return segments.enumerated().map { index, segment in
-            let globalIndex = allSegments.firstIndex(where: { $0.id == segment.id }) ?? index
+            let globalIndex = indexMap[segment.id] ?? index
             return createDisplayGOP(from: segment, indices: globalIndex...globalIndex, stats: stats)
         }
     }
@@ -859,8 +874,8 @@ private func prepareDisplayGOPs(
         let endIndex = min(i + aggregationFactor, segments.count)
         let batch = Array(segments[i..<endIndex])
 
-        let startIdx = allSegments.firstIndex(where: { $0.id == batch.first?.id }) ?? i
-        let endIdx = allSegments.firstIndex(where: { $0.id == batch.last?.id }) ?? (endIndex - 1)
+        let startIdx = batch.first.flatMap { indexMap[$0.id] } ?? i
+        let endIdx = batch.last.flatMap { indexMap[$0.id] } ?? (endIndex - 1)
 
         result.append(createAggregatedDisplayGOP(from: batch, indices: startIdx...endIdx, stats: stats))
         i = endIndex
