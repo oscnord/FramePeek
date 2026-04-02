@@ -117,19 +117,19 @@ struct TooltipLegendPopover: View {
             // Frame types explanation
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                 HStack(spacing: DesignSystem.Spacing.md) {
-                    frameTypeBadge("I", color: Color(red: 0.0, green: 0.48, blue: 1.0))
+                    frameTypeBadge("I", color: DesignSystem.Colors.FrameType.i)
                     Text("Keyframe (full image)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 HStack(spacing: DesignSystem.Spacing.md) {
-                    frameTypeBadge("P", color: Color(red: 1.0, green: 0.58, blue: 0.0))
+                    frameTypeBadge("P", color: DesignSystem.Colors.FrameType.p)
                     Text("Predicted frame (from previous)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 HStack(spacing: DesignSystem.Spacing.md) {
-                    frameTypeBadge("B", color: Color(red: 1.0, green: 0.23, blue: 0.19))
+                    frameTypeBadge("B", color: DesignSystem.Colors.FrameType.b)
                     Text("Bidirectional frame")
                         .font(.caption)
                         .foregroundStyle(.secondary)

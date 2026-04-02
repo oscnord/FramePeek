@@ -15,10 +15,10 @@ struct GOPBlocksStripView: View {
 
     @State private var hoveredSegmentIndex: Int?
 
-    // Frame type colors (matching GOPBlockView / GOPHeatmapView)
-    private static let iColor = Color(red: 0.0, green: 0.48, blue: 1.0)
-    private static let pColor = Color(red: 1.0, green: 0.58, blue: 0.0)
-    private static let bColor = Color(red: 1.0, green: 0.23, blue: 0.19)
+    // Frame type colors
+    private static let iColor = DesignSystem.Colors.FrameType.i
+    private static let pColor = DesignSystem.Colors.FrameType.p
+    private static let bColor = DesignSystem.Colors.FrameType.b
 
     var body: some View {
         GeometryReader { geo in

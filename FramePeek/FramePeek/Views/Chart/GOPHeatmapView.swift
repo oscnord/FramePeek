@@ -816,11 +816,7 @@ struct GOPHeatmapView: View {
 
 // MARK: - Frame Type Colors
 
-private enum FrameTypeColors {
-    static let i = Color(red: 0.0, green: 0.48, blue: 1.0)
-    static let p = Color(red: 1.0, green: 0.58, blue: 0.0)
-    static let b = Color(red: 1.0, green: 0.23, blue: 0.19)
-}
+private typealias FrameTypeColors = DesignSystem.Colors.FrameType
 
 // MARK: - Data Preparation
 

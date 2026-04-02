@@ -184,11 +184,11 @@ struct GOPDetailsPanel: View {
     private func frameTypeInfo(type: FrameType) -> (Color, String) {
         switch type {
         case .i:
-            return (Color(red: 0.0, green: 0.48, blue: 1.0), "I")
+            return (DesignSystem.Colors.FrameType.i, "I")
         case .p:
-            return (Color(red: 1.0, green: 0.58, blue: 0.0), "P")
+            return (DesignSystem.Colors.FrameType.p, "P")
         case .b:
-            return (Color(red: 1.0, green: 0.23, blue: 0.19), "B")
+            return (DesignSystem.Colors.FrameType.b, "B")
         case .unknown:
             return (.gray, "?")
         }

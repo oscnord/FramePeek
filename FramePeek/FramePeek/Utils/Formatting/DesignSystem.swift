@@ -174,6 +174,20 @@ struct DesignSystem {
             static var hoveredLine: Color { Color.primary.opacity(0.7) }
         }
 
+        // MARK: Frame Type Colors
+
+        /// Consistent frame type colors used across GOP views, charts, and legends
+        struct FrameType {
+            /// I-frame (keyframe) — blue (#007AFF)
+            static let i = Color(red: 0.0, green: 0.48, blue: 1.0)
+            /// P-frame (predicted) — orange (#FF9500)
+            static let p = Color(red: 1.0, green: 0.58, blue: 0.0)
+            /// B-frame (bidirectional) — red (#FF3B30)
+            static let b = Color(red: 1.0, green: 0.23, blue: 0.19)
+            /// Unknown frame type
+            static let unknown = Color.gray
+        }
+
         // MARK: Semantic Colors
 
         struct Semantic {

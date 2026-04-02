@@ -20,9 +20,9 @@ enum LegendPreset {
             ]
         case .frameTypes:
             return [
-                LegendItem(color: Color(red: 0.0, green: 0.48, blue: 1.0), label: "I"),
-                LegendItem(color: Color(red: 1.0, green: 0.58, blue: 0.0), label: "P"),
-                LegendItem(color: Color(red: 1.0, green: 0.23, blue: 0.19), label: "B")
+                LegendItem(color: DesignSystem.Colors.FrameType.i, label: "I"),
+                LegendItem(color: DesignSystem.Colors.FrameType.p, label: "P"),
+                LegendItem(color: DesignSystem.Colors.FrameType.b, label: "B")
             ]
         case .custom(let items):
             return items
