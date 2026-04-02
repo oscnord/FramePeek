@@ -71,7 +71,7 @@ extension FramePeekViewModel {
         
         let segment = analysis.segments[index]
         
-        // Check cache first
+        // Check in-memory cache first
         if let cached = getCachedGOPFrameDetails(for: segment.id) {
             selectedGOPFrameDetails = cached
             return
@@ -83,44 +83,61 @@ extension FramePeekViewModel {
             selectedGOPFrameDetails = existingFrames
             return
         }
-        
+
+        // Check disk cache before extracting
+        guard let url = currentVideoURL else {
+            selectedGOPFrameDetails = nil
+            return
+        }
+
+        if let diskCached = await CacheManager.shared.loadGOPFrameDetails(
+            for: url, startTime: segment.startTime, endTime: segment.endTime
+        ) {
+            cacheGOPFrameDetails(diskCached, for: segment.id)
+            selectedGOPFrameDetails = diskCached
+            return
+        }
+
         // Check codec support
         guard codecSupportsFrameTypes else {
             selectedGOPFrameDetails = nil
             return
         }
-        
+
         // Need to extract frame details on demand
-        guard let url = currentVideoURL else {
-            selectedGOPFrameDetails = nil
-            return
-        }
-        
         isLoadingGOPFrameDetails = true
-        
+
         let asset = AVURLAsset(url: url)
         let timeRange = segment.startTime...segment.endTime
-        
+
         let result = await Task.detached(priority: .userInitiated) {
             await FrameDetailExtractor.extractFrameDetails(from: asset, timeRange: timeRange)
         }.value
-        
+
         // Update UI on main actor
         isLoadingGOPFrameDetails = false
-        
+
         guard let result else {
             selectedGOPFrameDetails = nil
             return
         }
-        
+
         guard result.codecSupportsFrameTypes else {
             codecSupportsFrameTypes = false
             selectedGOPFrameDetails = nil
             return
         }
-        
-        // Cache and set result
+
+        // Cache in memory and persist to disk
         cacheGOPFrameDetails(result.frames, for: segment.id)
+        let startTime = segment.startTime
+        let endTime = segment.endTime
+        let framesToCache = result.frames
+        Task.detached(priority: .utility) {
+            await CacheManager.shared.saveGOPFrameDetails(
+                for: url, startTime: startTime, endTime: endTime, frames: framesToCache
+            )
+        }
 
         // Only update if this GOP is still selected
         if selectedGOPIndex == index {
@@ -171,6 +188,21 @@ extension FramePeekViewModel {
             for info in segmentInfos {
                 if Task.isCancelled { break }
 
+                // Check disk cache first
+                if let diskCached = await CacheManager.shared.loadGOPFrameDetails(
+                    for: url, startTime: info.timeRange.lowerBound, endTime: info.timeRange.upperBound
+                ) {
+                    await MainActor.run {
+                        guard let self else { return }
+                        self.preloadingGOPIndices.remove(info.index)
+                        self.cacheGOPFrameDetails(diskCached, for: info.id)
+                        if self.selectedGOPIndex == info.index {
+                            self.selectedGOPFrameDetails = diskCached
+                        }
+                    }
+                    continue
+                }
+
                 let result = await FrameDetailExtractor.extractFrameDetails(from: asset, timeRange: info.timeRange)
 
                 if Task.isCancelled { break }
@@ -182,6 +214,16 @@ extension FramePeekViewModel {
 
                     if let result, result.codecSupportsFrameTypes {
                         self.cacheGOPFrameDetails(result.frames, for: info.id)
+
+                        // Persist to disk in background
+                        let frames = result.frames
+                        let startTime = info.timeRange.lowerBound
+                        let endTime = info.timeRange.upperBound
+                        Task.detached(priority: .utility) {
+                            await CacheManager.shared.saveGOPFrameDetails(
+                                for: url, startTime: startTime, endTime: endTime, frames: frames
+                            )
+                        }
 
                         // If this is the currently selected GOP, update selectedGOPFrameDetails
                         if self.selectedGOPIndex == info.index {
