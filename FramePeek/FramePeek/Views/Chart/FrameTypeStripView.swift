@@ -138,6 +138,7 @@ struct FrameTypeStripView: View {
         bucketCount: Int
     ) {
         let bucketDuration = domainDuration / Double(bucketCount)
+        let bucketWidth = max(1.0, width / CGFloat(bucketCount))
 
         // Single-pass bucketing: walk sorted frames and buckets together
         var frameIdx = 0
@@ -146,12 +147,11 @@ struct FrameTypeStripView: View {
             let bucketEnd = bucketStart + bucketDuration
 
             var iCount = 0, pCount = 0, bCount = 0, unknownCount = 0
-            var hasIFrame = false
 
             while frameIdx < frames.count && frames[frameIdx].time < bucketEnd {
                 if frames[frameIdx].time >= bucketStart {
                     switch frames[frameIdx].type {
-                    case .i: iCount += 1; hasIFrame = true
+                    case .i: iCount += 1
                     case .p: pCount += 1
                     case .b: bCount += 1
                     case .unknown: unknownCount += 1
@@ -163,28 +163,34 @@ struct FrameTypeStripView: View {
             let totalInBucket = iCount + pCount + bCount + unknownCount
             guard totalInBucket > 0 else { continue }
 
-            // Pick dominant type (I-frames win ties since they're most important)
-            let dominantType: FrameType
-            let maxCount = max(iCount, max(pCount, max(bCount, unknownCount)))
-            if iCount == maxCount {
-                dominantType = .i
-            } else if pCount == maxCount {
-                dominantType = .p
-            } else if bCount == maxCount {
-                dominantType = .b
-            } else {
-                dominantType = .unknown
+            let x = CGFloat(bucket) * bucketWidth
+
+            // Draw stacked proportional bar to preserve all frame type visibility
+            var currentY: CGFloat = 0
+            let total = CGFloat(totalInBucket)
+
+            if iCount > 0 {
+                let h = height * CGFloat(iCount) / total
+                context.fill(Path(CGRect(x: x, y: currentY, width: bucketWidth, height: h)), with: .color(frameColor(for: .i).opacity(0.75)))
+                currentY += h
+            }
+            if pCount > 0 {
+                let h = height * CGFloat(pCount) / total
+                context.fill(Path(CGRect(x: x, y: currentY, width: bucketWidth, height: h)), with: .color(frameColor(for: .p).opacity(0.7)))
+                currentY += h
+            }
+            if bCount > 0 {
+                let h = height * CGFloat(bCount) / total
+                context.fill(Path(CGRect(x: x, y: currentY, width: bucketWidth, height: h)), with: .color(frameColor(for: .b).opacity(0.7)))
+                currentY += h
+            }
+            if unknownCount > 0 {
+                let h = height * CGFloat(unknownCount) / total
+                context.fill(Path(CGRect(x: x, y: currentY, width: bucketWidth, height: h)), with: .color(frameColor(for: .unknown).opacity(0.5)))
             }
 
-            let x = CGFloat(bucket)
-            let bucketWidth = max(1.0, width / CGFloat(bucketCount))
-            let color = frameColor(for: dominantType)
-
-            let rect = CGRect(x: x, y: 0, width: bucketWidth, height: height)
-            context.fill(Path(rect), with: .color(color.opacity(0.7)))
-
             // Always mark I-frame boundaries with an accent line
-            if hasIFrame {
+            if iCount > 0 {
                 var iPath = Path()
                 iPath.move(to: CGPoint(x: x, y: 0))
                 iPath.addLine(to: CGPoint(x: x, y: height))

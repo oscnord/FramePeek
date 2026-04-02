@@ -15,11 +15,6 @@ struct GOPBlocksStripView: View {
 
     @State private var hoveredSegmentIndex: Int?
 
-    // Frame type colors
-    private static let iColor = DesignSystem.Colors.FrameType.i
-    private static let pColor = DesignSystem.Colors.FrameType.p
-    private static let bColor = DesignSystem.Colors.FrameType.b
-
     var body: some View {
         GeometryReader { geo in
             let width = geo.size.width
@@ -31,19 +26,24 @@ struct GOPBlocksStripView: View {
             ZStack(alignment: .leading) {
                 // Time grid lines (drawn via Canvas for consistency)
                 Canvas { context, size in
-                    drawTimeGrid(context: context, width: size.width, height: size.height, domainDuration: domainDuration)
+                    drawTimeGrid(context: context, width: size.width, height: size.height)
                 }
 
                 // GOP blocks (single Canvas instead of 500+ SwiftUI views)
+                // Capture hoveredSegmentIndex and selectedGOPIndex to ensure
+                // the Canvas re-renders when hover/selection state changes.
+                let currentHover = hoveredSegmentIndex
+                let currentSelection = selectedGOPIndex
                 Canvas { context, size in
                     drawGOPBlocks(
                         context: context, size: size,
                         indexMap: indexMap,
                         domainDuration: domainDuration,
-                        maxHeight: size.height * 0.7
+                        maxHeight: size.height * 0.7,
+                        hoveredIndex: currentHover,
+                        selectedIndex: currentSelection
                     )
                 }
-                .drawingGroup()
 
                 // Interaction layer
                 Color.clear
@@ -76,7 +76,7 @@ struct GOPBlocksStripView: View {
 
     // MARK: - Canvas Drawing
 
-    private func drawTimeGrid(context: GraphicsContext, width: CGFloat, height: CGFloat, domainDuration: Double) {
+    private func drawTimeGrid(context: GraphicsContext, width: CGFloat, height: CGFloat) {
         let gridCount = 5
         for i in 0...gridCount {
             let ratio = CGFloat(i) / CGFloat(gridCount)
@@ -92,7 +92,9 @@ struct GOPBlocksStripView: View {
         context: GraphicsContext, size: CGSize,
         indexMap: [UUID: Int],
         domainDuration: Double,
-        maxHeight: CGFloat
+        maxHeight: CGFloat,
+        hoveredIndex: Int?,
+        selectedIndex: Int?
     ) {
         let width = size.width
         let height = size.height
@@ -111,15 +113,18 @@ struct GOPBlocksStripView: View {
             let barHeight = minHeight + (maxHeight - minHeight) * heightRatio
             let y = height - barHeight
 
-            let isSelected = globalIndex.map { selectedGOPIndex == $0 } ?? false
-            let isHovered = globalIndex.map { hoveredSegmentIndex == $0 } ?? false
+            let isSelected = globalIndex.map { selectedIndex == $0 } ?? false
+            let isHovered = globalIndex.map { hoveredIndex == $0 } ?? false
 
             let rect = CGRect(x: x, y: y, width: w, height: barHeight)
             let path = Path(roundedRect: rect, cornerRadius: 4)
 
+            // Count frame types once for both gradient and distribution bar
+            let typeCounts = countFrameTypes(segment)
+
             // Fill — frame-type gradient if available, else accent color
-            if let frames = segment.frames, !frames.isEmpty {
-                drawFrameTypeGradient(context: context, frames: frames, rect: rect, path: path, isHovered: isHovered)
+            if let counts = typeCounts {
+                drawFrameTypeGradient(context: context, counts: counts, rect: rect, path: path, isHovered: isHovered)
             } else {
                 let density = min(1.0, Double(frameCount) / Double(safeMaxFrameCount))
                 let topOpacity = isHovered ? 0.6 : (0.3 + density * 0.2)
@@ -143,7 +148,7 @@ struct GOPBlocksStripView: View {
             // I-frame marker at start
             let markerSize: CGFloat = 6
             let markerRect = CGRect(x: x - markerSize / 2, y: y, width: markerSize, height: markerSize)
-            context.fill(Path(ellipseIn: markerRect), with: .color(Self.iColor))
+            context.fill(Path(ellipseIn: markerRect), with: .color(DesignSystem.Colors.FrameType.i))
 
             // Frame count label (only if enough space)
             if w > 25 && barHeight > 25 {
@@ -154,33 +159,44 @@ struct GOPBlocksStripView: View {
             }
 
             // Frame type distribution bar at bottom (if enough space)
-            if let frames = segment.frames, !frames.isEmpty, barHeight > 30 {
-                drawFrameTypeBar(context: context, frames: frames, x: x + 4, y: y + barHeight - 8, width: w - 8, height: 4)
+            if let counts = typeCounts, barHeight > 30 {
+                drawFrameTypeBar(context: context, counts: counts, x: x + 4, y: y + barHeight - 8, width: w - 8, height: 4)
             }
         }
     }
 
-    private func drawFrameTypeGradient(
-        context: GraphicsContext, frames: [FrameInfo],
-        rect: CGRect, path: Path, isHovered: Bool
-    ) {
-        var iCount = 0, pCount = 0, bCount = 0, unknownCount = 0
+    // MARK: - Frame Type Helpers
+
+    private struct FrameTypeCounts {
+        let i: Int, p: Int, b: Int, unknown: Int
+        var total: Int { max(1, i + p + b + unknown) }
+    }
+
+    private func countFrameTypes(_ segment: GOPSegment) -> FrameTypeCounts? {
+        guard let frames = segment.frames, !frames.isEmpty else { return nil }
+        var iC = 0, pC = 0, bC = 0, uC = 0
         for frame in frames {
             switch frame.type {
-            case .i: iCount += 1
-            case .p: pCount += 1
-            case .b: bCount += 1
-            case .unknown: unknownCount += 1
+            case .i: iC += 1
+            case .p: pC += 1
+            case .b: bC += 1
+            case .unknown: uC += 1
             }
         }
-        let total = max(1, iCount + pCount + bCount + unknownCount)
-        let iRatio = CGFloat(iCount) / CGFloat(total)
-        let pRatio = CGFloat(pCount) / CGFloat(total)
+        return FrameTypeCounts(i: iC, p: pC, b: bC, unknown: uC)
+    }
+
+    private func drawFrameTypeGradient(
+        context: GraphicsContext, counts: FrameTypeCounts,
+        rect: CGRect, path: Path, isHovered: Bool
+    ) {
+        let iRatio = CGFloat(counts.i) / CGFloat(counts.total)
+        let pRatio = CGFloat(counts.p) / CGFloat(counts.total)
 
         let opacity: CGFloat = isHovered ? 0.75 : 0.55
-        let iColor = Self.iColor.opacity(opacity)
-        let pColor = Self.pColor.opacity(opacity)
-        let bColor = Self.bColor.opacity(opacity)
+        let iColor = DesignSystem.Colors.FrameType.i.opacity(opacity)
+        let pColor = DesignSystem.Colors.FrameType.p.opacity(opacity)
+        let bColor = DesignSystem.Colors.FrameType.b.opacity(opacity)
 
         let gradient = Gradient(stops: [
             .init(color: iColor, location: 0),
@@ -196,48 +212,38 @@ struct GOPBlocksStripView: View {
     }
 
     private func drawFrameTypeBar(
-        context: GraphicsContext, frames: [FrameInfo],
+        context: GraphicsContext, counts: FrameTypeCounts,
         x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat
     ) {
-        var iCount = 0, pCount = 0, bCount = 0, unknownCount = 0
-        for frame in frames {
-            switch frame.type {
-            case .i: iCount += 1
-            case .p: pCount += 1
-            case .b: bCount += 1
-            case .unknown: unknownCount += 1
-            }
-        }
-        let total = max(1, iCount + pCount + bCount + unknownCount)
         var currentX = x
 
-        if iCount > 0 {
-            let w = width * CGFloat(iCount) / CGFloat(total)
-            context.fill(Path(CGRect(x: currentX, y: y, width: max(1, w), height: height)), with: .color(Self.iColor))
+        if counts.i > 0 {
+            let w = width * CGFloat(counts.i) / CGFloat(counts.total)
+            context.fill(Path(CGRect(x: currentX, y: y, width: max(1, w), height: height)), with: .color(DesignSystem.Colors.FrameType.i))
             currentX += w
         }
-        if pCount > 0 {
-            let w = width * CGFloat(pCount) / CGFloat(total)
-            context.fill(Path(CGRect(x: currentX, y: y, width: max(1, w), height: height)), with: .color(Self.pColor))
+        if counts.p > 0 {
+            let w = width * CGFloat(counts.p) / CGFloat(counts.total)
+            context.fill(Path(CGRect(x: currentX, y: y, width: max(1, w), height: height)), with: .color(DesignSystem.Colors.FrameType.p))
             currentX += w
         }
-        if bCount > 0 {
-            let w = width * CGFloat(bCount) / CGFloat(total)
-            context.fill(Path(CGRect(x: currentX, y: y, width: max(1, w), height: height)), with: .color(Self.bColor))
+        if counts.b > 0 {
+            let w = width * CGFloat(counts.b) / CGFloat(counts.total)
+            context.fill(Path(CGRect(x: currentX, y: y, width: max(1, w), height: height)), with: .color(DesignSystem.Colors.FrameType.b))
             currentX += w
         }
-        if unknownCount > 0 {
-            let w = width * CGFloat(unknownCount) / CGFloat(total)
-            context.fill(Path(CGRect(x: currentX, y: y, width: max(1, w), height: height)), with: .color(Color.gray.opacity(0.5)))
+        if counts.unknown > 0 {
+            let w = width * CGFloat(counts.unknown) / CGFloat(counts.total)
+            context.fill(Path(CGRect(x: currentX, y: y, width: max(1, w), height: height)), with: .color(DesignSystem.Colors.FrameType.unknown.opacity(0.5)))
         }
     }
 
     // MARK: - Interaction
 
     private func nearestSegmentGlobalIndex(at time: Double, indexMap: [UUID: Int]) -> Int? {
-        // Binary search on filteredSegments (sorted by startTime)
         guard !filteredSegments.isEmpty else { return nil }
 
+        // Binary search on filteredSegments (sorted by startTime)
         var lo = 0
         var hi = filteredSegments.count - 1
         while lo < hi {

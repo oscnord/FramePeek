@@ -22,7 +22,7 @@ final class PlayerViewModelManager {
     @ObservationIgnored var precisePlaybackTime: Double?
 
     /// Minimum change in seconds before `currentPlaybackTime` is updated.
-    @ObservationIgnored private let playbackTimeThreshold: Double = 0.4
+    @ObservationIgnored private let playbackTimeThreshold: Double = 0.2
 
     @ObservationIgnored private var seekClearTask: Task<Void, Never>?
 
