@@ -11,6 +11,11 @@ struct BitrateChartView: View {
     @State private var cachedDisplaySamples: [BitrateSample] = []
     @State private var lastDisplaySamplesInputHash: Int = 0
 
+    // MARK: - Cached Statistics
+
+    @State private var cachedStatistics: BitrateChartStatistics?
+    @State private var lastStatisticsInputHash: Int = 0
+
     // MARK: - Display Settings
 
     /// Maximum points to render in chart for performance (LTTB downsampling)
@@ -25,7 +30,14 @@ struct BitrateChartView: View {
     // MARK: - Statistics
 
     private var statistics: BitrateChartStatistics {
-        BitrateChartStatistics(
+        cachedStatistics ?? BitrateChartStatistics(samples: [], rawFrames: nil, effectiveFPS: nil)
+    }
+
+    private func recomputeStatistics() {
+        let inputHash = combineHashValues(viewModel.samples.count, viewModel.rawFrames.count)
+        guard inputHash != lastStatisticsInputHash else { return }
+        lastStatisticsInputHash = inputHash
+        cachedStatistics = BitrateChartStatistics(
             samples: viewModel.samples,
             rawFrames: viewModel.rawFrames.isEmpty ? nil : viewModel.rawFrames,
             effectiveFPS: viewModel.effectiveFPS
@@ -52,6 +64,31 @@ struct BitrateChartView: View {
         hasher.combine(a)
         hasher.combine(b)
         return hasher.finalize()
+    }
+
+    /// Binary search for the nearest sample to a given time. O(log n) vs O(n) linear scan.
+    private func nearestSample(to time: Double, in samples: [BitrateSample]) -> BitrateSample? {
+        guard !samples.isEmpty else { return nil }
+
+        var lo = 0
+        var hi = samples.count - 1
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if samples[mid].time < time {
+                lo = mid + 1
+            } else {
+                hi = mid
+            }
+        }
+
+        // lo is now the first index where samples[lo].time >= time
+        // Compare with the previous element to find the true nearest
+        if lo == 0 { return samples[0] }
+        if lo >= samples.count { return samples[samples.count - 1] }
+
+        let before = samples[lo - 1]
+        let after = samples[lo]
+        return abs(before.time - time) <= abs(after.time - time) ? before : after
     }
 
     private var yTickStep: Double {
@@ -319,10 +356,8 @@ struct BitrateChartView: View {
                         switch phase {
                         case .active(let location):
                             if let time: Double = proxy.value(atX: location.x) {
-                                // Find nearest sample
-                                if let nearest = viewModel.samples.min(by: {
-                                    abs($0.time - time) < abs($1.time - time)
-                                }) {
+                                // Binary search on cached display samples (sorted, O(log n))
+                                if let nearest = nearestSample(to: time, in: cachedDisplaySamples) {
                                     viewModel.hoveredSample = nearest
                                 }
                                 // Set shared timestamp for cross-chart sync
@@ -344,8 +379,8 @@ struct BitrateChartView: View {
         }
         .drawingGroup()
         .frame(minHeight: 400)
-        .onAppear { recomputeDisplaySamples() }
-        .onChange(of: viewModel.samples.count) { _, _ in recomputeDisplaySamples() }
+        .onAppear { recomputeDisplaySamples(); recomputeStatistics() }
+        .onChange(of: viewModel.samples.count) { _, _ in recomputeDisplaySamples(); recomputeStatistics() }
         .onChange(of: viewModel.visibleTimeRange) { _, _ in recomputeDisplaySamples() }
     }
 

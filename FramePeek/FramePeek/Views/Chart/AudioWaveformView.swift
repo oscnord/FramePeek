@@ -13,16 +13,21 @@ struct AudioWaveformView: View {
     @State private var cachedDisplaySamples: [WaveformSample] = []
     @State private var lastDisplaySamplesInputHash: Int = 0
 
+    /// Maximum points to render for performance (LTTB downsampling)
+    private let maxDisplayPoints = 1_000
+
     private func recomputeDisplaySamples() {
         let inputHash = combineHashValues(samples.count, viewModel.visibleTimeRange?.hashValue ?? 0)
         guard inputHash != lastDisplaySamplesInputHash else { return }
         lastDisplaySamplesInputHash = inputHash
 
+        let filtered: [WaveformSample]
         if let range = viewModel.visibleTimeRange {
-            cachedDisplaySamples = samples.filter { range.contains($0.time) }
+            filtered = samples.filter { range.contains($0.time) }
         } else {
-            cachedDisplaySamples = samples
+            filtered = samples
         }
+        cachedDisplaySamples = downsampleWaveformLTTB(filtered, targetCount: maxDisplayPoints)
     }
 
     private func combineHashValues(_ a: Int, _ b: Int) -> Int {
