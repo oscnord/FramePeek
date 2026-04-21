@@ -123,7 +123,3 @@ Contributions are welcome! Please see [instructions.md](instructions.md) for det
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
-## Author
-
-Built by Oscar Nord in Stockholm, Sweden
