@@ -81,7 +81,6 @@ xcodebuild -project FramePeek/FramePeek.xcodeproj -scheme FramePeek test
 ## Additional Resources
 
 - [`instructions.md`](instructions.md) - Full documentation
-- [`LOCALIZATION.md`](LOCALIZATION.md) - Localization guide
 
 ## Updating AGENTS.md
 

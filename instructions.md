@@ -468,7 +468,7 @@ Keyframe extraction runs independently of frame analysis and can be triggered se
 - **Automatic Localization** – All `Text()` views with string literals automatically localize.
 - **Explicit Localization** – For computed strings and `.help()` modifiers, use `String(localized:)`.
 - **System Language** – App automatically follows the user's macOS system language preference.
-- See [LOCALIZATION.md](LOCALIZATION.md) for detailed localization guide.
+- See the Localization Guidelines section below for details.
 
 ## Concurrency and performance
 
@@ -578,7 +578,7 @@ FramePeek supports localization (i18n) using SwiftUI's built-in localization sys
    }
    ```
 
-See [LOCALIZATION.md](LOCALIZATION.md) for complete localization documentation.
+See the Localization Guidelines section above for complete localization documentation.
 
 ## Code style and contribution rules
 

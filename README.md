@@ -1,6 +1,6 @@
 # FramePeek
 
-A professional macOS application for inspecting video and audio files with comprehensive metadata analysis, bitrate visualization, and keyframe detection.
+A macOS application for inspecting video and audio files with metadata analysis, bitrate visualization, and keyframe detection.
 
 ## Overview
 
@@ -59,7 +59,7 @@ FramePeek is a native macOS application built with SwiftUI that leverages AVFoun
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/FramePeek.git
+   git clone https://github.com/oscnord/MediaInspector.git
    cd FramePeek
    ```
 

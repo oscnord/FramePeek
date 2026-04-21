@@ -1,6 +1,6 @@
 import XCTest
 
-final class framepeekUITestsLaunchTests: XCTestCase {
+final class FramePeekUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true
