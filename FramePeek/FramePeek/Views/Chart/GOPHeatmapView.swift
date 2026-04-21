@@ -300,12 +300,20 @@ struct GOPHeatmapView: View {
         context.fill(bgPath, with: .color(Color.secondary.opacity(0.08)))
 
         // Draw GOPs as simple bars with duration-based coloring (uses cached stats)
+        // For 10K+ segments, many are sub-pixel — skip those with zero pixel width
         let stats = allSegmentsStats
+        let minPixelWidth: CGFloat = 0.5
         for segment in segments {
-            let startRatio = max(0, (segment.startTime - domain.start) / domainDuration)
-            let endRatio = min(1, (segment.endTime - domain.start) / domainDuration)
-            let x = CGFloat(startRatio) * width
-            let w = max(1, CGFloat(endRatio - startRatio) * width - 0.5)
+            let startRatio = (segment.startTime - domain.start) / domainDuration
+            let endRatio = (segment.endTime - domain.start) / domainDuration
+
+            // Skip segments entirely outside visible domain
+            guard endRatio > 0 && startRatio < 1 else { continue }
+
+            let x = CGFloat(max(0, startRatio)) * width
+            let rawW = CGFloat(min(1, endRatio) - max(0, startRatio)) * width
+            guard rawW >= minPixelWidth else { continue }
+            let w = max(1, rawW - 0.5)
 
             let variance = stats.avgDuration > 0 ? (segment.duration - stats.avgDuration) / stats.avgDuration : 0
             let category = GOPDurationCategory.from(variance: variance)
@@ -407,10 +415,14 @@ struct GOPHeatmapView: View {
         let maxFrames = max(1, cachedDisplayGOPs.map(\.frameCount).max() ?? 1)
 
         for gop in cachedDisplayGOPs {
-            let startRatio = max(0, (gop.startTime - domain.start) / domainDuration)
-            let endRatio = min(1, (gop.endTime - domain.start) / domainDuration)
-            let x = CGFloat(startRatio) * width
-            let w = max(HeatmapConfig.minGOPWidth, CGFloat(endRatio - startRatio) * width - HeatmapConfig.gopSpacing)
+            let startRatio = (gop.startTime - domain.start) / domainDuration
+            let endRatio = (gop.endTime - domain.start) / domainDuration
+
+            // Viewport culling: skip GOPs entirely outside visible area
+            guard endRatio > 0 && startRatio < 1 else { continue }
+
+            let x = CGFloat(max(0, startRatio)) * width
+            let w = max(HeatmapConfig.minGOPWidth, CGFloat(min(1, endRatio) - max(0, startRatio)) * width - HeatmapConfig.gopSpacing)
 
             // Height based on frame count (minimum 40% height for visibility)
             let heightRatio = CGFloat(gop.frameCount) / CGFloat(maxFrames)
@@ -484,10 +496,14 @@ struct GOPHeatmapView: View {
         for gop in cachedDisplayGOPs {
             guard gop.hasFrameTypes else { continue }
 
-            let startRatio = max(0, (gop.startTime - domain.start) / domainDuration)
-            let endRatio = min(1, (gop.endTime - domain.start) / domainDuration)
-            let x = CGFloat(startRatio) * width
-            let totalWidth = max(HeatmapConfig.minGOPWidth, CGFloat(endRatio - startRatio) * width - HeatmapConfig.gopSpacing)
+            let startRatio = (gop.startTime - domain.start) / domainDuration
+            let endRatio = (gop.endTime - domain.start) / domainDuration
+
+            // Viewport culling: skip GOPs entirely outside visible area
+            guard endRatio > 0 && startRatio < 1 else { continue }
+
+            let x = CGFloat(max(0, startRatio)) * width
+            let totalWidth = max(HeatmapConfig.minGOPWidth, CGFloat(min(1, endRatio) - max(0, startRatio)) * width - HeatmapConfig.gopSpacing)
 
             // Draw stacked bar showing frame type ratios
             var currentX = x

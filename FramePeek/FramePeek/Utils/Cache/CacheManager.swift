@@ -11,8 +11,10 @@ private enum CacheConfig {
     static let cacheDirectoryName = "FramePeek"
     static let waveformSubdirectory = "Waveforms"
     static let gopSubdirectory = "GOPAnalysis"
+    static let gopFrameDetailSubdirectory = "GOPFrameDetails"
     static let waveformFileExtension = "waveform"
     static let gopFileExtension = "gop"
+    static let gopFrameDetailExtension = "gopframes"
 }
 
 // MARK: - Cached Data Structures
@@ -44,6 +46,15 @@ public struct CachedGOPSegment: Codable {
     public let endTime: Double
     public let frameCount: Int?
     public let frames: [CachedFrameInfo]?
+}
+
+/// Per-GOP frame detail cache (lightweight, keyed by video hash + segment time range)
+public struct CachedGOPFrameDetails: Codable {
+    public let version: Int
+    public let segmentStartTime: Double
+    public let segmentEndTime: Double
+    public let frames: [CachedFrameInfo]
+    public let createdAt: Date
 }
 
 public struct CachedFrameInfo: Codable {
@@ -79,6 +90,10 @@ public final class CacheManager {
         cacheBaseURL?.appendingPathComponent(CacheConfig.gopSubdirectory)
     }
 
+    private var gopFrameDetailCacheURL: URL? {
+        cacheBaseURL?.appendingPathComponent(CacheConfig.gopFrameDetailSubdirectory)
+    }
+
     private init() {
         createCacheDirectoriesIfNeeded()
         Task {
@@ -90,10 +105,12 @@ public final class CacheManager {
 
     private func createCacheDirectoriesIfNeeded() {
         guard let waveformURL = waveformCacheURL,
-              let gopURL = gopCacheURL else { return }
+              let gopURL = gopCacheURL,
+              let gopFrameDetailURL = gopFrameDetailCacheURL else { return }
 
         try? fileManager.createDirectory(at: waveformURL, withIntermediateDirectories: true)
         try? fileManager.createDirectory(at: gopURL, withIntermediateDirectories: true)
+        try? fileManager.createDirectory(at: gopFrameDetailURL, withIntermediateDirectories: true)
     }
 
     // MARK: - Cache Key Generation
@@ -249,6 +266,67 @@ public final class CacheManager {
         }
     }
 
+    // MARK: - GOP Frame Detail Cache
+
+    /// Generate a cache key for a specific GOP segment within a video file
+    private func gopFrameDetailKey(videoKey: String, startTime: Double, endTime: Double) -> String {
+        let timeKey = String(format: "%.4f_%.4f", startTime, endTime)
+        return "\(videoKey)_\(timeKey)"
+    }
+
+    /// Load cached frame details for a specific GOP segment
+    public func loadGOPFrameDetails(for url: URL, startTime: Double, endTime: Double) async -> [FrameInfo]? {
+        guard let cacheURL = gopFrameDetailCacheURL,
+              let key = await cacheKey(for: url) else { return nil }
+
+        let detailKey = gopFrameDetailKey(videoKey: key, startTime: startTime, endTime: endTime)
+        let fileURL = cacheURL.appendingPathComponent("\(detailKey).\(CacheConfig.gopFrameDetailExtension)")
+
+        guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
+
+        do {
+            let data = try Data(contentsOf: fileURL)
+            let cached = try decoder.decode(CachedGOPFrameDetails.self, from: data)
+            guard cached.version == CacheConfig.version else { return nil }
+
+            return cached.frames.map { cachedFrame in
+                FrameInfo(
+                    time: cachedFrame.time,
+                    type: FrameType(rawValue: cachedFrame.type) ?? .unknown,
+                    size: cachedFrame.size
+                )
+            }
+        } catch {
+            return nil
+        }
+    }
+
+    /// Save frame details for a specific GOP segment to disk
+    public func saveGOPFrameDetails(for url: URL, startTime: Double, endTime: Double, frames: [FrameInfo]) async {
+        guard let cacheURL = gopFrameDetailCacheURL,
+              let key = await cacheKey(for: url) else { return }
+
+        let detailKey = gopFrameDetailKey(videoKey: key, startTime: startTime, endTime: endTime)
+        let fileURL = cacheURL.appendingPathComponent("\(detailKey).\(CacheConfig.gopFrameDetailExtension)")
+
+        let cached = CachedGOPFrameDetails(
+            version: CacheConfig.version,
+            segmentStartTime: startTime,
+            segmentEndTime: endTime,
+            frames: frames.map { CachedFrameInfo(time: $0.time, type: $0.type.rawValue, size: $0.size) },
+            createdAt: Date()
+        )
+
+        do {
+            let data = try encoder.encode(cached)
+            try data.write(to: fileURL)
+            await enforceCacheSizeLimit()
+            await recalculateCacheSize()
+        } catch {
+            // Cache write failed - not critical
+        }
+    }
+
     /// Convert cached GOP data back to GOPSegment array
     public func convertCachedGOPSegments(_ cached: [CachedGOPSegment]) -> [GOPSegment] {
         cached.map { cachedSegment in
@@ -283,6 +361,10 @@ public final class CacheManager {
             totalSize += calculateDirectorySize(at: gopURL)
         }
 
+        if let gopFrameDetailURL = gopFrameDetailCacheURL {
+            totalSize += calculateDirectorySize(at: gopFrameDetailURL)
+        }
+
         currentCacheSize = totalSize
     }
 
@@ -304,12 +386,14 @@ public final class CacheManager {
 
     private func enforceCacheSizeLimit() async {
         guard let waveformURL = waveformCacheURL,
-              let gopURL = gopCacheURL else { return }
+              let gopURL = gopCacheURL,
+              let gopFrameDetailURL = gopFrameDetailCacheURL else { return }
 
         let currentSize = await Task.detached { [fileManager] in
             var size: Int64 = 0
             size += Self.calculateDirectorySizeStatic(at: waveformURL, fileManager: fileManager)
             size += Self.calculateDirectorySizeStatic(at: gopURL, fileManager: fileManager)
+            size += Self.calculateDirectorySizeStatic(at: gopFrameDetailURL, fileManager: fileManager)
             return size
         }.value
 
@@ -318,7 +402,7 @@ public final class CacheManager {
         // Collect all cache files with their dates
         var allFiles: [(url: URL, date: Date, size: Int64)] = []
 
-        for cacheURL in [waveformURL, gopURL] {
+        for cacheURL in [waveformURL, gopURL, gopFrameDetailURL] {
             if let enumerator = fileManager.enumerator(
                 at: cacheURL,
                 includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
@@ -374,6 +458,9 @@ public final class CacheManager {
         if let gopURL = gopCacheURL {
             try? fileManager.removeItem(at: gopURL)
         }
+        if let gopFrameDetailURL = gopFrameDetailCacheURL {
+            try? fileManager.removeItem(at: gopFrameDetailURL)
+        }
 
         createCacheDirectoriesIfNeeded()
         await recalculateCacheSize()
@@ -391,6 +478,10 @@ public final class CacheManager {
         if let gopURL = gopCacheURL {
             try? fileManager.removeItem(at: gopURL)
             try? fileManager.createDirectory(at: gopURL, withIntermediateDirectories: true)
+        }
+        if let gopFrameDetailURL = gopFrameDetailCacheURL {
+            try? fileManager.removeItem(at: gopFrameDetailURL)
+            try? fileManager.createDirectory(at: gopFrameDetailURL, withIntermediateDirectories: true)
         }
         await recalculateCacheSize()
     }
