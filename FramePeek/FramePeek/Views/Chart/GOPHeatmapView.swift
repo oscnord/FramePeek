@@ -86,6 +86,10 @@ struct GOPHeatmapView: View {
     @State private var cachedDisplayGOPs: [DisplayGOP] = []
     @State private var lastDisplayGOPsInputHash: Int = 0
 
+    // Cached stats to avoid O(n) scans on every body evaluation
+    @State private var cachedAllSegmentsStats: GOPStats?
+    @State private var lastAllStatsSegmentCount: Int = 0
+
     // Tooltip dimensions (approximate)
     private let tooltipWidth: CGFloat = 180
     private let tooltipHeight: CGFloat = 180
@@ -128,8 +132,14 @@ struct GOPHeatmapView: View {
         lastDisplayGOPsInputHash = displayGOPsInputHash
     }
 
-    private var stats: GOPStats {
-        calculateStats(segments: filteredSegments)
+    private var allSegmentsStats: GOPStats {
+        cachedAllSegmentsStats ?? GOPStats(avgDuration: 1.0, minDuration: 0, maxDuration: 1, avgFrameCount: 30.0)
+    }
+
+    private func recomputeAllSegmentsStats() {
+        guard segments.count != lastAllStatsSegmentCount else { return }
+        lastAllStatsSegmentCount = segments.count
+        cachedAllSegmentsStats = calculateStats(segments: segments)
     }
 
     private var hasFrameTypes: Bool {
@@ -214,10 +224,12 @@ struct GOPHeatmapView: View {
         .gesture(zoomGesture)
         .gesture(panGesture)
         .onAppear {
+            recomputeAllSegmentsStats()
             recomputeDisplayGOPs()
             triggerPreload()
         }
         .onChange(of: segments.count) { _, _ in
+            recomputeAllSegmentsStats()
             let hash = displayGOPsInputHash
             if hash != lastDisplayGOPsInputHash {
                 recomputeDisplayGOPs()
@@ -287,13 +299,21 @@ struct GOPHeatmapView: View {
         let bgPath = Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 4)
         context.fill(bgPath, with: .color(Color.secondary.opacity(0.08)))
 
-        // Draw GOPs as simple bars with duration-based coloring
-        let stats = calculateStats(segments: segments)
+        // Draw GOPs as simple bars with duration-based coloring (uses cached stats)
+        // For 10K+ segments, many are sub-pixel — skip those with zero pixel width
+        let stats = allSegmentsStats
+        let minPixelWidth: CGFloat = 0.5
         for segment in segments {
-            let startRatio = max(0, (segment.startTime - domain.start) / domainDuration)
-            let endRatio = min(1, (segment.endTime - domain.start) / domainDuration)
-            let x = CGFloat(startRatio) * width
-            let w = max(1, CGFloat(endRatio - startRatio) * width - 0.5)
+            let startRatio = (segment.startTime - domain.start) / domainDuration
+            let endRatio = (segment.endTime - domain.start) / domainDuration
+
+            // Skip segments entirely outside visible domain
+            guard endRatio > 0 && startRatio < 1 else { continue }
+
+            let x = CGFloat(max(0, startRatio)) * width
+            let rawW = CGFloat(min(1, endRatio) - max(0, startRatio)) * width
+            guard rawW >= minPixelWidth else { continue }
+            let w = max(1, rawW - 0.5)
 
             let variance = stats.avgDuration > 0 ? (segment.duration - stats.avgDuration) / stats.avgDuration : 0
             let category = GOPDurationCategory.from(variance: variance)
@@ -395,10 +415,14 @@ struct GOPHeatmapView: View {
         let maxFrames = max(1, cachedDisplayGOPs.map(\.frameCount).max() ?? 1)
 
         for gop in cachedDisplayGOPs {
-            let startRatio = max(0, (gop.startTime - domain.start) / domainDuration)
-            let endRatio = min(1, (gop.endTime - domain.start) / domainDuration)
-            let x = CGFloat(startRatio) * width
-            let w = max(HeatmapConfig.minGOPWidth, CGFloat(endRatio - startRatio) * width - HeatmapConfig.gopSpacing)
+            let startRatio = (gop.startTime - domain.start) / domainDuration
+            let endRatio = (gop.endTime - domain.start) / domainDuration
+
+            // Viewport culling: skip GOPs entirely outside visible area
+            guard endRatio > 0 && startRatio < 1 else { continue }
+
+            let x = CGFloat(max(0, startRatio)) * width
+            let w = max(HeatmapConfig.minGOPWidth, CGFloat(min(1, endRatio) - max(0, startRatio)) * width - HeatmapConfig.gopSpacing)
 
             // Height based on frame count (minimum 40% height for visibility)
             let heightRatio = CGFloat(gop.frameCount) / CGFloat(maxFrames)
@@ -472,10 +496,14 @@ struct GOPHeatmapView: View {
         for gop in cachedDisplayGOPs {
             guard gop.hasFrameTypes else { continue }
 
-            let startRatio = max(0, (gop.startTime - domain.start) / domainDuration)
-            let endRatio = min(1, (gop.endTime - domain.start) / domainDuration)
-            let x = CGFloat(startRatio) * width
-            let totalWidth = max(HeatmapConfig.minGOPWidth, CGFloat(endRatio - startRatio) * width - HeatmapConfig.gopSpacing)
+            let startRatio = (gop.startTime - domain.start) / domainDuration
+            let endRatio = (gop.endTime - domain.start) / domainDuration
+
+            // Viewport culling: skip GOPs entirely outside visible area
+            guard endRatio > 0 && startRatio < 1 else { continue }
+
+            let x = CGFloat(max(0, startRatio)) * width
+            let totalWidth = max(HeatmapConfig.minGOPWidth, CGFloat(min(1, endRatio) - max(0, startRatio)) * width - HeatmapConfig.gopSpacing)
 
             // Draw stacked bar showing frame type ratios
             var currentX = x
@@ -804,11 +832,7 @@ struct GOPHeatmapView: View {
 
 // MARK: - Frame Type Colors
 
-private enum FrameTypeColors {
-    static let i = Color(red: 0.0, green: 0.48, blue: 1.0)
-    static let p = Color(red: 1.0, green: 0.58, blue: 0.0)
-    static let b = Color(red: 1.0, green: 0.23, blue: 0.19)
-}
+private typealias FrameTypeColors = DesignSystem.Colors.FrameType
 
 // MARK: - Data Preparation
 
@@ -841,10 +865,13 @@ private func prepareDisplayGOPs(
 
     let stats = calculateStats(segments: allSegments)
 
+    // O(n) dictionary build for O(1) index lookups (replaces O(n²) firstIndex calls)
+    let indexMap = Dictionary(allSegments.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { _, last in last })
+
     // If under max count, no aggregation needed
     if segments.count <= maxCount {
         return segments.enumerated().map { index, segment in
-            let globalIndex = allSegments.firstIndex(where: { $0.id == segment.id }) ?? index
+            let globalIndex = indexMap[segment.id] ?? index
             return createDisplayGOP(from: segment, indices: globalIndex...globalIndex, stats: stats)
         }
     }
@@ -859,8 +886,8 @@ private func prepareDisplayGOPs(
         let endIndex = min(i + aggregationFactor, segments.count)
         let batch = Array(segments[i..<endIndex])
 
-        let startIdx = allSegments.firstIndex(where: { $0.id == batch.first?.id }) ?? i
-        let endIdx = allSegments.firstIndex(where: { $0.id == batch.last?.id }) ?? (endIndex - 1)
+        let startIdx = batch.first.flatMap { indexMap[$0.id] } ?? i
+        let endIdx = batch.last.flatMap { indexMap[$0.id] } ?? (endIndex - 1)
 
         result.append(createAggregatedDisplayGOP(from: batch, indices: startIdx...endIdx, stats: stats))
         i = endIndex

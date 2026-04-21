@@ -265,14 +265,10 @@ struct UnifiedTooltip: View {
     
     private func colorForFrameType(_ type: FrameType) -> Color {
         switch type {
-        case .i:
-            return Color(red: 0.0, green: 0.48, blue: 1.0)
-        case .p:
-            return Color(red: 1.0, green: 0.58, blue: 0.0)
-        case .b:
-            return Color(red: 1.0, green: 0.23, blue: 0.19)
-        case .unknown:
-            return .secondary
+        case .i: return DesignSystem.Colors.FrameType.i
+        case .p: return DesignSystem.Colors.FrameType.p
+        case .b: return DesignSystem.Colors.FrameType.b
+        case .unknown: return .secondary
         }
     }
 }

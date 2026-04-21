@@ -48,6 +48,8 @@ struct VideoPlayerView: View {
 
     // Selected audio track (0-based index, updated when player selection changes)
     @State private var selectedAudioTrackIndex: Int = 0
+    // Throttle audio track detection (avoid expensive AVFoundation calls every 0.1s)
+    @State private var lastAudioTrackCheckTime: Double = 0
     
     // Safe area guides
     private var activeSafeAreaGuides: Set<SafeAreaGuideType> {
@@ -884,9 +886,12 @@ struct VideoPlayerView: View {
             }
             isPlaying = player.rate > 0
 
-            // Periodically check for audio track changes (user may change via system controls)
-            Task { @MainActor in
-                await updateSelectedAudioTrack()
+            // Check for audio track changes every ~2s instead of every 0.1s tick
+            if seconds - lastAudioTrackCheckTime >= 2.0 {
+                lastAudioTrackCheckTime = seconds
+                Task { @MainActor in
+                    await updateSelectedAudioTrack()
+                }
             }
         }
 

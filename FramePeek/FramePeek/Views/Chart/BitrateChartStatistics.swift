@@ -3,6 +3,7 @@ import FramePeekCore
 
 struct BitrateChartStatistics {
     let samples: [BitrateSample]
+    /// Raw frames expected to be pre-sorted by PTS (sorted once at storage time in FramePeekViewModel)
     let rawFrames: [RawFrame]?
     let effectiveFPS: Double?
 
@@ -17,12 +18,10 @@ struct BitrateChartStatistics {
         if let rawFrames = rawFrames, !rawFrames.isEmpty {
             let estimatedFPS = effectiveFPS ?? 30.0
             let defaultFrameDuration = 1.0 / estimatedFPS
-            let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
+            guard !rawFrames.isEmpty else { return 1 }
 
-            guard !sortedFrames.isEmpty else { return 1 }
-
-            let startTime = sortedFrames.first!.pts
-            let endTime = sortedFrames.last!.pts
+            let startTime = rawFrames.first!.pts
+            let endTime = rawFrames.last!.pts
             let totalDuration = endTime - startTime + defaultFrameDuration
             let numBuckets = Int(ceil(totalDuration / 1.0))
 
@@ -37,15 +36,15 @@ struct BitrateChartStatistics {
                 let bucketEnd = bucketStart + 1.0
 
                 // Advance to first frame in this bucket
-                while frameIndex < sortedFrames.count && sortedFrames[frameIndex].pts < bucketStart {
+                while frameIndex < rawFrames.count && rawFrames[frameIndex].pts < bucketStart {
                     frameIndex += 1
                 }
 
                 // Sum frames in bucket [bucketStart, bucketEnd)
                 var totalBytes: Int64 = 0
                 var tempIndex = frameIndex
-                while tempIndex < sortedFrames.count && sortedFrames[tempIndex].pts < bucketEnd {
-                    totalBytes += sortedFrames[tempIndex].size
+                while tempIndex < rawFrames.count && rawFrames[tempIndex].pts < bucketEnd {
+                    totalBytes += rawFrames[tempIndex].size
                     tempIndex += 1
                 }
 
@@ -71,12 +70,8 @@ struct BitrateChartStatistics {
         if let rawFrames = rawFrames, !rawFrames.isEmpty {
             let estimatedFPS = effectiveFPS ?? 30.0
             let defaultFrameDuration = 1.0 / estimatedFPS
-            let sortedFrames = rawFrames.sorted { $0.pts < $1.pts }
-
-            guard !sortedFrames.isEmpty else { return 0 }
-
-            let startTime = sortedFrames.first!.pts
-            let endTime = sortedFrames.last!.pts
+            let startTime = rawFrames.first!.pts
+            let endTime = rawFrames.last!.pts
             let totalDuration = endTime - startTime + defaultFrameDuration
             let numBuckets = Int(ceil(totalDuration / 1.0))
 
@@ -91,15 +86,15 @@ struct BitrateChartStatistics {
                 let bucketEnd = bucketStart + 1.0
 
                 // Advance to first frame in this bucket
-                while frameIndex < sortedFrames.count && sortedFrames[frameIndex].pts < bucketStart {
+                while frameIndex < rawFrames.count && rawFrames[frameIndex].pts < bucketStart {
                     frameIndex += 1
                 }
 
                 // Sum frames in bucket [bucketStart, bucketEnd)
                 var totalBytes: Int64 = 0
                 var tempIndex = frameIndex
-                while tempIndex < sortedFrames.count && sortedFrames[tempIndex].pts < bucketEnd {
-                    totalBytes += sortedFrames[tempIndex].size
+                while tempIndex < rawFrames.count && rawFrames[tempIndex].pts < bucketEnd {
+                    totalBytes += rawFrames[tempIndex].size
                     tempIndex += 1
                 }
 

@@ -112,17 +112,17 @@ struct GOPStatsPanel: View {
                 HStack(spacing: 1) {
                     if stats.iCount > 0 {
                         Rectangle()
-                            .fill(Color(red: 0.0, green: 0.48, blue: 1.0).opacity(0.8))
+                            .fill(DesignSystem.Colors.FrameType.i.opacity(0.8))
                             .frame(width: geo.size.width * CGFloat(stats.iCount) / CGFloat(stats.total))
                     }
                     if stats.pCount > 0 {
                         Rectangle()
-                            .fill(Color(red: 1.0, green: 0.58, blue: 0.0).opacity(0.8))
+                            .fill(DesignSystem.Colors.FrameType.p.opacity(0.8))
                             .frame(width: geo.size.width * CGFloat(stats.pCount) / CGFloat(stats.total))
                     }
                     if stats.bCount > 0 {
                         Rectangle()
-                            .fill(Color(red: 1.0, green: 0.23, blue: 0.19).opacity(0.8))
+                            .fill(DesignSystem.Colors.FrameType.b.opacity(0.8))
                             .frame(width: geo.size.width * CGFloat(stats.bCount) / CGFloat(stats.total))
                     }
                     if stats.unknownCount > 0 {
@@ -156,14 +156,10 @@ struct GOPStatsPanel: View {
     private func frameTypeLegend(type: FrameType, count: Int, total: Int) -> some View {
         let color: Color = {
             switch type {
-            case .i:
-                return Color(red: 0.0, green: 0.48, blue: 1.0)
-            case .p:
-                return Color(red: 1.0, green: 0.58, blue: 0.0)
-            case .b:
-                return Color(red: 1.0, green: 0.23, blue: 0.19)
-            case .unknown:
-                return .gray
+            case .i: return DesignSystem.Colors.FrameType.i
+            case .p: return DesignSystem.Colors.FrameType.p
+            case .b: return DesignSystem.Colors.FrameType.b
+            case .unknown: return DesignSystem.Colors.FrameType.unknown
             }
         }()
 

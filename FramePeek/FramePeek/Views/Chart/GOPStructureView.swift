@@ -189,7 +189,7 @@ struct GOPStructureView: View {
                 // I-frame indicator explanation
                 HStack(spacing: 4) {
                     Rectangle()
-                        .fill(Color(red: 0.0, green: 0.48, blue: 1.0))
+                        .fill(DesignSystem.Colors.FrameType.i)
                         .frame(width: 3, height: 12)
                     Text(String(localized: "I-frame"))
                         .font(.caption2)
@@ -388,9 +388,9 @@ struct GOPStructureView: View {
                     .fontWeight(.medium)
                     .padding(.top, DesignSystem.Padding.xs)
                 VStack(alignment: .leading, spacing: 4) {
-                    frameTypeExplanation(type: .i, color: Color(red: 0.0, green: 0.48, blue: 1.0), description: "Keyframes that can be decoded independently. They mark the start of each GOP and are essential for seeking.")
-                    frameTypeExplanation(type: .p, color: Color(red: 1.0, green: 0.58, blue: 0.0), description: "Frames that reference the previous I or P-frame. More efficient than I-frames but require previous frames to decode.")
-                    frameTypeExplanation(type: .b, color: Color(red: 1.0, green: 0.23, blue: 0.19), description: "Frames that reference both previous and future frames. Most efficient compression but require buffering.")
+                    frameTypeExplanation(type: .i, color: DesignSystem.Colors.FrameType.i, description: "Keyframes that can be decoded independently. They mark the start of each GOP and are essential for seeking.")
+                    frameTypeExplanation(type: .p, color: DesignSystem.Colors.FrameType.p, description: "Frames that reference the previous I or P-frame. More efficient than I-frames but require previous frames to decode.")
+                    frameTypeExplanation(type: .b, color: DesignSystem.Colors.FrameType.b, description: "Frames that reference both previous and future frames. Most efficient compression but require buffering.")
                 }
 
                 Text("Pattern Types")
