@@ -3,6 +3,7 @@
 A macOS application for inspecting video and audio files with metadata analysis, bitrate visualization, and keyframe detection.
 
 ![FramePeek](screenshot.png)
+![FramePeek — Color Analysis](screenshot-2.png)
 
 ## Features
 
