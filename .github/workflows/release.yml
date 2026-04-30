@@ -28,6 +28,31 @@ jobs:
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
 
     steps:
+      - name: Pre-flight — verify required secrets are present
+        env:
+          DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for v in DEVELOPER_ID_CERT_P12 DEVELOPER_ID_CERT_PASSWORD \
+                   KEYCHAIN_PASSWORD ASC_API_KEY_P8 ASC_API_KEY_ID \
+                   ASC_API_KEY_ISSUER_ID APPLE_TEAM_ID; do
+            if [[ -z "${!v}" ]]; then
+              missing+=("$v")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error::Missing required secrets: ${missing[*]}"
+            exit 1
+          fi
+          echo "All required secrets present."
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -82,19 +107,36 @@ jobs:
           IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
             | grep "Developer ID Application" | head -n1 \
             | sed -E 's/^[[:space:]]*[0-9]+\)[[:space:]]+[A-F0-9]+[[:space:]]+"(.*)".*/\1/')
+          if [[ -z "$IDENTITY" ]]; then
+            echo "::error::No 'Developer ID Application' identity found in imported keychain."
+            echo "Available identities:"
+            security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
+            exit 1
+          fi
           echo "SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           echo "Found identity: $IDENTITY"
 
-      - name: Write App Store Connect API key
+      - name: Write and validate App Store Connect API key
         env:
           ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
         run: |
           set -euo pipefail
           KEY_PATH="$RUNNER_TEMP/asc_key.p8"
           echo "$ASC_API_KEY_P8" | base64 --decode > "$KEY_PATH"
           echo "ASC_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
-          echo "ASC_API_KEY_ID=${{ secrets.ASC_API_KEY_ID }}" >> "$GITHUB_ENV"
-          echo "ASC_API_KEY_ISSUER=${{ secrets.ASC_API_KEY_ISSUER_ID }}" >> "$GITHUB_ENV"
+          echo "ASC_API_KEY_ID=$ASC_API_KEY_ID" >> "$GITHUB_ENV"
+          echo "ASC_API_KEY_ISSUER=$ASC_API_KEY_ISSUER_ID" >> "$GITHUB_ENV"
+
+          # Smoke-test the credentials with a cheap call before we waste
+          # 10+ minutes archiving only to fail at notarization.
+          echo "Validating notarytool credentials…"
+          xcrun notarytool history \
+            --key "$KEY_PATH" \
+            --key-id "$ASC_API_KEY_ID" \
+            --issuer "$ASC_API_KEY_ISSUER_ID" \
+            | head -n 5
 
       - name: Archive app
         run: |
