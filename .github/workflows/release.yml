@@ -1,0 +1,220 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g. v0.0.1-test)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    env:
+      PROJECT: FramePeek/FramePeek.xcodeproj
+      APP_SCHEME: FramePeek
+      CLI_TARGET: FramePeekCLI
+      CONFIGURATION: Release
+      DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+      KEYCHAIN_NAME: build.keychain
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          REF="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${REF#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Import signing certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/$KEYCHAIN_NAME"
+
+          echo "$CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" -P "$CERT_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
+          security list-keychains -d user -s "$KEYCHAIN_PATH" \
+            $(security list-keychains -d user | tr -d '"')
+
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+
+          # Capture the signing identity for later steps
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | grep "Developer ID Application" | head -n1 \
+            | sed -E 's/^[[:space:]]*[0-9]+\)[[:space:]]+[A-F0-9]+[[:space:]]+"(.*)".*/\1/')
+          echo "SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "Found identity: $IDENTITY"
+
+      - name: Write App Store Connect API key
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          KEY_PATH="$RUNNER_TEMP/asc_key.p8"
+          echo "$ASC_API_KEY_P8" | base64 --decode > "$KEY_PATH"
+          echo "ASC_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          echo "ASC_API_KEY_ID=${{ secrets.ASC_API_KEY_ID }}" >> "$GITHUB_ENV"
+          echo "ASC_API_KEY_ISSUER=${{ secrets.ASC_API_KEY_ISSUER_ID }}" >> "$GITHUB_ENV"
+
+      - name: Archive app
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$APP_SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/FramePeek.xcarchive" \
+            MARKETING_VERSION=${{ steps.version.outputs.version }} \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/$KEYCHAIN_NAME" \
+            archive
+
+      - name: Export .app
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>developer-id</string>
+            <key>teamID</key>
+            <string>$DEVELOPMENT_TEAM</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$RUNNER_TEMP/FramePeek.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+          codesign -dv --verbose=4 "$RUNNER_TEMP/export/FramePeek.app"
+
+      - name: Build and sign CLI
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "$PROJECT" \
+            -target "$CLI_TARGET" \
+            -configuration "$CONFIGURATION" \
+            -destination 'generic/platform=macOS' \
+            CONFIGURATION_BUILD_DIR="$RUNNER_TEMP/cli-build" \
+            MARKETING_VERSION=${{ steps.version.outputs.version }} \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/$KEYCHAIN_NAME" \
+            build
+
+          # Re-sign with hardened runtime explicitly (CLI binaries sometimes
+          # need this to be set even when ENABLE_HARDENED_RUNTIME=YES)
+          codesign --force --sign "$SIGNING_IDENTITY" \
+            --options runtime --timestamp \
+            --keychain "$RUNNER_TEMP/$KEYCHAIN_NAME" \
+            "$RUNNER_TEMP/cli-build/framepeek-cli"
+
+          codesign -dv --verbose=4 "$RUNNER_TEMP/cli-build/framepeek-cli"
+
+      - name: Notarize CLI binary
+        run: |
+          set -euo pipefail
+          # Notarytool requires a zip/dmg/pkg as input — wrap the bare binary.
+          ZIP="$RUNNER_TEMP/framepeek-cli-submit.zip"
+          ditto -c -k --keepParent "$RUNNER_TEMP/cli-build/framepeek-cli" "$ZIP"
+          # CLIs cannot be stapled — Gatekeeper checks the online ticket on first run.
+          ./scripts/notarize.sh "$ZIP"
+
+      - name: Package CLI tarball
+        run: |
+          set -euo pipefail
+          VERSION=${{ steps.version.outputs.version }}
+          STAGE="$RUNNER_TEMP/cli-stage"
+          mkdir -p "$STAGE"
+          cp "$RUNNER_TEMP/cli-build/framepeek-cli" "$STAGE/"
+          tar -czf "$RUNNER_TEMP/framepeek-cli-$VERSION.tar.gz" -C "$STAGE" framepeek-cli
+
+      - name: Build DMG
+        run: |
+          set -euo pipefail
+          brew install create-dmg
+          VERSION=${{ steps.version.outputs.version }}
+          DMG_PATH="$RUNNER_TEMP/FramePeek-$VERSION.dmg"
+          STAGE="$RUNNER_TEMP/dmg-stage"
+          mkdir -p "$STAGE"
+          cp -R "$RUNNER_TEMP/export/FramePeek.app" "$STAGE/"
+
+          create-dmg \
+            --volname "FramePeek $VERSION" \
+            --window-size 600 360 \
+            --icon-size 128 \
+            --icon "FramePeek.app" 150 180 \
+            --app-drop-link 450 180 \
+            --hide-extension "FramePeek.app" \
+            "$DMG_PATH" \
+            "$STAGE"
+
+          codesign --force --sign "$SIGNING_IDENTITY" \
+            --keychain "$RUNNER_TEMP/$KEYCHAIN_NAME" \
+            "$DMG_PATH"
+
+      - name: Notarize and staple DMG
+        run: |
+          set -euo pipefail
+          VERSION=${{ steps.version.outputs.version }}
+          ./scripts/notarize.sh "$RUNNER_TEMP/FramePeek-$VERSION.dmg" --staple
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: FramePeek ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            ${{ runner.temp }}/FramePeek-${{ steps.version.outputs.version }}.dmg
+            ${{ runner.temp }}/framepeek-cli-${{ steps.version.outputs.version }}.tar.gz
+
+      - name: Cleanup keychain and keys
+        if: always()
+        run: |
+          set +e
+          security delete-keychain "$RUNNER_TEMP/$KEYCHAIN_NAME"
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/asc_key.p8"

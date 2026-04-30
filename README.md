@@ -54,6 +54,10 @@ A macOS application for inspecting video and audio files with metadata analysis,
 
 ## Installation
 
+### Download (recommended)
+
+Grab the latest signed `.dmg` from the [Releases page](https://github.com/oscnord/FramePeek/releases/latest), open it, and drag **FramePeek** to `/Applications`. The CLI is published as a separate `framepeek-cli-<version>.tar.gz` on the same release.
+
 ### Building from Source
 
 1. **Clone the repository**:
