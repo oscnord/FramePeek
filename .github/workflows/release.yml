@@ -266,6 +266,54 @@ jobs:
             ${{ runner.temp }}/FramePeek-${{ steps.version.outputs.marketing }}.dmg
             ${{ runner.temp }}/framepeek-cli-${{ steps.version.outputs.marketing }}.tar.gz
 
+      - name: Write job summary
+        if: always()
+        run: |
+          set +e
+          VERSION=${{ steps.version.outputs.marketing }}
+          TAG=${{ steps.version.outputs.tag }}
+          BUILD=${{ steps.version.outputs.build }}
+          DMG="$RUNNER_TEMP/FramePeek-$VERSION.dmg"
+          TAR="$RUNNER_TEMP/framepeek-cli-$VERSION.tar.gz"
+          REPO="${{ github.repository }}"
+
+          dmg_size="(not built)"
+          tar_size="(not built)"
+          dmg_sha=""
+          tar_sha=""
+          if [[ -f "$DMG" ]]; then
+            dmg_size=$(du -h "$DMG" | cut -f1)
+            dmg_sha=$(shasum -a 256 "$DMG" | cut -d' ' -f1)
+          fi
+          if [[ -f "$TAR" ]]; then
+            tar_size=$(du -h "$TAR" | cut -f1)
+            tar_sha=$(shasum -a 256 "$TAR" | cut -d' ' -f1)
+          fi
+
+          {
+            echo "## FramePeek $VERSION"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Tag | \`$TAG\` |"
+            echo "| Marketing version | \`$VERSION\` |"
+            echo "| Build number | \`$BUILD\` |"
+            echo "| Signing identity | ${SIGNING_IDENTITY:-_(not captured)_} |"
+            echo "| DMG | \`FramePeek-$VERSION.dmg\` ($dmg_size) |"
+            echo "| CLI tarball | \`framepeek-cli-$VERSION.tar.gz\` ($tar_size) |"
+            echo ""
+            if [[ -n "$dmg_sha" || -n "$tar_sha" ]]; then
+              echo "### SHA-256"
+              echo ""
+              echo "\`\`\`"
+              [[ -n "$dmg_sha" ]] && echo "$dmg_sha  FramePeek-$VERSION.dmg"
+              [[ -n "$tar_sha" ]] && echo "$tar_sha  framepeek-cli-$VERSION.tar.gz"
+              echo "\`\`\`"
+              echo ""
+            fi
+            echo "[View Release →](https://github.com/$REPO/releases/tag/$TAG)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Cleanup keychain and keys
         if: always()
         run: |

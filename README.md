@@ -1,5 +1,7 @@
 # FramePeek
 
+[![Release](https://github.com/oscnord/FramePeek/actions/workflows/release.yml/badge.svg)](https://github.com/oscnord/FramePeek/actions/workflows/release.yml)
+
 A macOS application for inspecting video and audio files with metadata analysis, bitrate visualization, and keyframe detection.
 
 ![FramePeek](screenshot.png)
