@@ -130,7 +130,7 @@ struct TimelineView: View {
 
                     TimelineLabelsView(
                         duration: duration,
-                        visibleTimeRange: visibleTimeRange != nil && isActuallyZoomed(visibleTimeRange!) ? visibleTimeRange : nil,
+                        visibleTimeRange: visibleTimeRange.flatMap { isActuallyZoomed($0) ? $0 : nil },
                         geometry: geo,
                         formatTime: formatTimeShort,
                         calculateLabelStep: calculateLabelStep
@@ -138,7 +138,7 @@ struct TimelineView: View {
 
                     TimelineTicksView(
                         duration: duration,
-                        visibleTimeRange: visibleTimeRange != nil && isActuallyZoomed(visibleTimeRange!) ? visibleTimeRange : nil,
+                        visibleTimeRange: visibleTimeRange.flatMap { isActuallyZoomed($0) ? $0 : nil },
                         geometry: geo,
                         calculateLabelStep: calculateLabelStep
                     )

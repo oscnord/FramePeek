@@ -34,7 +34,7 @@ public func extractFramesStream(
                 let tracks = try await asset.loadTracks(withMediaType: .video)
                 videoTrack = tracks.first
             } catch {
-                print("Failed to load video tracks: \(error.localizedDescription)")
+                Log.analysis.error("Failed to load video tracks: \(error.localizedDescription)")
                 continuation.yield(finish)
                 continuation.finish()
                 return
@@ -236,7 +236,7 @@ private func extractEveryFrame(
     do {
         reader = try AVAssetReader(asset: asset)
     } catch {
-        print("Failed to create AVAssetReader: \(error.localizedDescription)")
+        Log.analysis.error("Failed to create AVAssetReader: \(error.localizedDescription)")
         continuation.yield(finish)
         continuation.finish()
         return
@@ -246,7 +246,7 @@ private func extractEveryFrame(
     output.alwaysCopiesSampleData = false
 
     guard reader.canAdd(output) else {
-        print("Reader cannot add output")
+        Log.analysis.error("Reader cannot add output")
         continuation.yield(finish)
         continuation.finish()
         return
@@ -254,7 +254,7 @@ private func extractEveryFrame(
     reader.add(output)
 
     guard reader.startReading() else {
-        print("Reader failed to start: \(reader.error?.localizedDescription ?? "Unknown error")")
+        Log.analysis.error("Reader failed to start: \(reader.error?.localizedDescription ?? "Unknown error")")
         continuation.yield(finish)
         continuation.finish()
         return
@@ -402,7 +402,7 @@ private func extractEveryFrame(
     }
 
     if reader.status != .completed && !Task.isCancelled {
-        print("Reader ended with status \(reader.status): \(reader.error?.localizedDescription ?? "No error")")
+        Log.analysis.error("Reader ended with status \(reader.status.rawValue): \(reader.error?.localizedDescription ?? "No error")")
     }
 
     // Include raw frames in final update

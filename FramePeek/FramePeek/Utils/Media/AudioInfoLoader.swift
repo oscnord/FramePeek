@@ -14,7 +14,7 @@ public func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
     do {
         tracks = try await asset.loadTracks(withMediaType: .audio)
     } catch {
-        print("Failed to load audio tracks: \(error.localizedDescription)")
+        Log.media.error("Failed to load audio tracks: \(error.localizedDescription)")
         return []
     }
 

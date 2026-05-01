@@ -115,9 +115,7 @@ public enum FrameDetailExtractor {
                 codecName: codecName
             )
         } catch {
-            #if DEBUG
-            print("FrameDetailExtractor: Failed to extract frame details - \(error.localizedDescription)")
-            #endif
+            Log.analysis.error("FrameDetailExtractor: Failed to extract frame details - \(error.localizedDescription)")
             return nil
         }
     }

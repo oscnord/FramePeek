@@ -453,9 +453,7 @@ private func extractGOPSegmentsStandard(
                 ))
                 continuation.finish()
             } catch {
-                #if DEBUG
-                print("GOPAnalyzer: Failed to analyze GOP structure - \(error.localizedDescription)")
-                #endif
+                Log.analysis.error("GOPAnalyzer: Failed to analyze GOP structure - \(error.localizedDescription)")
                 continuation.yield(GOPUpdate(
                     appendedSegments: [],
                     scannedUntilSeconds: 0,

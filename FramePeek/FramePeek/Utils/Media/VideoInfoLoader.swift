@@ -32,7 +32,7 @@ public func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo
         let tracks = try await asset.loadTracks(withMediaType: .video)
         videoTrack = tracks.first
     } catch {
-        print("Failed to load video tracks: \(error.localizedDescription)")
+        Log.media.error("Failed to load video tracks: \(error.localizedDescription)")
     }
 
     // Extract codec, color, and AV1 info in parallel if we have a video track

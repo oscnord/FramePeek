@@ -42,7 +42,7 @@ public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
         let tracks = try await asset.loadTracks(withMediaType: .video)
         videoTrack = tracks.first
     } catch {
-        print("Failed to load video tracks: \(error.localizedDescription)")
+        Log.media.error("Failed to load video tracks: \(error.localizedDescription)")
         return nil
     }
 
@@ -122,7 +122,7 @@ public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
             frameRateMode: nil // Not extracted in original code
         )
     } catch {
-        print("Error loading video track info: \(error.localizedDescription)")
+        Log.media.error("Error loading video track info: \(error.localizedDescription)")
         return nil
     }
 }

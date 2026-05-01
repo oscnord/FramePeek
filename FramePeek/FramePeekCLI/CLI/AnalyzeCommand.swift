@@ -166,7 +166,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
         if let outputPath = self.output {
             try output.write(toFile: outputPath, atomically: true, encoding: .utf8)
             if !quiet {
-                FileHandle.standardError.write("Results written to \(outputPath)\n".data(using: .utf8)!)
+                FileHandle.standardError.write(Data("Results written to \(outputPath)\n".utf8))
             }
         } else {
             print(output)

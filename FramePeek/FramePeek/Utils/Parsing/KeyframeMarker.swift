@@ -206,9 +206,7 @@ private func extractKeyframesWithReaderStream(
 
         continuation.finish()
     } catch {
-        #if DEBUG
-        print("KeyframeMarker: Failed to create AVAssetReader - \(error.localizedDescription)")
-        #endif
+        Log.parsing.error("KeyframeMarker: Failed to create AVAssetReader - \(error.localizedDescription)")
         continuation.finish()
     }
 }

@@ -161,8 +161,8 @@ struct WaveformShape: Shape {
             path.addLine(to: CGPoint(x: x, y: y))
         }
 
-        // Close path back to baseline
-        let lastX = rect.minX + CGFloat((samples.last!.time - minTime) / timeRange) * rect.width
+        // Close path back to baseline (samples is guaranteed non-empty by guard above)
+        let lastX = rect.minX + CGFloat(((samples.last?.time ?? maxTime) - minTime) / timeRange) * rect.width
         path.addLine(to: CGPoint(x: lastX, y: baselineY))
         path.addLine(to: CGPoint(x: rect.minX, y: baselineY))
         path.closeSubpath()
