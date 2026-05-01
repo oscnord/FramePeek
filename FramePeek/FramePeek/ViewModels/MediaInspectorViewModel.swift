@@ -30,9 +30,7 @@ final class FramePeekViewModel {
     // GOP frame detail extraction (on-demand loading)
     var selectedGOPFrameDetails: [FrameInfo]?
     var isLoadingGOPFrameDetails: Bool = false
-    var gopFrameDetailsCache: [UUID: [FrameInfo]] = [:]
-    @ObservationIgnored var gopCacheAccessOrder: [UUID] = []
-    @ObservationIgnored let gopCacheMaxSize = 50
+    @ObservationIgnored var gopFrameDetailsCache = LRUCache<UUID, [FrameInfo]>(capacity: 50)
     var preloadingGOPIndices: Set<Int> = []
     var codecSupportsFrameTypes: Bool = true
     @ObservationIgnored var frameDetailPreloadTask: Task<Void, Never>?
@@ -121,20 +119,11 @@ final class FramePeekViewModel {
     // MARK: - GOP Frame Details LRU Cache
 
     func cacheGOPFrameDetails(_ details: [FrameInfo], for id: UUID) {
-        gopFrameDetailsCache[id] = details
-        gopCacheAccessOrder.removeAll { $0 == id }
-        gopCacheAccessOrder.append(id)
-        while gopCacheAccessOrder.count > gopCacheMaxSize {
-            let evictedID = gopCacheAccessOrder.removeFirst()
-            gopFrameDetailsCache.removeValue(forKey: evictedID)
-        }
+        gopFrameDetailsCache.set(id, details)
     }
 
     func getCachedGOPFrameDetails(for id: UUID) -> [FrameInfo]? {
-        guard let details = gopFrameDetailsCache[id] else { return nil }
-        gopCacheAccessOrder.removeAll { $0 == id }
-        gopCacheAccessOrder.append(id)
-        return details
+        gopFrameDetailsCache.get(id)
     }
 
     init() {

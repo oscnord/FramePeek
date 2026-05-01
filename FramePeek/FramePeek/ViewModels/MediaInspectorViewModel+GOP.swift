@@ -157,7 +157,7 @@ extension FramePeekViewModel {
         }
 
         // Capture all needed MainActor state ONCE to avoid bouncing
-        let cachedIds = Set(gopFrameDetailsCache.keys)
+        let cachedIds: Set<UUID> = Set(gopFrameDetailsCache.keys)
         let currentPreloading = preloadingGOPIndices
 
         // Filter to indices that aren't cached yet and aren't already preloading
@@ -242,7 +242,6 @@ extension FramePeekViewModel {
         frameDetailPreloadTask?.cancel()
         frameDetailPreloadTask = nil
         gopFrameDetailsCache.removeAll()
-        gopCacheAccessOrder.removeAll()
         selectedGOPFrameDetails = nil
         preloadingGOPIndices.removeAll()
         codecSupportsFrameTypes = true
