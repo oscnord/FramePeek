@@ -288,7 +288,7 @@ struct TimelineView: View {
                 .strokeBorder(.separator.opacity(0.35), lineWidth: DesignSystem.Borders.thin)
         )
         .shadow(color: .black.opacity(0.1), radius: 10, y: 2)
-        .accessibilityLabel("Timeline zoom control")
+        .accessibilityLabel(String(localized: "Timeline zoom control"))
     }
 
     private func isActuallyZoomed(_ range: ClosedRange<Double>) -> Bool {
