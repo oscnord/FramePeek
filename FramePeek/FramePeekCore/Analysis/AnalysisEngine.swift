@@ -160,19 +160,17 @@ public enum AnalysisError: Error, LocalizedError {
 
 // MARK: - Analysis Engine
 
-/// Main entry point for running media analysis
-/// 
-/// Use this actor to analyze media files programmatically.
-/// It provides both synchronous and streaming APIs.
+/// Main entry point for running media analysis.
 ///
-/// **Important**: For this to work, the following Utils files must be added to the
-/// FramePeekCore target in Xcode:
-/// - Utils/Media/VideoInfoLoader.swift (and all extensions)
-/// - Utils/Extraction/FastBitrateExtractor.swift (and extensions)
-/// - Utils/Analysis/GOPAnalyzer.swift
-/// - Utils/Extraction/FastWaveformExtractor.swift
-/// - Utils/Analysis/AudioVideoSyncAnalyzer.swift
-/// - Utils/Parsing/SyncSampleParser.swift
+/// Use this actor to analyze media files programmatically.
+/// Provides both single-shot and streaming APIs.
+///
+/// The analyzer source files (`getExtendedInfo`, `extractBitratesFast`,
+/// `extractGOPSegmentsFast`, `extractWaveformFast`, `analyzeAudioVideoSync`,
+/// `SyncSampleParser`) physically live under `FramePeek/Utils/` but compile
+/// into the `FramePeekCore` framework target via `membershipExceptions` in
+/// `project.pbxproj`. Both this engine and the CLI consume them via the
+/// `FramePeekCore` framework.
 ///
 /// Example usage:
 /// ```swift
