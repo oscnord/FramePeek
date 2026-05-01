@@ -28,30 +28,17 @@ public func extractFramesStream(
         let task = Task.detached(priority: .userInitiated) {
             let finish = FrameAnalysisUpdate(appendedSamples: [], isFinished: true)
 
-            // Video track
-            let videoTrack: AVAssetTrack?
-            do {
-                let tracks = try await asset.loadTracks(withMediaType: .video)
-                videoTrack = tracks.first
-            } catch {
-                Log.analysis.error("Failed to load video tracks: \(error.localizedDescription)")
-                continuation.yield(finish)
-                continuation.finish()
-                return
-            }
-
-            guard let videoTrack else {
+            guard let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
                 continuation.yield(finish)
                 continuation.finish()
                 return
             }
 
             // Get duration and nominal frame rate for smart sampling
-            let duration = (try? await asset.load(.duration)) ?? .zero
-            let durationSeconds = duration.seconds
-            let nominalFrameRate = (try? await videoTrack.load(.nominalFrameRate)) ?? 30.0
+            let durationSeconds = await AVAssetLoader.durationSeconds(of: asset)
+            let nominalFrameRate = await AVAssetLoader.nominalFrameRate(of: videoTrack)
 
-            guard durationSeconds.isFinite, durationSeconds > 0 else {
+            guard durationSeconds > 0 else {
                 continuation.yield(finish)
                 continuation.finish()
                 return
@@ -306,9 +293,8 @@ private func extractEveryFrame(
 
     // Collect raw frames for re-aggregation
     // Reserve capacity based on estimated frame count for better performance
-    let duration = (try? await asset.load(.duration)) ?? .zero
-    let durationSeconds = duration.seconds
-    let nominalFrameRate = (try? await videoTrack.load(.nominalFrameRate)) ?? 30.0
+    let durationSeconds = await AVAssetLoader.durationSeconds(of: asset)
+    let nominalFrameRate = await AVAssetLoader.nominalFrameRate(of: videoTrack)
     let estimatedFrameCount = Int(durationSeconds * Double(nominalFrameRate))
     var allRawFrames: [RawFrame] = []
     allRawFrames.reserveCapacity(min(estimatedFrameCount, 1_000_000)) // Cap at 1M to avoid excessive memory

@@ -156,7 +156,7 @@ private func extractGOPSegmentsStandard(
         let task = Task.detached(priority: .userInitiated) {
             let isPreview = options.maxScanSeconds != nil || options.maxGOPs != nil
 
-            guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
+            guard let track = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
                 continuation.yield(GOPUpdate(
                     appendedSegments: [],
                     scannedUntilSeconds: 0,
@@ -167,14 +167,12 @@ private func extractGOPSegmentsStandard(
                 return
             }
 
-            let durationSeconds = (try? await asset.load(.duration).seconds) ?? 0
+            let durationSeconds = await AVAssetLoader.durationSeconds(of: asset)
 
             var codecType: FourCharCode?
-            if options.detectFrameTypes {
-                if let formatDescs = try? await track.load(.formatDescriptions),
-                   let firstDesc = formatDescs.first {
-                    codecType = CMFormatDescriptionGetMediaSubType(firstDesc)
-                }
+            if options.detectFrameTypes,
+               let firstDesc = await AVAssetLoader.firstFormatDescription(of: track) {
+                codecType = CMFormatDescriptionGetMediaSubType(firstDesc)
             }
 
             do {

@@ -33,14 +33,13 @@ public func extractKeyframesStream(
     AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
             // Load the video track
-            let tracks = try? await asset.loadTracks(withMediaType: .video)
-            guard let track = tracks?.first else {
+            guard let track = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
                 continuation.finish()
                 return
             }
 
             // Get duration for fallback synthetic keyframes
-            let duration = (try? await asset.load(.duration).seconds) ?? 0
+            let duration = await AVAssetLoader.durationSeconds(of: asset)
 
             // Use optimized AVAssetReader - we need sample buffers to check keyframe status
             await extractKeyframesWithReaderStream(
