@@ -40,7 +40,7 @@ struct ServerStatusSection: View {
                             Button("Copy URL", systemImage: "doc.on.doc", action: viewModel.copyServerURL)
                                 .labelStyle(.iconOnly)
                                 .buttonStyle(.plain)
-                                .help("Copy URL")
+                                .help(String(localized: "Copy URL"))
                         }
 
                         HStack(spacing: DesignSystem.Spacing.sm) {
@@ -89,7 +89,7 @@ struct ServerStatusSection: View {
                         Button("Copy API Key", systemImage: "doc.on.doc", action: viewModel.copyAPIKey)
                             .labelStyle(.iconOnly)
                             .buttonStyle(.plain)
-                            .help("Copy API Key")
+                            .help(String(localized: "Copy API Key"))
                     }
                     .font(.callout)
                 }

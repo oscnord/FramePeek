@@ -324,9 +324,9 @@ private func aggregateByGOP(
             }
         }
 
-        if isGOPBoundary && !currentGOP.isEmpty {
+        if isGOPBoundary, let firstFrame = currentGOP.first, let lastFrame = currentGOP.last {
             // Emit the previous GOP with correct duration calculation
-            let gopStart = currentGOP.first!.pts
+            let gopStart = firstFrame.pts
             // GOP duration is from the start of the first frame to the start of the next GOP
             // The next GOP starts at the current frame's PTS
             let gopDuration = frame.pts - gopStart
@@ -338,7 +338,7 @@ private func aggregateByGOP(
             let bitrate = (Double(totalBytes) * 8.0) / validDuration
 
             // Use the end of the GOP (last frame's PTS) as the sample time
-            let gopEnd = currentGOP.last!.pts
+            let gopEnd = lastFrame.pts
             samples.append(BitrateSample(time: gopEnd, bitrate: bitrate, duration: validDuration))
 
             currentGOP.removeAll()
@@ -354,9 +354,11 @@ private func aggregateByGOP(
     }
 
     // Emit the last GOP if any
-    if !currentGOP.isEmpty && samples.count < maxSamples {
-        let gopStart = currentGOP.first!.pts
-        let gopEnd = currentGOP.last!.pts
+    if samples.count < maxSamples,
+       let firstFrame = currentGOP.first,
+       let lastFrame = currentGOP.last {
+        let gopStart = firstFrame.pts
+        let gopEnd = lastFrame.pts
 
         // For the last GOP, estimate duration from start to end plus one frame duration
         // This approximates the duration until the next GOP would start

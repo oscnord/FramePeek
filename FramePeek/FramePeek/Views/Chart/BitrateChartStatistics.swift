@@ -15,13 +15,12 @@ struct BitrateChartStatistics {
 
     var maxBitrateKbps: Double {
         // Calculate from rawFrames if available (more accurate, no downsampling)
-        if let rawFrames = rawFrames, !rawFrames.isEmpty {
+        if let rawFrames, let firstFrame = rawFrames.first, let lastFrame = rawFrames.last {
             let estimatedFPS = effectiveFPS ?? 30.0
             let defaultFrameDuration = 1.0 / estimatedFPS
-            guard !rawFrames.isEmpty else { return 1 }
 
-            let startTime = rawFrames.first!.pts
-            let endTime = rawFrames.last!.pts
+            let startTime = firstFrame.pts
+            let endTime = lastFrame.pts
             let totalDuration = endTime - startTime + defaultFrameDuration
             let numBuckets = Int(ceil(totalDuration / 1.0))
 
@@ -67,11 +66,11 @@ struct BitrateChartStatistics {
 
     var minBitrateKbps: Double {
         // Calculate from rawFrames if available (more accurate, no downsampling)
-        if let rawFrames = rawFrames, !rawFrames.isEmpty {
+        if let rawFrames, let firstFrame = rawFrames.first, let lastFrame = rawFrames.last {
             let estimatedFPS = effectiveFPS ?? 30.0
             let defaultFrameDuration = 1.0 / estimatedFPS
-            let startTime = rawFrames.first!.pts
-            let endTime = rawFrames.last!.pts
+            let startTime = firstFrame.pts
+            let endTime = lastFrame.pts
             let totalDuration = endTime - startTime + defaultFrameDuration
             let numBuckets = Int(ceil(totalDuration / 1.0))
 

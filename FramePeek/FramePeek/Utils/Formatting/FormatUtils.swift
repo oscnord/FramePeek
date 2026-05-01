@@ -340,9 +340,7 @@ private func parseFtypAtom(fileHandle: FileHandle, offset: UInt64) -> String? {
             return majorBrand
         }
     } catch {
-        #if DEBUG
-        print("FormatUtils: Failed to parse ftyp atom at offset \(offset) - \(error.localizedDescription)")
-        #endif
+        Log.parsing.error("FormatUtils: Failed to parse ftyp atom at offset \(offset) - \(error.localizedDescription)")
         return nil
     }
 

@@ -145,7 +145,7 @@ public func analyzeFrameTimingStream(
 ) -> AsyncStream<[FrameTimingSample]> {
     AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
-            guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
+            guard let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
                 continuation.finish()
                 return
             }
@@ -172,7 +172,7 @@ public func analyzeFrameTimingStream(
             // Estimate frame count for sampling strategy
             let timeRange = (try? await videoTrack.load(.timeRange)) ?? CMTimeRange.zero
             let duration = timeRange.duration.seconds
-            let nominalFrameRate = (try? await videoTrack.load(.nominalFrameRate)) ?? 30.0
+            let nominalFrameRate = await AVAssetLoader.nominalFrameRate(of: videoTrack)
             let estimatedFrameCount = Int(duration * Double(nominalFrameRate))
 
             // Calculate frame skip interval: sample enough to get maxSamples intervals
@@ -300,7 +300,7 @@ private func analyzeFrameTiming(asset: AVAsset, videoTrack: AVAssetTrack) async 
     // Estimate frame count for sampling strategy
     let timeRange = (try? await videoTrack.load(.timeRange)) ?? CMTimeRange.zero
     let duration = timeRange.duration.seconds
-    let nominalFrameRate = (try? await videoTrack.load(.nominalFrameRate)) ?? 30.0
+    let nominalFrameRate = await AVAssetLoader.nominalFrameRate(of: videoTrack)
     let estimatedFrameCount = Int(duration * Double(nominalFrameRate))
 
     // Sample frames strategically: for long videos, we don't need every frame

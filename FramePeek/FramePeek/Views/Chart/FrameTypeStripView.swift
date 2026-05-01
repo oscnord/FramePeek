@@ -83,7 +83,8 @@ struct FrameTypeStripView: View {
         width: CGFloat, height: CGFloat,
         domainStart: Double, domainDuration: Double
     ) {
-        let segmentDuration = frames.last!.time - frames.first!.time
+        guard let firstFrame = frames.first, let lastFrame = frames.last else { return }
+        let segmentDuration = lastFrame.time - firstFrame.time
         let estimatedFrameDuration = frames.count > 1 ? segmentDuration / Double(frames.count - 1) : 0.033
 
         for (idx, frame) in frames.enumerated() {

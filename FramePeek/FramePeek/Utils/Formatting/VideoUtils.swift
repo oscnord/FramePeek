@@ -12,7 +12,7 @@ public func getFileSizeString(for url: URL) -> String {
             return String(format: "%.2f MiB", sizeMiB)
         }
     } catch {
-        print("Error getting file size: \(error.localizedDescription)")
+        Log.media.error("Error getting file size: \(error.localizedDescription)")
     }
     return "Unknown"
 }
@@ -23,7 +23,7 @@ public func getFileSizeBytes(for url: URL) -> UInt64? {
         let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
         return attrs[.size] as? UInt64
     } catch {
-        print("Error getting file size: \(error.localizedDescription)")
+        Log.media.error("Error getting file size: \(error.localizedDescription)")
         return nil
     }
 }
@@ -53,7 +53,7 @@ public func getOverallBitrateString(asset: AVAsset, fileURL: URL) async -> Strin
             return String(format: "%.0f kb/s", kbps)
         }
     } catch {
-        print("Error getting overall bitrate: \(error.localizedDescription)")
+        Log.media.error("Error getting overall bitrate: \(error.localizedDescription)")
     }
     return "Unknown"
 }

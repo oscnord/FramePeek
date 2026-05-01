@@ -120,12 +120,14 @@ public func extractWithCursor(
 
             let prevBucketIndex = bucketIndex - 1
             if prevBucketIndex > lastEmittedBucket {
-                if let frames = bucketFrames[prevBucketIndex], !frames.isEmpty {
+                if let frames = bucketFrames[prevBucketIndex],
+                   let firstFrame = frames.first,
+                   let lastFrame = frames.last {
                     let bucketStart = startPTS + Double(prevBucketIndex) * bucketSize
                     let totalBytes = frames.reduce(0) { $0 + $1.size }
 
-                    let firstFramePTS = frames.first!.pts
-                    let lastFramePTS = frames.last!.pts
+                    let firstFramePTS = firstFrame.pts
+                    let lastFramePTS = lastFrame.pts
                     let actualSpan = lastFramePTS - firstFramePTS
                     // Add minimum duration guard to prevent inflated bitrate from very small durations
                     let minDuration = bucketSize * 0.1
@@ -190,9 +192,9 @@ public func extractWithCursor(
         let frames = bucketFrames[bucketIndex] ?? []
         let totalBytes = frames.reduce(0) { $0 + $1.size }
 
-        if totalBytes > 0 && !frames.isEmpty {
-            let firstFramePTS = frames.first!.pts
-            let lastFramePTS = frames.last!.pts
+        if totalBytes > 0, let firstFrame = frames.first, let lastFrame = frames.last {
+            let firstFramePTS = firstFrame.pts
+            let lastFramePTS = lastFrame.pts
             let actualSpan = lastFramePTS - firstFramePTS
             // Add minimum duration guard to prevent inflated bitrate from very small durations
             let minDuration = bucketSize * 0.1

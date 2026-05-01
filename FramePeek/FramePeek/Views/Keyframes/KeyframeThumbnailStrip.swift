@@ -228,7 +228,7 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
         }
 
         // Initial update
-        DispatchQueue.main.async {
+        Task { @MainActor in
             context.coordinator.updateScrollState()
         }
 
@@ -276,7 +276,7 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
 
             // Only update if changed to avoid unnecessary redraws
             if canScrollLeft != newCanScrollLeft || canScrollRight != newCanScrollRight {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.canScrollLeft = newCanScrollLeft
                     self.canScrollRight = newCanScrollRight
                 }
@@ -289,7 +289,7 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
             switch gesture.state {
             case .began:
                 lastScrollOrigin = scrollView.contentView.bounds.origin
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.isScrolling?.wrappedValue = true
                 }
                 // Cancel any scroll timer
@@ -310,14 +310,14 @@ private struct ScrollableThumbnailContainer<Content: View>: NSViewRepresentable 
                 // Reset scroll timer
                 scrollTimer?.invalidate()
                 scrollTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self?.isScrolling?.wrappedValue = false
                     }
                 }
             case .ended, .cancelled:
                 scrollTimer?.invalidate()
                 scrollTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self?.isScrolling?.wrappedValue = false
                     }
                 }

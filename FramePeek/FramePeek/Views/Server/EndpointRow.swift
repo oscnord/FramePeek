@@ -42,7 +42,7 @@ struct EndpointRow: View {
                         .labelStyle(.iconOnly)
                         .buttonStyle(.plain)
                         .foregroundStyle(copiedEndpoint == path ? .green : .secondary)
-                        .help("Copy full URL")
+                        .help(String(localized: "Copy full URL"))
 
                     Button("Toggle example", systemImage: showExample ? "chevron.up" : "chevron.down") {
                         withAnimation { showExample.toggle() }
@@ -50,7 +50,7 @@ struct EndpointRow: View {
                     .labelStyle(.iconOnly)
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
-                    .help("Show example")
+                    .help(String(localized: "Show example"))
                     .opacity(example != nil ? 1 : 0)
                     .disabled(example == nil)
                 }

@@ -27,13 +27,7 @@ public func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo
     )
 
     // Extract video track for further processing if available
-    var videoTrack: AVAssetTrack?
-    do {
-        let tracks = try await asset.loadTracks(withMediaType: .video)
-        videoTrack = tracks.first
-    } catch {
-        print("Failed to load video tracks: \(error.localizedDescription)")
-    }
+    let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video)
 
     // Extract codec, color, and AV1 info in parallel if we have a video track
     var codecInfo: CodecInfo?
