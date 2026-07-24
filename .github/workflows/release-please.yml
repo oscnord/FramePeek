@@ -10,6 +10,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Required by the workflow-dispatch hand-off to release.yml
+  actions: write
 
 jobs:
   release-please:
