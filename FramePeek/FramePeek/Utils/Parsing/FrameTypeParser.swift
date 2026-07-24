@@ -5,272 +5,202 @@ import CoreMedia
 /// Detects frame type (I/P/B) from sample buffer data by parsing NAL units.
 /// Supports H.264 (AVC) and HEVC (H.265).
 /// Handles both AVCC/HVCC (length-prefixed) and Annex-B (start-code prefixed) formats.
+/// Parses directly from the block buffer without copying the sample payload.
 public func detectFrameType(sampleBuffer: CMSampleBuffer, codecType: FourCharCode) -> FrameType {
     guard let dataBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return .unknown }
 
-    var totalLength: Int = 0
-    var dataPointer: UnsafeMutablePointer<Int8>?
-    let status = CMBlockBufferGetDataPointer(
-        dataBuffer,
-        atOffset: 0,
-        lengthAtOffsetOut: nil,
-        totalLengthOut: &totalLength,
-        dataPointerOut: &dataPointer
-    )
-    guard status == noErr, let pointer = dataPointer, totalLength > 0, totalLength <= Int.max else { return .unknown }
-
-    let data = Data(bytes: pointer, count: totalLength)
-
     let codecID = fourCCToString(codecType).lowercased()
+
+    let isH264 = codecID.hasPrefix("avc") || codecID == "h264"
+    let isHEVC = codecID.hasPrefix("hev") || codecID.hasPrefix("hvc") || codecID == "hevc"
+    guard isH264 || isHEVC else { return .unknown }
+
     let nalLengthSize = sampleBufferNALLengthSize(sampleBuffer: sampleBuffer, codecID: codecID)
 
-    if codecID.hasPrefix("avc") || codecID == "h264" {
-        return detectH264FrameType(from: data, nalLengthSize: nalLengthSize)
-    } else if codecID.hasPrefix("hev") || codecID.hasPrefix("hvc") || codecID == "hevc" {
-        return detectHEVCFrameType(from: data, nalLengthSize: nalLengthSize)
+    let detected = withBlockBufferBytes(dataBuffer) { bytes in
+        isH264
+            ? detectH264FrameType(bytes: bytes, nalLengthSize: nalLengthSize)
+            : detectHEVCFrameType(bytes: bytes, nalLengthSize: nalLengthSize)
     }
-    return .unknown
+    return detected ?? .unknown
+}
+
+// MARK: - Block buffer access
+
+/// Runs body over the block buffer's bytes without copying when the buffer
+/// is contiguous (the AVAssetReader common case); copies once otherwise.
+/// The previous implementation read totalLength bytes from the first
+/// contiguous region's pointer, which over-reads non-contiguous buffers.
+private func withBlockBufferBytes<R>(
+    _ blockBuffer: CMBlockBuffer,
+    _ body: (UnsafeBufferPointer<UInt8>) -> R
+) -> R? {
+    let totalLength = CMBlockBufferGetDataLength(blockBuffer)
+    guard totalLength > 0 else { return nil }
+
+    if CMBlockBufferIsRangeContiguous(blockBuffer, atOffset: 0, length: totalLength) {
+        var lengthAtOffset = 0
+        var dataPointer: UnsafeMutablePointer<Int8>?
+        let status = CMBlockBufferGetDataPointer(
+            blockBuffer,
+            atOffset: 0,
+            lengthAtOffsetOut: &lengthAtOffset,
+            totalLengthOut: nil,
+            dataPointerOut: &dataPointer
+        )
+        guard status == noErr, let pointer = dataPointer, lengthAtOffset >= totalLength else { return nil }
+        return pointer.withMemoryRebound(to: UInt8.self, capacity: totalLength) {
+            body(UnsafeBufferPointer(start: $0, count: totalLength))
+        }
+    }
+
+    var copied = [UInt8](repeating: 0, count: totalLength)
+    let status = copied.withUnsafeMutableBytes {
+        CMBlockBufferCopyDataBytes(blockBuffer, atOffset: 0, dataLength: totalLength, destination: $0.baseAddress!)
+    }
+    guard status == noErr else { return nil }
+    return copied.withUnsafeBufferPointer { body($0) }
 }
 
 // MARK: - NAL framing (AnnexB + AVCC/HVCC)
 
-private enum NALFormat {
-    case annexB
-    case lengthPrefixed(nalLengthSize: Int)
-}
-
-/// Determine whether buffer is Annex-B (start codes) or length-prefixed.
-/// If it doesn't look like Annex-B, treat it as length-prefixed using nalLengthSize.
-private func detectNALFormat(_ data: Data, nalLengthSize: Int) -> NALFormat {
-    if data.count >= 3,
-       data[0] == 0x00, data[1] == 0x00,
-       data[2] == 0x01 || (data.count >= 4 && data[2] == 0x00 && data[3] == 0x01) {
-        return .annexB
+private func forEachNALUnit(
+    in bytes: UnsafeBufferPointer<UInt8>,
+    nalLengthSize: Int,
+    _ body: (UnsafeBufferPointer<UInt8>) -> Void
+) {
+    if isAnnexB(bytes) {
+        forEachAnnexBNALUnit(in: bytes, body)
+    } else {
+        forEachLengthPrefixedNALUnit(in: bytes, nalLengthSize: max(1, min(4, nalLengthSize)), body)
     }
-    return .lengthPrefixed(nalLengthSize: max(1, min(4, nalLengthSize)))
 }
 
-/// Convert length-prefixed (AVCC/HVCC) to Annex-B for easier parsing.
-/// Supports nalLengthSize 1...4.
-private func convertLengthPrefixedToAnnexB(data: Data, nalLengthSize: Int) -> Data? {
-    guard (1...4).contains(nalLengthSize) else { return nil }
-    var out = Data()
-    var offset = 0
+private func isAnnexB(_ bytes: UnsafeBufferPointer<UInt8>) -> Bool {
+    if bytes.count >= 3, bytes[0] == 0x00, bytes[1] == 0x00 {
+        if bytes[2] == 0x01 { return true }
+        if bytes.count >= 4, bytes[2] == 0x00, bytes[3] == 0x01 { return true }
+    }
+    return false
+}
 
-    while offset + nalLengthSize <= data.count {
-        // Read NAL length (big-endian)
+private func forEachLengthPrefixedNALUnit(
+    in bytes: UnsafeBufferPointer<UInt8>,
+    nalLengthSize: Int,
+    _ body: (UnsafeBufferPointer<UInt8>) -> Void
+) {
+    var offset = 0
+    while offset + nalLengthSize <= bytes.count {
         var length: UInt32 = 0
         for i in 0..<nalLengthSize {
-            guard offset + i < data.count else { break }
-            length = (length << 8) | UInt32(data[offset + i])
+            length = (length << 8) | UInt32(bytes[offset + i])
         }
         offset += nalLengthSize
 
-        let nalLen = Int(length)
-        guard nalLen > 0, nalLen <= data.count, offset + nalLen <= data.count else { break }
+        let nalLength = Int(length)
+        guard nalLength > 0, nalLength <= bytes.count - offset else { break }
 
-        out.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
-        out.append(data[offset ..< offset + nalLen])
-
-        offset += nalLen
+        body(UnsafeBufferPointer(rebasing: bytes[offset ..< offset + nalLength]))
+        offset += nalLength
     }
-
-    return out.isEmpty ? nil : out
 }
 
-/// Split Annex-B byte stream into NAL units (each includes NAL header bytes, excludes start code).
-private func extractAnnexBNALUnits(_ annexB: Data) -> [Data] {
-    var nalUnits: [Data] = []
-
-    func findStartCode(from idx: Int) -> (start: Int, length: Int)? {
-        guard idx < annexB.count else { return nil }
-        var i = idx
-        while i + 3 < annexB.count {
-            guard i + 1 < annexB.count, i + 2 < annexB.count else { break }
-            if annexB[i] == 0x00 && annexB[i+1] == 0x00 {
-                if annexB[i+2] == 0x01 { return (i, 3) }
-                if i + 4 < annexB.count, annexB[i+2] == 0x00 && annexB[i+3] == 0x01 { return (i, 4) }
+private func forEachAnnexBNALUnit(
+    in bytes: UnsafeBufferPointer<UInt8>,
+    _ body: (UnsafeBufferPointer<UInt8>) -> Void
+) {
+    func nextStartCode(from index: Int) -> (start: Int, length: Int)? {
+        var i = index
+        while i + 2 < bytes.count {
+            if bytes[i] == 0x00, bytes[i + 1] == 0x00 {
+                if bytes[i + 2] == 0x01 { return (i, 3) }
+                if i + 3 < bytes.count, bytes[i + 2] == 0x00, bytes[i + 3] == 0x01 { return (i, 4) }
             }
             i += 1
         }
         return nil
     }
 
-    var cursor = 0
-    while let sc = findStartCode(from: cursor) {
-        let nalStart = sc.start + sc.length
-        cursor = nalStart
+    guard let first = nextStartCode(from: 0) else { return }
+    var nalStart = first.start + first.length
 
-        // find next start code for boundary
-        let next = findStartCode(from: cursor)
-        let nalEnd = next?.start ?? annexB.count
+    while nalStart < bytes.count {
+        let next = nextStartCode(from: nalStart)
+        let nalEnd = next?.start ?? bytes.count
 
         if nalStart < nalEnd {
-            nalUnits.append(annexB[nalStart..<nalEnd])
+            body(UnsafeBufferPointer(rebasing: bytes[nalStart ..< nalEnd]))
         }
 
-        cursor = nalEnd
+        guard let next else { break }
+        nalStart = next.start + next.length
     }
-
-    return nalUnits
-}
-
-/// Gets NAL units from either Annex-B or length-prefixed input.
-private func extractNALUnits(from data: Data, nalLengthSize: Int) -> [Data] {
-    let format = detectNALFormat(data, nalLengthSize: nalLengthSize)
-    let annexBData: Data
-
-    switch format {
-    case .annexB:
-        annexBData = data
-    case .lengthPrefixed(let size):
-        guard let converted = convertLengthPrefixedToAnnexB(data: data, nalLengthSize: size) else { return [] }
-        annexBData = converted
-    }
-
-    return extractAnnexBNALUnits(annexBData)
 }
 
 // MARK: - EBSP -> RBSP (remove emulation prevention bytes)
 
-private func ebspToRbsp(_ ebsp: Data) -> Data {
-    // Remove 0x03 following 0x00 0x00
-    var rbsp = Data()
-    rbsp.reserveCapacity(ebsp.count)
+/// Only the slice header's first fields are ever read, so converting a short
+/// prefix avoids copying multi-megabyte slice payloads.
+private func rbspPrefix(_ nal: UnsafeBufferPointer<UInt8>, maxBytes: Int = 128) -> [UInt8] {
+    var rbsp: [UInt8] = []
+    rbsp.reserveCapacity(min(maxBytes, nal.count))
 
     var zerosCount = 0
-    for i in ebsp.indices {
-        // Safe access using indices
-        let b = ebsp[i]
-        if zerosCount >= 2 && b == 0x03 {
-            // skip this emulation prevention byte
+    for byte in nal {
+        if zerosCount >= 2 && byte == 0x03 {
             zerosCount = 0
             continue
         }
-
-        rbsp.append(b)
-
-        if b == 0x00 {
-            zerosCount += 1
-        } else {
-            zerosCount = 0
-        }
+        rbsp.append(byte)
+        if rbsp.count >= maxBytes { break }
+        zerosCount = byte == 0x00 ? zerosCount + 1 : 0
     }
 
     return rbsp
 }
 
-// MARK: - BitReader + Exp-Golomb
-
-private struct BitReader {
-    let data: Data
-    var byteOffset: Int = 0
-    var bitOffset: Int = 0  // 0..7
-
-    init(_ data: Data, byteOffset: Int = 0, bitOffset: Int = 0) {
-        self.data = data
-        self.byteOffset = byteOffset
-        self.bitOffset = bitOffset
-    }
-
-    var isAtEnd: Bool { byteOffset >= data.count }
-
-    mutating func readBit() -> UInt8? {
-        guard byteOffset < data.count else { return nil }
-        let byte = data[byteOffset]
-        let bit = (byte >> (7 - bitOffset)) & 0x01
-
-        bitOffset += 1
-        if bitOffset == 8 {
-            bitOffset = 0
-            byteOffset += 1
-        }
-        return bit
-    }
-
-    mutating func readBits(_ n: Int) -> UInt64? {
-        guard n > 0, n <= 64 else { return nil } // Prevent excessive reads
-        var v: UInt64 = 0
-        for _ in 0..<n {
-            guard let b = readBit() else { return nil }
-            v = (v << 1) | UInt64(b)
-        }
-        return v
-    }
-
-    mutating func readUE() -> Int? {
-        // Exp-Golomb ue(v)
-        var leadingZeros = 0
-        while true {
-            guard let bit = readBit() else { return nil }
-            if bit == 0 {
-                leadingZeros += 1
-                if leadingZeros > 31 { return nil } // sanity
-            } else {
-                break
-            }
-        }
-        if leadingZeros == 0 { return 0 }
-        guard let info = readBits(leadingZeros) else { return nil }
-        // Prevent integer overflow - limit to safe range
-        guard leadingZeros < 31 else { return nil } // 1 << 31 is safe on 64-bit, but be conservative
-        let shiftResult = 1 << leadingZeros
-        guard shiftResult > 0 else { return nil } // Check for overflow
-        let base = shiftResult - 1
-        guard base >= 0, Int(info) <= Int.max - base else { return nil }
-        let codeNum = base + Int(info)
-        return codeNum
-    }
-}
-
 // MARK: - H.264 detection
 
-private func detectH264FrameType(from data: Data, nalLengthSize: Int) -> FrameType {
-    let nalUnits = extractNALUnits(from: data, nalLengthSize: nalLengthSize)
-    guard !nalUnits.isEmpty else { return .unknown }
-
+private func detectH264FrameType(bytes: UnsafeBufferPointer<UInt8>, nalLengthSize: Int) -> FrameType {
     var hasIDR = false
-    var sliceTypes: [Int] = [] // Collect all slice types found
+    var sliceTypes: [Int] = []
 
-    for nal in nalUnits {
-        guard nal.count >= 1, let firstByte = nal.first else { continue }
+    forEachNALUnit(in: bytes, nalLengthSize: nalLengthSize) { nal in
+        guard let firstByte = nal.first else { return }
         let nalType = firstByte & 0x1F
 
         if nalType == 5 {
             hasIDR = true
-            continue
-        } else if nalType == 1 {
-            // Slice header is after 1-byte NAL header; but must parse RBSP (remove emulation bytes)
-            let rbsp = ebspToRbsp(nal) // includes header; OK
-            guard rbsp.count >= 2 else { continue }
+            return
+        }
+        guard nalType == 1 else { return }
 
-            // Start bit parsing after 1-byte NAL header
-            var br = BitReader(rbsp, byteOffset: 1, bitOffset: 0)
+        let rbsp = rbspPrefix(nal)
+        guard rbsp.count >= 2 else { return }
 
-            // first_mb_in_slice (ue)
-            guard br.readUE() != nil else { continue }
+        // Start bit parsing after 1-byte NAL header
+        var reader = BitReader(rbsp, byteOffset: 1)
 
-            // slice_type (ue)
-            if let st = br.readUE(), (0...9).contains(st) {
-                sliceTypes.append(st)
-            }
+        // first_mb_in_slice (ue)
+        guard reader.readUE() != nil else { return }
+
+        // slice_type (ue)
+        if let sliceType = reader.readUE(), sliceType <= 9 {
+            sliceTypes.append(Int(sliceType))
         }
     }
 
     if hasIDR { return .i }
 
-    // Process all collected slice types
     // H.264 slice_type values: 0,5=P, 1,6=B, 2,7=I, 3,8=SP, 4,9=SI
     // SP/SI slices (3,4,8,9) are for switching/error recovery - treat as P-like
     // Prefer I slices, then P, then B
     if sliceTypes.contains(where: { $0 == 2 || $0 == 7 }) {
         return .i
     }
-    // P slices: 0, 5 (and SP slices 3, 8 as P-like)
     if sliceTypes.contains(where: { $0 == 0 || $0 == 5 || $0 == 3 || $0 == 8 }) {
         return .p
     }
-    // B slices: 1, 6 (and SI slices 4, 9 as B-like, though rare)
     if sliceTypes.contains(where: { $0 == 1 || $0 == 6 || $0 == 4 || $0 == 9 }) {
         return .b
     }
@@ -280,60 +210,53 @@ private func detectH264FrameType(from data: Data, nalLengthSize: Int) -> FrameTy
 
 // MARK: - HEVC detection
 
-private func detectHEVCFrameType(from data: Data, nalLengthSize: Int) -> FrameType {
-    let nalUnits = extractNALUnits(from: data, nalLengthSize: nalLengthSize)
-    guard !nalUnits.isEmpty else { return .unknown }
-
+private func detectHEVCFrameType(bytes: UnsafeBufferPointer<UInt8>, nalLengthSize: Int) -> FrameType {
     var hasIRAP = false
-    var sliceTypes: [Int] = [] // Collect all slice types found
+    var sliceTypes: [Int] = []
 
-    for nal in nalUnits {
+    forEachNALUnit(in: bytes, nalLengthSize: nalLengthSize) { nal in
         // HEVC NAL header is 2 bytes
-        guard nal.count >= 2, let firstByte = nal.first else { continue }
+        guard nal.count >= 2, let firstByte = nal.first else { return }
         let nalType = (firstByte >> 1) & 0x3F
 
         // IRAP 16..21 => treat as I
         if (16...21).contains(nalType) {
             hasIRAP = true
-            continue
+            return
         }
 
         // Non-IRAP VCL 0..9 (TRAIL/TSA/STSA/RADL/RASL)
-        if (0...9).contains(nalType) {
-            // Parse slice header in RBSP
-            let rbsp = ebspToRbsp(nal)
-            guard rbsp.count >= 3 else { continue }
+        guard (0...9).contains(nalType) else { return }
 
-            // Start after 2-byte NAL header (FIXED)
-            var br = BitReader(rbsp, byteOffset: 2, bitOffset: 0)
+        let rbsp = rbspPrefix(nal)
+        guard rbsp.count >= 3 else { return }
 
-            // first_slice_segment_in_pic_flag (1 bit)
-            guard let firstSliceFlagRaw = br.readBit() else { continue }
-            let firstSliceFlag = firstSliceFlagRaw != 0
+        // Start after 2-byte NAL header
+        var reader = BitReader(rbsp, byteOffset: 2)
 
-            // slice_pic_parameter_set_id (ue)
-            guard br.readUE() != nil else { continue }
+        // first_slice_segment_in_pic_flag (1 bit)
+        guard let firstSliceFlag = reader.readBit() else { return }
 
-            // if firstSliceFlag == 0: dependent_slice_segment_flag (1 bit)
-            // if dependent == 0: slice_segment_address (ue)
-            if !firstSliceFlag {
-                guard let dependentRaw = br.readBit() else { continue }
-                let dependent = dependentRaw != 0
-                if !dependent {
-                    guard br.readUE() != nil else { continue }
-                }
+        // slice_pic_parameter_set_id (ue)
+        guard reader.readUE() != nil else { return }
+
+        // if not first slice: dependent_slice_segment_flag (1 bit),
+        // then slice_segment_address (ue) when not dependent
+        if firstSliceFlag == 0 {
+            guard let dependent = reader.readBit() else { return }
+            if dependent == 0 {
+                guard reader.readUE() != nil else { return }
             }
+        }
 
-            // slice_type (ue): 0=B, 1=P, 2=I
-            if let st = br.readUE(), (0...2).contains(st) {
-                sliceTypes.append(st)
-            }
+        // slice_type (ue): 0=B, 1=P, 2=I
+        if let sliceType = reader.readUE(), sliceType <= 2 {
+            sliceTypes.append(Int(sliceType))
         }
     }
 
     if hasIRAP { return .i }
 
-    // Process all collected slice types
     // Prefer I slices, then P, then B
     if sliceTypes.contains(2) {
         return .i
