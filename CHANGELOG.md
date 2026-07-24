@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.0](https://github.com/oscnord/FramePeek/compare/v1.2.0...v1.3.0) (2026-07-24)
+
+
+### Features
+
+* EBU R128 loudness measurement (BS.1770-4) ([#47](https://github.com/oscnord/FramePeek/issues/47)) ([33a53d2](https://github.com/oscnord/FramePeek/commit/33a53d241f27e6413b3407d6feaece1f94ef7980))
+* HLS ladder inspection (RFC 8216 parsing, measured vs declared bitrates, keyframe alignment) ([#48](https://github.com/oscnord/FramePeek/issues/48)) ([8e6c339](https://github.com/oscnord/FramePeek/commit/8e6c339a179351220d9abc0256c14c4afe3de55f))
+* inspect_hls_ladder MCP tool and compact analyze_media default ([a85828d](https://github.com/oscnord/FramePeek/commit/a85828db43a78d3bb44c1d45879aa7ca8fa4bc13))
+* MCP over HTTP - /mcp endpoint on the embedded server ([7144301](https://github.com/oscnord/FramePeek/commit/714430145c75719be5c7efd3ab6e16b0b5fdc74d))
+* MCP server via framepeek-cli mcp ([#45](https://github.com/oscnord/FramePeek/issues/45)) ([7084f72](https://github.com/oscnord/FramePeek/commit/7084f7261937b55793a89d10f5f76a683eeadcb5))
+* MCP server via framepeek-cli mcp (stdio, JSON-RPC 2.0) ([22997d7](https://github.com/oscnord/FramePeek/commit/22997d7de877fb987326c20c4d2672eaf601e3dc)), closes [#45](https://github.com/oscnord/FramePeek/issues/45)
+
+
+### Bug Fixes
+
+* dedupe repeated variant URIs and reject DASH manifests cleanly ([bfbc773](https://github.com/oscnord/FramePeek/commit/bfbc77344ee2d55a3599369a5d7a569918f2b95f))
+* match loudness card horizontal margins to sibling cards ([e2f5503](https://github.com/oscnord/FramePeek/commit/e2f550370992ca1b28856ea403fba7675a4a265e))
+
 ## [1.2.0](https://github.com/oscnord/FramePeek/compare/v1.1.0...v1.2.0) (2026-07-24)
 
 
