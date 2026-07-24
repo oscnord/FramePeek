@@ -6,6 +6,7 @@ import FramePeekCore
 enum SidebarSelection: Hashable {
     case tab(UUID)
     case server
+    case streaming
 }
 
 // MARK: - Sidebar Tab Bar View
@@ -13,6 +14,7 @@ enum SidebarSelection: Hashable {
 struct SidebarTabBarView: View {
     var tabManager: TabManager
     @Binding var showServerTab: Bool
+    @Binding var showStreamingTab: Bool
     @State private var serverManager = ServerManager.shared
 
     private var sidebarSelection: Binding<SidebarSelection?> {
@@ -20,6 +22,8 @@ struct SidebarTabBarView: View {
             get: {
                 if showServerTab {
                     return .server
+                } else if showStreamingTab {
+                    return .streaming
                 } else if let tabId = tabManager.selectedTabId {
                     return .tab(tabId)
                 }
@@ -31,9 +35,14 @@ struct SidebarTabBarView: View {
                     switch newValue {
                     case .tab(let id):
                         showServerTab = false
+                        showStreamingTab = false
                         tabManager.switchToTab(id: id)
                     case .server:
                         showServerTab = true
+                        showStreamingTab = false
+                    case .streaming:
+                        showStreamingTab = true
+                        showServerTab = false
                     case .none:
                         break
                     }
@@ -63,7 +72,19 @@ struct SidebarTabBarView: View {
 
             Divider()
 
-            // Server row - pinned at bottom
+            // Streaming + Server rows - pinned at bottom
+            StreamingSidebarButton(
+                isSelected: showStreamingTab,
+                onSelect: {
+                    Task { @MainActor in
+                        showStreamingTab = true
+                        showServerTab = false
+                    }
+                }
+            )
+            .padding(.horizontal, DesignSystem.Padding.sm)
+            .padding(.top, DesignSystem.Padding.sm)
+
             ServerSidebarButton(
                 isSelected: showServerTab,
                 isRunning: serverManager.isRunning,
@@ -71,11 +92,47 @@ struct SidebarTabBarView: View {
                 onSelect: {
                     Task { @MainActor in
                         showServerTab = true
+                        showStreamingTab = false
                     }
                 }
             )
             .padding(.horizontal, DesignSystem.Padding.sm)
             .padding(.vertical, DesignSystem.Padding.sm)
+        }
+    }
+}
+
+// MARK: - Streaming Sidebar Button
+
+struct StreamingSidebarButton: View {
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    @State private var isHovered: Bool = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.system(size: 14))
+
+                Text("Streaming")
+
+                Spacer()
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.2) : (isHovered ? Color.primary.opacity(0.05) : Color.clear))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isHovered = hovering
+            }
         }
     }
 }
@@ -221,6 +278,6 @@ struct SidebarTabRow: View {
 
 
 #Preview {
-    SidebarTabBarView(tabManager: TabManager(), showServerTab: .constant(false))
+    SidebarTabBarView(tabManager: TabManager(), showServerTab: .constant(false), showStreamingTab: .constant(false))
         .frame(height: 600)
 }

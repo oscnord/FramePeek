@@ -16,6 +16,7 @@ struct FramePeek: View {
     @State private var isInspectorVisible: Bool = true
     @State private var isTimelineVisible: Bool = true
     @State private var showServerTab: Bool = false
+    @State private var showStreamingTab: Bool = false
     @State private var showWelcomeSheet: Bool = false
     @State private var isDropTargeted: Bool = false
     
@@ -155,13 +156,16 @@ struct FramePeek: View {
 
     private var mainContent: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            SidebarTabBarView(tabManager: tabManager, showServerTab: $showServerTab)
+            SidebarTabBarView(tabManager: tabManager, showServerTab: $showServerTab, showStreamingTab: $showStreamingTab)
                 .toolbar { newTabToolbarContent }
                 .navigationSplitViewColumnWidth(min: 200, ideal: 200)
         } detail: {
             if showServerTab {
                 // Server Tab View
                 ServerTabView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if showStreamingTab {
+                StreamingTabView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
             // Main content area
