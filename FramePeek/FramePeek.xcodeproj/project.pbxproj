@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		336C5DBE35EFE758A3D96867 /* HummingbirdTLS in Frameworks */ = {isa = PBXBuildFile; productRef = D6CE53223A620615124DC145 /* HummingbirdTLS */; };
+		3B23C53C94C9223DD07B878A /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735B2F11075000EC8F95 /* CoreMedia.framework */; };
+		47642F12D0435EAF4B3E44C4 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1432D60CB1A00A4C7B5 /* AVFoundation.framework */; };
+		47FEAD93432EB7075FBCC1F6 /* Hummingbird in Frameworks */ = {isa = PBXBuildFile; productRef = FAFC55B78A52D8740E38608B /* Hummingbird */; };
 		552AB1442D60CB1A00A4C7B5 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1432D60CB1A00A4C7B5 /* AVFoundation.framework */; };
 		552AB1462D60CB3B00A4C7B5 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1452D60CB3B00A4C7B5 /* Charts.framework */; };
 		552AB1482D60CB4400A4C7B5 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1472D60CB4400A4C7B5 /* AppKit.framework */; };
@@ -25,19 +29,15 @@
 		5573FF362F2552020056DA23 /* HummingbirdHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = 5573FF352F2552020056DA23 /* HummingbirdHTTP2 */; };
 		5573FF382F2552020056DA23 /* HummingbirdRouter in Frameworks */ = {isa = PBXBuildFile; productRef = 5573FF372F2552020056DA23 /* HummingbirdRouter */; };
 		5573FF3A2F2552020056DA23 /* HummingbirdTLS in Frameworks */ = {isa = PBXBuildFile; productRef = 5573FF392F2552020056DA23 /* HummingbirdTLS */; };
+		5ECA4D09A8DD4137370F6560 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1452D60CB3B00A4C7B5 /* Charts.framework */; };
+		61E3E8DDA989E539B210EBE4 /* FramePeekCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */; };
+		899FB94296D0AFCB10F27E40 /* HummingbirdCore in Frameworks */ = {isa = PBXBuildFile; productRef = FDDD3D11ED6A5273FF60B2A8 /* HummingbirdCore */; };
 		8E808D19C5B9D8A6DAFF5285 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1472D60CB4400A4C7B5 /* AppKit.framework */; };
 		A32AF5398EEC7790735F8C12 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735D2F11076600EC8F95 /* MediaPlayer.framework */; };
-		61E3E8DDA989E539B210EBE4 /* FramePeekCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */; };
-		47642F12D0435EAF4B3E44C4 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1432D60CB1A00A4C7B5 /* AVFoundation.framework */; };
-		5ECA4D09A8DD4137370F6560 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 552AB1452D60CB3B00A4C7B5 /* Charts.framework */; };
-		3B23C53C94C9223DD07B878A /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 555E735B2F11075000EC8F95 /* CoreMedia.framework */; };
-		BD7C088119ED72F57EAEA5D6 /* HummingbirdRouter in Frameworks */ = {isa = PBXBuildFile; productRef = A07287D672CF8B365E972A75 /* HummingbirdRouter */; };
-		899FB94296D0AFCB10F27E40 /* HummingbirdCore in Frameworks */ = {isa = PBXBuildFile; productRef = FDDD3D11ED6A5273FF60B2A8 /* HummingbirdCore */; };
-		AC41F55C9756B1F8802CC88F /* HummingbirdHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = 372E687586F7A6BF15B3DED7 /* HummingbirdHTTP2 */; };
-		336C5DBE35EFE758A3D96867 /* HummingbirdTLS in Frameworks */ = {isa = PBXBuildFile; productRef = D6CE53223A620615124DC145 /* HummingbirdTLS */; };
-		47FEAD93432EB7075FBCC1F6 /* Hummingbird in Frameworks */ = {isa = PBXBuildFile; productRef = FAFC55B78A52D8740E38608B /* Hummingbird */; };
-		AFABEECCC5E155727D41286C /* FramePeekCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A5F0000000000000000000C3 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A5F0000000000000000000C2 /* Sparkle */; };
+		AC41F55C9756B1F8802CC88F /* HummingbirdHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = 372E687586F7A6BF15B3DED7 /* HummingbirdHTTP2 */; };
+		AFABEECCC5E155727D41286C /* FramePeekCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5573F1E42F2530340056DA23 /* FramePeekCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BD7C088119ED72F57EAEA5D6 /* HummingbirdRouter in Frameworks */ = {isa = PBXBuildFile; productRef = A07287D672CF8B365E972A75 /* HummingbirdRouter */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +93,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		45D77C98DDDDCC1B89BC0B8B /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				AFABEECCC5E155727D41286C /* FramePeekCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5573F1FE2F2530340056DA23 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,20 +135,10 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		45D77C98DDDDCC1B89BC0B8B /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				AFABEECCC5E155727D41286C /* FramePeekCore.framework in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		551A44B63013E0E000E3316B /* FramePeek.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FramePeek.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		552AB1102D60B9FD00A4C7B5 /* FramePeek.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FramePeek.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		552AB1212D60BA0000A4C7B5 /* FramePeekTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramePeekTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		552AB12B2D60BA0000A4C7B5 /* FramePeekUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramePeekUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -150,7 +151,6 @@
 		5573F1E42F2530340056DA23 /* FramePeekCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = FramePeekCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5573F1EE2F2530340056DA23 /* FramePeekCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FramePeekCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5573F2542F2546190056DA23 /* framepeek-cli */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "framepeek-cli"; sourceTree = BUILT_PRODUCTS_DIR; };
-		B6ECD9E50E6E60717B31B37B /* FramePeek.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FramePeek.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -174,15 +174,15 @@
 				Utils/Analysis/AudioVideoSyncAnalyzer.swift,
 				Utils/Analysis/AudioWaveformExtractor.swift,
 				Utils/Analysis/CCTCalculator.swift,
+				Utils/Analysis/ColorAnalyzer.swift,
 				Utils/Analysis/DolbyVisionAnalyzer.swift,
 				Utils/Analysis/ExtractFramesStream.swift,
 				Utils/Analysis/FrameAggregation.swift,
 				Utils/Analysis/FrameDetailExtractor.swift,
 				Utils/Analysis/FramePatternUtils.swift,
+				Utils/Analysis/GOPAnalyzer.swift,
 				Utils/Analysis/HLSLadderAnalyzer.swift,
 				Utils/Analysis/LoudnessAnalyzer.swift,
-				Utils/Analysis/GOPAnalyzer.swift,
-				Utils/Analysis/ColorAnalyzer.swift,
 				Utils/Cache/CacheManager.swift,
 				Utils/Extraction/FastBitrateExtractor.swift,
 				"Utils/Extraction/FastBitrateExtractor+Cursor.swift",
@@ -197,6 +197,8 @@
 				Utils/Formatting/HDRUtils.swift,
 				Utils/Formatting/VideoUtils.swift,
 				Utils/Logging/Logger.swift,
+				Utils/MCP/MCPServer.swift,
+				Utils/MCP/MCPTools.swift,
 				Utils/Media/AudioInfoLoader.swift,
 				Utils/Media/AVAssetLoader.swift,
 				Utils/Media/GenerateKeyframeThumbnails.swift,
@@ -210,6 +212,7 @@
 				"Utils/Media/VideoInfoLoader+VideoTrack.swift",
 				Utils/Parsing/AV1Parser.swift,
 				Utils/Parsing/BitReader.swift,
+				Utils/Parsing/ContainerParser.swift,
 				Utils/Parsing/FrameTypeParser.swift,
 				Utils/Parsing/HLSPlaylistParser.swift,
 				Utils/Parsing/KeyframeMarker.swift,
@@ -224,15 +227,15 @@
 				Utils/Analysis/AudioVideoSyncAnalyzer.swift,
 				Utils/Analysis/AudioWaveformExtractor.swift,
 				Utils/Analysis/CCTCalculator.swift,
+				Utils/Analysis/ColorAnalyzer.swift,
 				Utils/Analysis/DolbyVisionAnalyzer.swift,
 				Utils/Analysis/ExtractFramesStream.swift,
 				Utils/Analysis/FrameAggregation.swift,
 				Utils/Analysis/FrameDetailExtractor.swift,
 				Utils/Analysis/FramePatternUtils.swift,
+				Utils/Analysis/GOPAnalyzer.swift,
 				Utils/Analysis/HLSLadderAnalyzer.swift,
 				Utils/Analysis/LoudnessAnalyzer.swift,
-				Utils/Analysis/GOPAnalyzer.swift,
-				Utils/Analysis/ColorAnalyzer.swift,
 				Utils/Cache/CacheManager.swift,
 				Utils/Extraction/FastBitrateExtractor.swift,
 				"Utils/Extraction/FastBitrateExtractor+Cursor.swift",
@@ -247,6 +250,8 @@
 				Utils/Formatting/HDRUtils.swift,
 				Utils/Formatting/VideoUtils.swift,
 				Utils/Logging/Logger.swift,
+				Utils/MCP/MCPServer.swift,
+				Utils/MCP/MCPTools.swift,
 				Utils/Media/AudioInfoLoader.swift,
 				Utils/Media/AVAssetLoader.swift,
 				Utils/Media/GenerateKeyframeThumbnails.swift,
@@ -260,6 +265,7 @@
 				"Utils/Media/VideoInfoLoader+VideoTrack.swift",
 				Utils/Parsing/AV1Parser.swift,
 				Utils/Parsing/BitReader.swift,
+				Utils/Parsing/ContainerParser.swift,
 				Utils/Parsing/FrameTypeParser.swift,
 				Utils/Parsing/HLSPlaylistParser.swift,
 				Utils/Parsing/KeyframeMarker.swift,
@@ -274,15 +280,15 @@
 				Utils/Analysis/AudioVideoSyncAnalyzer.swift,
 				Utils/Analysis/AudioWaveformExtractor.swift,
 				Utils/Analysis/CCTCalculator.swift,
+				Utils/Analysis/ColorAnalyzer.swift,
 				Utils/Analysis/DolbyVisionAnalyzer.swift,
 				Utils/Analysis/ExtractFramesStream.swift,
 				Utils/Analysis/FrameAggregation.swift,
 				Utils/Analysis/FrameDetailExtractor.swift,
 				Utils/Analysis/FramePatternUtils.swift,
+				Utils/Analysis/GOPAnalyzer.swift,
 				Utils/Analysis/HLSLadderAnalyzer.swift,
 				Utils/Analysis/LoudnessAnalyzer.swift,
-				Utils/Analysis/GOPAnalyzer.swift,
-				Utils/Analysis/ColorAnalyzer.swift,
 				Utils/Cache/CacheManager.swift,
 				Utils/Extraction/FastBitrateExtractor.swift,
 				"Utils/Extraction/FastBitrateExtractor+Cursor.swift",
@@ -297,6 +303,8 @@
 				Utils/Formatting/HDRUtils.swift,
 				Utils/Formatting/VideoUtils.swift,
 				Utils/Logging/Logger.swift,
+				Utils/MCP/MCPServer.swift,
+				Utils/MCP/MCPTools.swift,
 				Utils/Media/AudioInfoLoader.swift,
 				Utils/Media/AVAssetLoader.swift,
 				Utils/Media/GenerateKeyframeThumbnails.swift,
@@ -310,6 +318,7 @@
 				"Utils/Media/VideoInfoLoader+VideoTrack.swift",
 				Utils/Parsing/AV1Parser.swift,
 				Utils/Parsing/BitReader.swift,
+				Utils/Parsing/ContainerParser.swift,
 				Utils/Parsing/FrameTypeParser.swift,
 				Utils/Parsing/HLSPlaylistParser.swift,
 				Utils/Parsing/KeyframeMarker.swift,
@@ -464,6 +473,7 @@
 				5573F1E42F2530340056DA23 /* FramePeekCore.framework */,
 				5573F1EE2F2530340056DA23 /* FramePeekCoreTests.xctest */,
 				5573F2542F2546190056DA23 /* framepeek-cli */,
+				551A44B63013E0E000E3316B /* FramePeek.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -670,7 +680,7 @@
 				D6CE53223A620615124DC145 /* HummingbirdTLS */,
 			);
 			productName = framepeek;
-			productReference = B6ECD9E50E6E60717B31B37B /* FramePeek.app */;
+			productReference = 551A44B63013E0E000E3316B /* FramePeek.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -872,6 +882,49 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		117157A8C0A864B5B1157F1E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = framepeek/framepeek.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 12;
+				DEVELOPMENT_ASSET_PATHS = "\"framepeek/Preview Content\"";
+				DEVELOPMENT_TEAM = 9JFT83BZMT;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.oscarnord.framepeek;
+				PRODUCT_NAME = FramePeek;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
 		552AB1332D60BA0000A4C7B5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1017,6 +1070,7 @@
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Info-GitHubChannel.plist";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1028,7 +1082,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.oscarnord.framepeek;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				INFOPLIST_FILE = "Info-GitHubChannel.plist";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) SPARKLE_UPDATES";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -1062,6 +1115,7 @@
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Info-GitHubChannel.plist";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1073,7 +1127,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.oscarnord.framepeek;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				INFOPLIST_FILE = "Info-GitHubChannel.plist";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) SPARKLE_UPDATES";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -1334,49 +1387,6 @@
 			};
 			name = Release;
 		};
-		117157A8C0A864B5B1157F1E /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = framepeek/framepeek.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 12;
-				DEVELOPMENT_ASSET_PATHS = "\"framepeek/Preview Content\"";
-				DEVELOPMENT_TEAM = 9JFT83BZMT;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
-				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
-				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
-				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
-				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
-				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
-				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
-				ENABLE_RESOURCE_ACCESS_USB = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.oscarnord.framepeek;
-				PRODUCT_NAME = FramePeek;
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
 		60F47A042BD2365FD65BB571 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1525,6 +1535,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		372E687586F7A6BF15B3DED7 /* HummingbirdHTTP2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
+			productName = HummingbirdHTTP2;
+		};
 		5573F2702F25469A0056DA23 /* ArgumentParser */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5573F26F2F25469A0056DA23 /* XCRemoteSwiftPackageReference "swift-argument-parser" */;
@@ -1565,6 +1580,21 @@
 			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
 			productName = HummingbirdTLS;
 		};
+		A07287D672CF8B365E972A75 /* HummingbirdRouter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
+			productName = HummingbirdRouter;
+		};
+		A5F0000000000000000000C2 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A5F0000000000000000000C1 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		D6CE53223A620615124DC145 /* HummingbirdTLS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
+			productName = HummingbirdTLS;
+		};
 		FAFC55B78A52D8740E38608B /* Hummingbird */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
@@ -1574,26 +1604,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
 			productName = HummingbirdCore;
-		};
-		372E687586F7A6BF15B3DED7 /* HummingbirdHTTP2 */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
-			productName = HummingbirdHTTP2;
-		};
-		A07287D672CF8B365E972A75 /* HummingbirdRouter */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
-			productName = HummingbirdRouter;
-		};
-		D6CE53223A620615124DC145 /* HummingbirdTLS */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 5573FF302F2552020056DA23 /* XCRemoteSwiftPackageReference "hummingbird" */;
-			productName = HummingbirdTLS;
-		};
-		A5F0000000000000000000C2 /* Sparkle */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A5F0000000000000000000C1 /* XCRemoteSwiftPackageReference "Sparkle" */;
-			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

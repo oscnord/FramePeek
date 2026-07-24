@@ -13,9 +13,11 @@ FramePeek is a macOS SwiftUI application that inspects local media files using A
 - Keyframe detection and thumbnail strip
 - Color analysis (vectorscope, waveform scope, RGB histogram, CCT, brightness) and Dolby Vision details
 - A/V sync analysis
+- EBU R128 loudness (integrated LUFS, true peak, loudness range, short-term chart)
+- HLS ladder inspection (RFC 8216 manifest parsing, declared vs measured bitrates, keyframe alignment, QC findings)
 - Container/atom inspector for MP4/MOV
 - Embedded REST API server with job queue and webhooks
-- CLI tool (`framepeek-cli`) for batch analysis
+- CLI tool (`framepeek-cli`) for batch analysis, plus an MCP server (`framepeek-cli mcp`) exposing analysis tools to AI agents over stdio
 
 ## Targets
 
@@ -98,6 +100,14 @@ Sampling behavior is configured via `FrameSamplingOptions` (mode auto/everyFrame
 ### Server
 
 `ServerManager` runs a Network.framework HTTP listener. Requests enqueue `AnalysisJob`s on `JobQueue`; results reuse `FramePeekCore.AnalysisEngine` and can trigger webhooks (`WebhookService`). The Server tab in the app controls lifecycle and shows request logs.
+
+### Streaming (HLS)
+
+`analyzeHLSLadder` (`Utils/Analysis/HLSLadderAnalyzer.swift`) parses manifests with `HLSPlaylistParser` (`Utils/Parsing/`), samples segments per variant in a bounded task group, and returns `StreamingLadderAnalysis` with severity-graded findings. The Streaming sidebar tab drives it; local playlists need folder-scoped open panel access (a file-scoped sandbox grant does not cover sibling segments).
+
+### MCP server
+
+`framepeek-cli mcp` speaks newline-delimited JSON-RPC 2.0 on stdio. The protocol layer lives in Core (`Utils/MCP/MCPServer.swift` + `MCPTools.swift`, tested in-process by `MCPServerTests`); the CLI subcommand is a thin stdin/stdout pump. Tools: `analyze_media`, `media_summary`, `inspect_container`.
 
 ### Caching
 

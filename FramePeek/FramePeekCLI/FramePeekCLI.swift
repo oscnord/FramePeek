@@ -13,7 +13,7 @@ struct FramePeekCLI: AsyncParsableCommand {
         commandName: "framepeek-cli",
         abstract: "Analyze media files from the command line",
         version: "1.0.0",
-        subcommands: [AnalyzeCommand.self],
+        subcommands: [AnalyzeCommand.self, MCPCommand.self],
         defaultSubcommand: AnalyzeCommand.self
     )
 }

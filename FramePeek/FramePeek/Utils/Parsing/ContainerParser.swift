@@ -1,5 +1,4 @@
 import Foundation
-import FramePeekCore
 
 // MARK: - Container Parser
 
