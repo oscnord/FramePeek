@@ -1,0 +1,33 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Maintain release PR / create release on merge
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Tags created with GITHUB_TOKEN do not trigger the tag-push workflow,
+      # so dispatch the build explicitly (workflow_dispatch is exempt from
+      # the recursive-trigger restriction).
+      - name: Trigger signed release build
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run release.yml \
+            --repo "${{ github.repository }}" \
+            -f tag="${{ steps.release.outputs.tag_name }}"
