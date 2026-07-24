@@ -8,6 +8,7 @@ import Foundation
 public func parseAV1C(_ data: Data) -> AV1ConfigSummary? {
     guard data.count >= 4 else { return nil }
     let bytes = [UInt8](data)
+    guard bytes[0] == 0x81 else { return nil }
 
     // Byte 0: marker (1) + version (7 bits) - should be 0x81 for version 1
     // Byte 1: seq_profile (3 bits) + seq_level_idx_0 (5 bits)

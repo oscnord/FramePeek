@@ -64,17 +64,13 @@ private func hasTSFileSignature(url: URL) -> Bool {
 
     do {
         try fileHandle.seek(toOffset: 0)
-        guard let data = try? fileHandle.read(upToCount: 188) else { return false }
+        guard let data = try? fileHandle.read(upToCount: 188 * 3), !data.isEmpty else { return false }
 
         // TS packets are 188 bytes, starting with 0x47 sync byte
         // Check first few packets
         let bytes = [UInt8](data)
-        for i in stride(from: 0, to: min(bytes.count, 188 * 3), by: 188) {
-            if i < bytes.count && bytes[i] == 0x47 {
-                continue
-            } else {
-                return false
-            }
+        for i in stride(from: 0, to: bytes.count, by: 188) {
+            guard bytes[i] == 0x47 else { return false }
         }
         return true
     } catch {
@@ -93,43 +89,20 @@ private func isFragmentedMP4(url: URL) -> Bool {
         guard let data = try? fileHandle.read(upToCount: 65536) else { return false }
 
         let bytes = [UInt8](data)
-        var moofCount = 0
-        var offset: Int = 0
+        var offset = 0
 
-        // Search for 'moof' atoms
-        while offset < bytes.count - 8 {
-            // Check if we found 'moof' at this offset
-            if offset + 7 < bytes.count {
-                let atomType = String(bytes: [bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]], encoding: .ascii) ?? ""
-                if atomType == "moof" {
-                    moofCount += 1
-                    if moofCount > 1 {
-                        // Multiple moof atoms = fragmented
-                        return true
-                    }
-                }
+        // Walk top-level atoms looking for moof. Byte-scanning payloads would
+        // false-positive on 'moof' inside media data, so stop when an atom's
+        // declared size runs past the window (mdat) or is malformed.
+        while offset + 8 <= bytes.count {
+            if bytes[offset + 4] == 0x6D, bytes[offset + 5] == 0x6F,
+               bytes[offset + 6] == 0x6F, bytes[offset + 7] == 0x66 {
+                return true
             }
 
-            // Try to skip to next atom
-            if offset + 4 <= bytes.count {
-                let size = (UInt32(bytes[offset]) << 24) | (UInt32(bytes[offset + 1]) << 16) | (UInt32(bytes[offset + 2]) << 8) | UInt32(bytes[offset + 3])
-                if size > 0 && size < UInt32(bytes.count - offset) {
-                    offset += Int(size)
-                } else {
-                    offset += 1
-                }
-            } else {
-                break
-            }
-        }
-
-        // Also check if there's no moov atom at the beginning (another indicator of fragmentation)
-        // Standard MP4 has moov early, fragmented may have it later or not at all
-        let hasMoovEarly = String(bytes: Array(bytes.prefix(100)), encoding: .ascii)?.contains("moov") ?? false
-
-        // If we found moof but no early moov, likely fragmented
-        if moofCount > 0 && !hasMoovEarly {
-            return true
+            let size = (UInt32(bytes[offset]) << 24) | (UInt32(bytes[offset + 1]) << 16) | (UInt32(bytes[offset + 2]) << 8) | UInt32(bytes[offset + 3])
+            guard size >= 8, Int(size) <= bytes.count - offset else { break }
+            offset += Int(size)
         }
 
         return false

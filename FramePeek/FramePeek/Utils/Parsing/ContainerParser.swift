@@ -25,32 +25,32 @@ public enum ContainerParser {
             return nil
         }
 
-        return await Task.detached(priority: .userInitiated) {
-            guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
-            defer { try? fileHandle.close() }
+        guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? fileHandle.close() }
 
-            let fileSize = fileHandle.seekToEndOfFile()
-            try? fileHandle.seek(toOffset: 0)
+        let fileSize = fileHandle.seekToEndOfFile()
+        try? fileHandle.seek(toOffset: 0)
 
-            // Parse all top-level atoms
-            let atoms = parseAtoms(in: fileHandle, range: 0..<fileSize, depth: 0)
+        // Parse all top-level atoms
+        let atoms = parseAtoms(in: fileHandle, range: 0..<fileSize, depth: 0)
 
-            // Check if fragmented
-            let isFragmented = atoms.contains { $0.fourCC == "moof" }
+        guard !Task.isCancelled else { return nil }
 
-            let format: ContainerFileFormat = if isFragmented {
-                .fragmentedMP4
-            } else {
-                baseFormat
-            }
+        // Check if fragmented
+        let isFragmented = atoms.contains { $0.fourCC == "moof" }
 
-            return ContainerAnalysisResult(
-                atoms: atoms,
-                fileSize: fileSize,
-                format: format,
-                isFragmented: isFragmented
-            )
-        }.value
+        let format: ContainerFileFormat = if isFragmented {
+            .fragmentedMP4
+        } else {
+            baseFormat
+        }
+
+        return ContainerAnalysisResult(
+            atoms: atoms,
+            fileSize: fileSize,
+            format: format,
+            isFragmented: isFragmented
+        )
     }
 
     // MARK: - Atom Parsing
@@ -74,6 +74,7 @@ public enum ContainerParser {
         guard depth < 20 else { return atoms }
 
         while offset < range.upperBound {
+            if Task.isCancelled { break }
             guard let atom = parseAtom(in: fileHandle, at: offset, maxOffset: range.upperBound, depth: depth) else {
                 break
             }
@@ -129,7 +130,7 @@ public enum ContainerParser {
 
             // Validate atom size
             guard atomSize >= UInt64(headerSize),
-                  offset + atomSize <= maxOffset else {
+                  atomSize <= maxOffset - offset else {
                 return nil
             }
 

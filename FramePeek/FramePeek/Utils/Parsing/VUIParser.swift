@@ -46,15 +46,11 @@ private struct BitReader {
         var leadingZeros = 0
         while let bit = readBit(), bit == 0 {
             leadingZeros += 1
-            if leadingZeros > 32 { return nil }
+            if leadingZeros > 31 { return nil }
         }
 
-        guard leadingZeros <= 32 else { return nil }
-
         guard let bits = readBits(leadingZeros) else { return nil }
-        let result = (1 << leadingZeros) - 1 + bits
-        guard result <= UInt32.max else { return nil }
-        return result
+        return (1 << leadingZeros) - 1 + bits
     }
 
     /// Reads a signed Exp-Golomb coded value (se(v))
@@ -173,7 +169,7 @@ private func parseAVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
         reader.skipBits(1)
         _ = reader.readSE()
         _ = reader.readSE()
-        guard let numRefFrames = reader.readUE() else { return nil }
+        guard let numRefFrames = reader.readUE(), numRefFrames <= 255 else { return nil }
         for _ in 0..<numRefFrames {
             _ = reader.readSE()
         }
@@ -279,7 +275,7 @@ private func parseAVCSPSVUI(reader: inout BitReader) -> UInt32? {
 
 /// Parses HRD (Hypothetical Reference Decoder) parameters to extract max bitrate
 private func parseHRDParameters(reader: inout BitReader) -> UInt32? {
-    guard let cpbCnt = reader.readUE() else { return nil }
+    guard let cpbCnt = reader.readUE(), cpbCnt <= 31 else { return nil }
 
     reader.skipBits(8)
 
@@ -440,38 +436,23 @@ private func parseHEVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
         reader.skipBits(1)
     }
 
-    guard let numShortTermRefPicSets = reader.readUE() else { return nil }
+    guard let numShortTermRefPicSets = reader.readUE(), numShortTermRefPicSets <= 64 else { return nil }
 
     for _ in 0..<numShortTermRefPicSets {
         if let interRefPicSetPredictionFlag = reader.readBit(), interRefPicSetPredictionFlag == 1 {
             _ = reader.readUE()
             _ = reader.readUE()
             _ = reader.readUE()
-            if let numNegativePics = reader.readUE() {
-                for _ in 0..<numNegativePics {
-                    _ = reader.readUE()
-                    reader.skipBits(1)
-                }
-            }
-            if let numPositivePics = reader.readUE() {
-                for _ in 0..<numPositivePics {
-                    _ = reader.readUE()
-                    reader.skipBits(1)
-                }
-            }
-        } else {
-            if let numNegativePics = reader.readUE() {
-                for _ in 0..<numNegativePics {
-                    _ = reader.readUE()
-                    reader.skipBits(1)
-                }
-            }
-            if let numPositivePics = reader.readUE() {
-                for _ in 0..<numPositivePics {
-                    _ = reader.readUE()
-                    reader.skipBits(1)
-                }
-            }
+        }
+        guard let numNegativePics = reader.readUE(), numNegativePics <= 64 else { return nil }
+        for _ in 0..<numNegativePics {
+            _ = reader.readUE()
+            reader.skipBits(1)
+        }
+        guard let numPositivePics = reader.readUE(), numPositivePics <= 64 else { return nil }
+        for _ in 0..<numPositivePics {
+            _ = reader.readUE()
+            reader.skipBits(1)
         }
     }
 
@@ -583,7 +564,7 @@ private func parseHEVCHRDParameters(reader: inout BitReader) -> UInt32? {
 
 /// Parses HEVC sub-layer HRD parameters
 private func parseHEVCSubLayerHRD(reader: inout BitReader) -> UInt32? {
-    guard let cpbCnt = reader.readUE() else { return nil }
+    guard let cpbCnt = reader.readUE(), cpbCnt <= 31 else { return nil }
 
     reader.skipBits(8)
 
