@@ -21,10 +21,16 @@ FramePeek is a macOS SwiftUI application that inspects local media files using A
 
 | Target | Purpose |
 |--------|---------|
-| `FramePeek` | The macOS app (SwiftUI) |
+| `FramePeek` | The macOS app, GitHub distribution channel (includes Sparkle auto-updates) |
+| `FramePeek-AppStore` | Same app sources for App Store/TestFlight: no Sparkle, updates via the App Store |
 | `FramePeekCore` | Shared framework: models, analysis engine, JSON/CSV exporters |
 | `FramePeekCLI` | Command-line tool built on FramePeekCore |
 | `FramePeekTests` / `FramePeekCoreTests` / `FramePeekUITests` | Test bundles |
+
+### Distribution channels
+
+- **GitHub** (`FramePeek` scheme): Developer ID signed DMG from `release.yml`. Sparkle 2 provides auto-updates; the `SPARKLE_UPDATES` compilation condition gates all updater code, and the appcast is generated per release and attached as a release asset (feed URL: `releases/latest/download/appcast.xml`).
+- **App Store / TestFlight** (`FramePeek-AppStore` scheme): identical sources, same bundle ID, but Sparkle is neither linked nor compiled in - always archive TestFlight/App Store builds from this scheme.
 
 ## Project structure (directory level)
 
