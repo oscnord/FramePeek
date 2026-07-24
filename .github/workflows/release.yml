@@ -282,6 +282,42 @@ jobs:
             "$RUNNER_TEMP/framepeek-cli-$VERSION.tar.gz" \
             --clobber --repo "${{ github.repository }}"
 
+      # Sparkle appcast for the GitHub auto-update channel. The feed URL in
+      # the app points at releases/latest/download/appcast.xml, so attaching
+      # the appcast to each release keeps the feed current automatically.
+      - name: Generate and attach Sparkle appcast
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SPARKLE_ED_PRIVATE_KEY" ]]; then
+            echo "SPARKLE_ED_PRIVATE_KEY not set; skipping appcast"
+            exit 0
+          fi
+
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.marketing }}"
+          SPARKLE_VERSION=2.9.4
+
+          curl -sL -o "$RUNNER_TEMP/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          mkdir -p "$RUNNER_TEMP/sparkle-tools"
+          tar -xf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle-tools"
+
+          mkdir -p "$RUNNER_TEMP/appcast-work"
+          cp "$RUNNER_TEMP/FramePeek-$VERSION.dmg" "$RUNNER_TEMP/appcast-work/"
+
+          echo "$SPARKLE_ED_PRIVATE_KEY" | "$RUNNER_TEMP/sparkle-tools/bin/generate_appcast" \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/$TAG/" \
+            --maximum-versions 1 \
+            -o "$RUNNER_TEMP/appcast-work/appcast.xml" \
+            "$RUNNER_TEMP/appcast-work"
+
+          gh release upload "$TAG" "$RUNNER_TEMP/appcast-work/appcast.xml" \
+            --clobber --repo "${{ github.repository }}"
+
       - name: Write job summary
         if: always()
         run: |

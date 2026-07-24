@@ -37,6 +37,11 @@ struct FramePeekApp: App {
     init() {
         // Disable native macOS window tabbing application-wide
         NSWindow.allowsAutomaticWindowTabbing = false
+
+        #if SPARKLE_UPDATES
+        // Start the updater at launch so scheduled background checks run
+        _ = SparkleUpdater.shared
+        #endif
     }
 
     var body: some Scene {
@@ -64,6 +69,8 @@ struct FramePeekApp: App {
                 }
                 .keyboardShortcut(",", modifiers: [.command])
             }
+
+            CheckForUpdatesCommands()
 
             CommandGroup(after: .newItem) {
                 Button("Open…") {
