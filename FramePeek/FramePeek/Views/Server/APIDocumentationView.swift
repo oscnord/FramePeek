@@ -19,6 +19,9 @@ struct APIDocumentationView: View {
                             Text("Use the endpoints below to analyze files via the REST API.")
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
+                            Text("The app is sandboxed: path-based requests can only read files the app has access to, such as your Downloads folder or files previously opened in FramePeek. URL-based analysis (HLS ladders) is unrestricted. For unrestricted local file access, use the CLI: framepeek-cli mcp")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .padding(DesignSystem.Padding.lg3)

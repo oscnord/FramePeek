@@ -146,6 +146,8 @@ claude mcp add framepeek -- framepeek-cli mcp
 claude mcp add --transport http framepeek http://127.0.0.1:8080/mcp
 ```
 
+The app is sandboxed, so over HTTP the path-based tools can only read files the app has access to (Downloads, or files previously opened in FramePeek); URL-based tools like `inspect_hls_ladder` are unrestricted. The stdio CLI transport has no sandbox — prefer it for agents working across arbitrary local paths. The same applies to the REST API's `/analyze/path`.
+
 Claude Desktop (`claude_desktop_config.json`):
 
 ```json
