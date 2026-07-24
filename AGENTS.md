@@ -8,7 +8,7 @@
 | **UI Framework** | SwiftUI |
 | **Platform** | macOS 15.2+ (Sequoia) |
 | **Architecture** | MVVM with Swift Concurrency |
-| **Dependencies** | Apple frameworks only |
+| **Dependencies** | Apple frameworks for all media work (no FFmpeg); Hummingbird for the embedded HTTP server |
 | **Entry Point** | `FramePeek/FramePeekApp.swift` |
 
 ## Agent Responsibilities

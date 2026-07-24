@@ -4,7 +4,7 @@ A concise guide for AI agents and human contributors to understand, navigate, an
 
 ## What FramePeek does
 
-FramePeek is a macOS SwiftUI application that inspects local media files using AVFoundation and CoreMedia (Apple frameworks only — no third-party dependencies):
+FramePeek is a macOS SwiftUI application that inspects local media files using AVFoundation and CoreMedia. All media work uses Apple frameworks (no FFmpeg); the only third-party dependency is Hummingbird, which powers the embedded HTTP server:
 
 - Video metadata (container, codec, resolution, frame rate, HDR/color info, PAR/DAR, bitrate)
 - Audio track details (codec, channels, sample rate, bitrate, language) and per-track waveforms
