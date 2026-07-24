@@ -9,10 +9,24 @@ struct FrameTypeStripView: View {
 
     @State private var hoveredFrameIndex: Int?
 
+    @State private var cachedSortedVisibleFrames: [FrameInfo] = []
+    @State private var lastVisibleFramesInputHash: Int = 0
+
     private var visibleFrames: [FrameInfo] {
         frames.filter { frame in
             frame.time >= domainStart && frame.time <= domainEnd
         }
+    }
+
+    private func recomputeSortedVisibleFrames() {
+        var hasher = Hasher()
+        hasher.combine(frames.count)
+        hasher.combine(domainStart)
+        hasher.combine(domainEnd)
+        let inputHash = hasher.finalize()
+        guard inputHash != lastVisibleFramesInputHash else { return }
+        lastVisibleFramesInputHash = inputHash
+        cachedSortedVisibleFrames = visibleFrames.sorted { $0.time < $1.time }
     }
 
     private func frameColor(for type: FrameType) -> Color {
@@ -31,7 +45,7 @@ struct FrameTypeStripView: View {
             let domainDuration = max(0.001, domainEnd - domainStart)
 
             Canvas { context, _ in
-                let visible = visibleFrames.sorted { $0.time < $1.time }
+                let visible = cachedSortedVisibleFrames
                 guard !visible.isEmpty else { return }
 
                 let maxBuckets = max(1, Int(width))
@@ -74,6 +88,10 @@ struct FrameTypeStripView: View {
                     }
             )
         }
+        .onAppear { recomputeSortedVisibleFrames() }
+        .onChange(of: frames.count) { _, _ in recomputeSortedVisibleFrames() }
+        .onChange(of: domainStart) { _, _ in recomputeSortedVisibleFrames() }
+        .onChange(of: domainEnd) { _, _ in recomputeSortedVisibleFrames() }
     }
 
     // MARK: - Individual Frame Drawing

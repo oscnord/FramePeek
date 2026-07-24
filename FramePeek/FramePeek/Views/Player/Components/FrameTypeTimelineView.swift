@@ -92,7 +92,7 @@ struct FrameTypeTimelineView: View {
             }
         }
 
-        return frames.sorted { $0.time < $1.time }
+        return frames
     }
 
     /// Extrapolate frame types across the entire video based on fixed GOP structure
@@ -150,7 +150,7 @@ struct FrameTypeTimelineView: View {
             }
         }
 
-        return frames.sorted { $0.time < $1.time }
+        return frames
     }
 
     /// Synthesize frame types for a GOP segment without detailed frame data

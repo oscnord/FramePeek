@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation
 import FramePeekCore
 
 struct WaveformContainerView: View {
@@ -93,43 +92,5 @@ struct WaveformContainerView: View {
         }
         .padding(.horizontal, DesignSystem.Padding.lg)
         .padding(.top, DesignSystem.Padding.lg)
-    }
-
-    private func triggerExtractionForExpandedTracks() {
-        guard let url = viewModel.currentVideoURL else { return }
-        let asset = AVURLAsset(url: url)
-
-        let tracksToExtract = audioTracks.filter { track in
-            viewModel.expandedWaveformTracks.contains(track.index) &&
-            viewModel.waveformData[track.index] == nil &&
-            viewModel.waveformTasks[track.index] == nil
-        }
-
-        for trackInfo in tracksToExtract {
-            Task.detached(priority: .userInitiated) { [weak viewModel] in
-                guard let viewModel else { return }
-
-                do {
-                    let tracks = try await asset.loadTracks(withMediaType: AVMediaType.audio)
-                    guard let audioTrack = tracks.first(where: { track in
-                        let trackIndexInArray = tracks.firstIndex(of: track) ?? -1
-                        return trackIndexInArray + 1 == trackInfo.index
-                    }) else {
-                        return
-                    }
-
-                    await MainActor.run {
-                        viewModel.extractWaveformForTrack(
-                            trackIndex: trackInfo.index,
-                            asset: asset,
-                            audioTrack: audioTrack,
-                            duration: viewModel.durationSeconds
-                        )
-                    }
-                } catch {
-                    // Handle error silently
-                }
-            }
-        }
     }
 }

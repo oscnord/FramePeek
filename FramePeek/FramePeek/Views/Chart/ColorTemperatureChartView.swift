@@ -8,12 +8,20 @@ struct ColorTemperatureChartView: View {
 
     private let maxDisplayPoints = 500
 
-    private var validSamples: [ColorSample] {
-        samples.filter { $0.colorTemperature != nil }
+    // MARK: - Cached Display Samples
+
+    @State private var cachedDisplaySamples: [ColorSample] = []
+    @State private var lastDisplaySamplesInputHash: Int = 0
+
+    private func recomputeDisplaySamples() {
+        let inputHash = samples.count
+        guard inputHash != lastDisplaySamplesInputHash else { return }
+        lastDisplaySamplesInputHash = inputHash
+        cachedDisplaySamples = downsampleColorSamplesForTemperature(validSamples, targetCount: maxDisplayPoints)
     }
 
-    private var displaySamples: [ColorSample] {
-        downsampleColorSamplesForTemperature(validSamples, targetCount: maxDisplayPoints)
+    private var validSamples: [ColorSample] {
+        samples.filter { $0.colorTemperature != nil }
     }
 
     private var maxTime: Double {
@@ -52,7 +60,7 @@ struct ColorTemperatureChartView: View {
                     let calculatedHeight = max(geometry.size.width * 0.15, 150) // 15% of width, min 150
 
                     Chart {
-                        ForEach(displaySamples) { sample in
+                        ForEach(cachedDisplaySamples) { sample in
                             if let temp = sample.colorTemperature {
                                 LineMark(
                                     x: .value("Time (s)", sample.time),
@@ -120,6 +128,8 @@ struct ColorTemperatureChartView: View {
             }
         }
         .padding(.top, DesignSystem.Padding.md)
+        .onAppear { recomputeDisplaySamples() }
+        .onChange(of: samples.count) { _, _ in recomputeDisplaySamples() }
     }
 
     private func temperatureColor(_ temp: Double) -> Color {
