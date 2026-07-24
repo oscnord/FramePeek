@@ -138,10 +138,15 @@ public final class JobQueue {
     
     private func processJob(_ job: AnalysisJob) async {
         let engine = AnalysisEngine()
-        
+        let jobId = job.id
+
         do {
-            // Run analysis
-            let result = try await engine.analyze(url: job.fileURL, options: job.options)
+            // Run analysis with phase progress forwarded into the job record
+            let result = try await engine.analyze(url: job.fileURL, options: job.options) { [weak self] event in
+                Task { @MainActor [weak self] in
+                    self?.applyProgress(event, jobId: jobId)
+                }
+            }
 
             // Update job with result (already on MainActor)
             var completedJob: AnalysisJob?
@@ -229,19 +234,26 @@ public final class JobQueue {
         }
     }
     
-    /// Update job progress (called from analysis engine)
-    public func updateProgress(jobId: String, phase: AnalysisPhase, progress: Double) {
-        if let index = activeJobs.firstIndex(where: { $0.id == jobId }) {
+    /// Applies a phase progress event from the analysis engine to the job record
+    private func applyProgress(_ event: AnalysisProgress, jobId: String) {
+        guard let index = activeJobs.firstIndex(where: { $0.id == jobId }) else { return }
+
+        switch event {
+        case .started(let phase):
             activeJobs[index].currentPhase = phase
-            activeJobs[index].progress = progress
             activeJobs[index].phaseStatuses[phase] = .processing
-        }
-    }
-    
-    /// Mark a phase as complete
-    public func markPhaseComplete(jobId: String, phase: AnalysisPhase) {
-        if let index = activeJobs.firstIndex(where: { $0.id == jobId }) {
+
+        case .phaseComplete(let phase):
             activeJobs[index].phaseStatuses[phase] = .complete
+            let statuses = activeJobs[index].phaseStatuses.values
+            let enabled = statuses.filter { $0 != .skipped }.count
+            let done = statuses.filter { $0 == .complete }.count
+            // Progress events hop through independent tasks; keep it monotonic
+            let progress = Double(done) / Double(max(enabled, 1))
+            activeJobs[index].progress = max(activeJobs[index].progress, progress)
+
+        case .progress, .complete, .failed:
+            break
         }
     }
 }

@@ -96,16 +96,18 @@ public enum AnalysisPhase: String, Codable, CaseIterable, Sendable {
     case bitrate
     case gop
     case waveform
+    case keyframes
     case sync
     case color
     case thumbnails
-    
+
     public var displayName: String {
         switch self {
         case .metadata: return "Metadata"
         case .bitrate: return "Bitrate Analysis"
         case .gop: return "GOP Analysis"
         case .waveform: return "Waveform Extraction"
+        case .keyframes: return "Keyframe Extraction"
         case .sync: return "A/V Sync Analysis"
         case .color: return "Color Analysis"
         case .thumbnails: return "Thumbnail Generation"
@@ -186,9 +188,14 @@ public actor AnalysisEngine {
     /// - Parameters:
     ///   - url: URL of the media file to analyze
     ///   - options: Analysis options specifying what to analyze
+    ///   - onProgress: Optional callback receiving phase start/completion events
     /// - Returns: Complete analysis result
     /// - Throws: AnalysisError if analysis fails
-    public func analyze(url: URL, options: AnalysisOptions) async throws -> AnalysisResult {
+    public func analyze(
+        url: URL,
+        options: AnalysisOptions,
+        onProgress: (@Sendable (AnalysisProgress) -> Void)? = nil
+    ) async throws -> AnalysisResult {
         // Verify file exists
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw AnalysisError.fileNotFound(url)
@@ -217,12 +224,15 @@ public actor AnalysisEngine {
         
         // Metadata (always fast, usually always wanted)
         if options.includeMetadata {
+            onProgress?(.started(phase: .metadata))
             metadata = await extractMetadata(url: url, asset: asset)
+            onProgress?(.phaseComplete(phase: .metadata))
         }
 
         // Bitrate analysis
         if options.includeBitrate {
             try Task.checkCancellation()
+            onProgress?(.started(phase: .bitrate))
             let samples = await extractBitrate(asset: asset, options: options)
             let stats = BitrateStats(samples: samples)
             bitrateOutput = BitrateAnalysisOutput(
@@ -230,33 +240,42 @@ public actor AnalysisEngine {
                 stats: stats,
                 samples: samples.map { BitrateSampleOutput(sample: $0) }
             )
+            onProgress?(.phaseComplete(phase: .bitrate))
         }
 
         // GOP analysis
         if options.includeGOP {
             try Task.checkCancellation()
+            onProgress?(.started(phase: .gop))
             let gopResult = await extractGOP(asset: asset, url: url, options: options)
             gopOutput = GOPAnalysisOutput(result: gopResult, includeSegments: !options.gopStatsOnly)
+            onProgress?(.phaseComplete(phase: .gop))
         }
 
         // Waveform extraction
         if options.includeWaveform {
             try Task.checkCancellation()
+            onProgress?(.started(phase: .waveform))
             waveforms = await extractWaveforms(asset: asset, maxSamples: options.maxSamples)
+            onProgress?(.phaseComplete(phase: .waveform))
         }
 
         // Keyframe extraction
         if options.includeKeyframes {
             try Task.checkCancellation()
+            onProgress?(.started(phase: .keyframes))
             keyframes = await extractKeyframes(url: url)
+            onProgress?(.phaseComplete(phase: .keyframes))
         }
 
         // Sync analysis
         if options.includeSync {
             try Task.checkCancellation()
+            onProgress?(.started(phase: .sync))
             if let syncResult = await extractSync(asset: asset) {
                 syncOutput = SyncAnalysisOutput(result: syncResult)
             }
+            onProgress?(.phaseComplete(phase: .sync))
         }
 
         try Task.checkCancellation()
@@ -285,7 +304,7 @@ public actor AnalysisEngine {
         AsyncStream { continuation in
             let task = Task {
                 do {
-                    let result = try await analyze(url: url, options: options)
+                    let result = try await analyze(url: url, options: options) { continuation.yield($0) }
                     continuation.yield(.complete(result: result))
                 } catch {
                     if let analysisError = error as? AnalysisError {

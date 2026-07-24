@@ -83,6 +83,7 @@ public struct AnalysisJob: Identifiable, Sendable {
         statuses[.bitrate] = options.includeBitrate ? .pending : .skipped
         statuses[.gop] = options.includeGOP ? .pending : .skipped
         statuses[.waveform] = options.includeWaveform ? .pending : .skipped
+        statuses[.keyframes] = options.includeKeyframes ? .pending : .skipped
         statuses[.sync] = options.includeSync ? .pending : .skipped
         statuses[.color] = options.includeColor ? .pending : .skipped
         statuses[.thumbnails] = options.includeThumbnails ? .pending : .skipped
