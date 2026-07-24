@@ -15,13 +15,21 @@ struct GOPBlocksStripView: View {
 
     @State private var hoveredSegmentIndex: Int?
 
+    @State private var cachedIndexMap: [UUID: Int] = [:]
+    @State private var lastIndexMapSegmentCount: Int = 0
+
+    private func recomputeIndexMap() {
+        guard segments.count != lastIndexMapSegmentCount else { return }
+        lastIndexMapSegmentCount = segments.count
+        cachedIndexMap = Dictionary(segments.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { _, last in last })
+    }
+
     var body: some View {
         GeometryReader { geo in
             let width = geo.size.width
             let height = geo.size.height
             let domainDuration = max(0.001, domainEnd - domainStart)
-            // O(n) dictionary build for O(1) index lookups
-            let indexMap = Dictionary(segments.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { _, last in last })
+            let indexMap = cachedIndexMap
 
             ZStack(alignment: .leading) {
                 // Time grid lines (drawn via Canvas for consistency)
@@ -72,6 +80,8 @@ struct GOPBlocksStripView: View {
             }
             .clipped()
         }
+        .onAppear { recomputeIndexMap() }
+        .onChange(of: segments.count) { _, _ in recomputeIndexMap() }
     }
 
     // MARK: - Canvas Drawing

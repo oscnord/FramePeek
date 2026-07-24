@@ -88,6 +88,7 @@ struct GOPHeatmapView: View {
 
     // Cached stats to avoid O(n) scans on every body evaluation
     @State private var cachedAllSegmentsStats: GOPStats?
+    @State private var cachedHasFrameTypes: Bool = false
     @State private var lastAllStatsSegmentCount: Int = 0
 
     // Tooltip dimensions (approximate)
@@ -127,7 +128,8 @@ struct GOPHeatmapView: View {
             segments: filteredSegments,
             allSegments: segments,
             maxCount: HeatmapConfig.maxDisplayGOPs,
-            domain: effectiveDomain
+            domain: effectiveDomain,
+            stats: allSegmentsStats
         )
         lastDisplayGOPsInputHash = displayGOPsInputHash
     }
@@ -140,10 +142,11 @@ struct GOPHeatmapView: View {
         guard segments.count != lastAllStatsSegmentCount else { return }
         lastAllStatsSegmentCount = segments.count
         cachedAllSegmentsStats = calculateStats(segments: segments)
+        cachedHasFrameTypes = segments.contains { $0.frames != nil && !($0.frames?.isEmpty ?? true) }
     }
 
     private var hasFrameTypes: Bool {
-        segments.contains { $0.frames != nil && !($0.frames?.isEmpty ?? true) }
+        cachedHasFrameTypes
     }
     
     // MARK: - Tooltip Positioning
@@ -231,6 +234,11 @@ struct GOPHeatmapView: View {
         .onChange(of: segments.count) { _, _ in
             recomputeAllSegmentsStats()
             let hash = displayGOPsInputHash
+            if hash != lastDisplayGOPsInputHash {
+                recomputeDisplayGOPs()
+            }
+        }
+        .onChange(of: displayGOPsInputHash) { _, hash in
             if hash != lastDisplayGOPsInputHash {
                 recomputeDisplayGOPs()
             }
@@ -859,11 +867,10 @@ private func prepareDisplayGOPs(
     segments: [GOPSegment],
     allSegments: [GOPSegment],
     maxCount: Int,
-    domain: (start: Double, end: Double)
+    domain: (start: Double, end: Double),
+    stats: GOPStats
 ) -> [DisplayGOP] {
     guard !segments.isEmpty else { return [] }
-
-    let stats = calculateStats(segments: allSegments)
 
     // O(n) dictionary build for O(1) index lookups (replaces O(n²) firstIndex calls)
     let indexMap = Dictionary(allSegments.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { _, last in last })

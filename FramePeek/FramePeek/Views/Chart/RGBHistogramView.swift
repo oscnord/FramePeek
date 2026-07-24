@@ -27,9 +27,8 @@ struct RGBHistogramView: View {
         }
     }
 
-    private var yAxisLabels: [Double] {
-        let max = effectiveMaxFrequency
-        return [0, max * 0.25, max * 0.5, max * 0.75, max]
+    private func yAxisLabels(max: Double) -> [Double] {
+        [0, max * 0.25, max * 0.5, max * 0.75, max]
     }
 
     var body: some View {
@@ -105,10 +104,11 @@ struct RGBHistogramView: View {
                     .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
                     .padding(.vertical, DesignSystem.Padding.sm)
             } else {
+                let maxFrequency = effectiveMaxFrequency
                 HStack(alignment: .top, spacing: 8) {
                     // Y-axis labels
                     VStack(alignment: .trailing, spacing: 0) {
-                        ForEach(Array(yAxisLabels.reversed().enumerated()), id: \.offset) { _, value in
+                        ForEach(Array(yAxisLabels(max: maxFrequency).reversed().enumerated()), id: \.offset) { _, value in
                             Text(formatFrequency(value))
                                 .font(.caption2)
                                 .foregroundStyle(DesignSystem.Colors.Chart.axisLabel)
@@ -132,9 +132,9 @@ struct RGBHistogramView: View {
                                 gridLines(width: width, height: height)
 
                                 // RGB curves
-                                histogramPath(data: histogram.red, color: .red, width: width, height: height)
-                                histogramPath(data: histogram.green, color: .green, width: width, height: height)
-                                histogramPath(data: histogram.blue, color: .blue, width: width, height: height)
+                                histogramPath(data: histogram.red, color: .red, width: width, height: height, max: maxFrequency)
+                                histogramPath(data: histogram.green, color: .green, width: width, height: height, max: maxFrequency)
+                                histogramPath(data: histogram.blue, color: .blue, width: width, height: height, max: maxFrequency)
                             }
                             .drawingGroup()
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
@@ -186,9 +186,7 @@ struct RGBHistogramView: View {
     }
 
     @ViewBuilder
-    private func histogramPath(data: [Double], color: Color, width: CGFloat, height: CGFloat) -> some View {
-        let max = effectiveMaxFrequency
-
+    private func histogramPath(data: [Double], color: Color, width: CGFloat, height: CGFloat, max: Double) -> some View {
         // Filled area
         Path { path in
             guard data.count == 256 else { return }

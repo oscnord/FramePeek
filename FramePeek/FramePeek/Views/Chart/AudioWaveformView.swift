@@ -81,9 +81,7 @@ struct AudioWaveformView: View {
                 }
                 
                 // Cross-chart sync indicator line
-                if let syncTime = viewModel.hoveredTimestamp {
-                    crossChartSyncIndicator(time: syncTime, width: geometry.size.width, height: calculatedHeight)
-                }
+                WaveformSyncIndicator(viewModel: viewModel, timeDomain: timeDomain, width: geometry.size.width, height: calculatedHeight)
             }
             .frame(height: calculatedHeight)
         }
@@ -92,19 +90,23 @@ struct AudioWaveformView: View {
         .onChange(of: samples.count) { _, _ in recomputeDisplaySamples() }
         .onChange(of: viewModel.visibleTimeRange) { _, _ in recomputeDisplaySamples() }
     }
-    
-    // MARK: - Cross-Chart Sync Indicator
-    
-    @ViewBuilder
-    private func crossChartSyncIndicator(time: Double, width: CGFloat, height: CGFloat) -> some View {
-        let domain = timeDomain
-        let domainDuration = max(0.001, domain.end - domain.start)
-        
-        // Only show if time is within visible range
-        if time >= domain.start && time <= domain.end {
-            let ratio = (time - domain.start) / domainDuration
+}
+
+// MARK: - Cross-Chart Sync Indicator
+
+private struct WaveformSyncIndicator: View {
+    var viewModel: FramePeekViewModel
+    let timeDomain: (start: Double, end: Double)
+    let width: CGFloat
+    let height: CGFloat
+
+    var body: some View {
+        if let time = viewModel.hoveredTimestamp,
+           time >= timeDomain.start && time <= timeDomain.end {
+            let domainDuration = max(0.001, timeDomain.end - timeDomain.start)
+            let ratio = (time - timeDomain.start) / domainDuration
             let x = CGFloat(ratio) * width
-            
+
             Rectangle()
                 .fill(DesignSystem.Colors.Chart.hoveredLine)
                 .frame(width: 2, height: height)

@@ -14,6 +14,11 @@ struct GOPTimelineView: View {
     @State private var selectionStartTime: Double?
     @State private var selectionEndTime: Double?
 
+    @State private var filteredSegments: [GOPSegment] = []
+    @State private var maxFrameCount: Int = 1
+    @State private var hasFrameTypes: Bool = false
+    @State private var lastSegmentDataInputHash: Int = 0
+
     private var effectiveDomain: (start: Double, end: Double) {
         if let range = visibleTimeRange {
             return (range.lowerBound, range.upperBound)
@@ -21,15 +26,25 @@ struct GOPTimelineView: View {
         return (0, domainSeconds)
     }
 
-    private var filteredSegments: [GOPSegment] {
+    private func recomputeSegmentData() {
+        var hasher = Hasher()
+        hasher.combine(segments.count)
+        hasher.combine(visibleTimeRange?.lowerBound)
+        hasher.combine(visibleTimeRange?.upperBound)
+        let inputHash = hasher.finalize()
+        guard inputHash != lastSegmentDataInputHash else { return }
+        lastSegmentDataInputHash = inputHash
+
         let domain = effectiveDomain
-        return segments.filter { segment in
+        filteredSegments = segments.filter { segment in
             segment.endTime >= domain.start && segment.startTime <= domain.end
         }
-    }
+        maxFrameCount = filteredSegments.compactMap { $0.frameCount }.max() ?? 1
 
-    private var maxFrameCount: Int {
-        filteredSegments.compactMap { $0.frameCount }.max() ?? 1
+        let durations = segments.map(\.duration).filter { $0.isFinite && $0 > 0 }
+        cachedAvgDuration = durations.isEmpty ? nil : durations.reduce(0, +) / Double(durations.count)
+
+        hasFrameTypes = segments.contains(where: { $0.frames != nil && !$0.frames!.isEmpty })
     }
 
     private func patternColor(for segment: GOPSegment, avgDuration: Double?) -> Color {
@@ -48,13 +63,8 @@ struct GOPTimelineView: View {
         }
     }
 
-    /// Computes the average duration of all segments (used for pattern coloring).
-    /// Computed once per body evaluation, not per segment.
-    private var cachedAvgDuration: Double? {
-        let durations = segments.map(\.duration).filter { $0.isFinite && $0 > 0 }
-        guard !durations.isEmpty else { return nil }
-        return durations.reduce(0, +) / Double(durations.count)
-    }
+    /// Average duration of all segments (used for pattern coloring), cached in recomputeSegmentData().
+    @State private var cachedAvgDuration: Double?
 
     var body: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
@@ -83,7 +93,7 @@ struct GOPTimelineView: View {
                 .padding(.horizontal, DesignSystem.Padding.md)
 
                 // Frame type strip (if enabled and available) with label
-                if showFrameTypes, segments.contains(where: { $0.frames != nil && !$0.frames!.isEmpty }) {
+                if showFrameTypes, hasFrameTypes {
                     let allFrames = segments.compactMap { $0.frames }.flatMap { $0 }
                     if !allFrames.isEmpty {
                         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -115,6 +125,9 @@ struct GOPTimelineView: View {
             }
             .clipped()
         }
+        .onAppear { recomputeSegmentData() }
+        .onChange(of: segments.count) { _, _ in recomputeSegmentData() }
+        .onChange(of: visibleTimeRange) { _, _ in recomputeSegmentData() }
         .gesture(
             MagnifyGesture()
                 .onEnded { value in

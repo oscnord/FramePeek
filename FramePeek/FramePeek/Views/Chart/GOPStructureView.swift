@@ -46,8 +46,18 @@ struct GOPStructureView: View {
         return (iCount, pCount, bCount, unknownCount, total)
     }
 
+    @State private var cachedHasFrameTypes: Bool = false
+    @State private var lastHasFrameTypesInputCount: Int = -1
+
+    private func recomputeHasFrameTypes() {
+        let inputCount = analysis?.segments.count ?? 0
+        guard inputCount != lastHasFrameTypesInputCount else { return }
+        lastHasFrameTypesInputCount = inputCount
+        cachedHasFrameTypes = analysis?.segments.contains(where: { $0.frames != nil && !$0.frames!.isEmpty }) ?? false
+    }
+
     private var hasFrameTypes: Bool {
-        analysis?.segments.contains(where: { $0.frames != nil && !$0.frames!.isEmpty }) ?? false
+        cachedHasFrameTypes
     }
 
     var body: some View {
@@ -76,9 +86,13 @@ struct GOPStructureView: View {
             .padding(DesignSystem.Padding.lg)
             .onAppear {
                 initializeRangeValues()
+                recomputeHasFrameTypes()
             }
             .onChange(of: duration) { _, _ in
                 initializeRangeValues()
+            }
+            .onChange(of: analysis?.segments.count) { _, _ in
+                recomputeHasFrameTypes()
             }
             .sheet(isPresented: $showRangePicker) {
                 GOPRangePickerSheet(
