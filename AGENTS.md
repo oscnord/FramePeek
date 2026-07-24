@@ -24,7 +24,7 @@
 
 ## Project Purpose
 
-FramePeek is a macOS app for inspecting video/audio files. It provides metadata analysis, bitrate visualization, GOP structure analysis, keyframe detection, waveform visualization, and A/V sync analysis using AVFoundation and CoreMedia.
+FramePeek is a macOS app for inspecting video/audio files. It provides metadata analysis, bitrate visualization, GOP structure analysis, keyframe detection, waveform visualization, A/V sync analysis, EBU R128 loudness measurement, and HLS ladder inspection using AVFoundation and CoreMedia. The `framepeek-cli` tool exposes the same analyses for batch use and runs an MCP server (`framepeek-cli mcp`) for AI agents.
 
 ## Critical Rules
 
