@@ -118,17 +118,19 @@ public func extractWithCursor(
             }
             bucketFrames[bucketIndex]?.append((pts: pts, size: sampleSize))
 
-            let prevBucketIndex = bucketIndex - 1
-            if prevBucketIndex > lastEmittedBucket {
-                if let frames = bucketFrames[prevBucketIndex],
+            // Emit every completed bucket before the one this frame lands in.
+            // A PTS gap can skip several buckets at once; stepping only one
+            // deferred the intermediates to the final flush.
+            while lastEmittedBucket < bucketIndex - 1, totalEmitted < options.maxSamples {
+                let emitIndex = lastEmittedBucket + 1
+
+                if let frames = bucketFrames.removeValue(forKey: emitIndex),
                    let firstFrame = frames.first,
                    let lastFrame = frames.last {
-                    let bucketStart = startPTS + Double(prevBucketIndex) * bucketSize
+                    let bucketStart = startPTS + Double(emitIndex) * bucketSize
                     let totalBytes = frames.reduce(0) { $0 + $1.size }
 
-                    let firstFramePTS = firstFrame.pts
-                    let lastFramePTS = lastFrame.pts
-                    let actualSpan = lastFramePTS - firstFramePTS
+                    let actualSpan = lastFrame.pts - firstFrame.pts
                     // Add minimum duration guard to prevent inflated bitrate from very small durations
                     let minDuration = bucketSize * 0.1
                     let actualDuration: Double
@@ -142,23 +144,22 @@ public func extractWithCursor(
                     let sampleTime = bucketStart + bucketSize / 2.0
 
                     let sample = BitrateSample(time: sampleTime, bitrate: bitrate, duration: actualDuration)
-                    if appendBitrateSampleRespectingLimit(
+                    if !appendBitrateSampleRespectingLimit(
                         sample,
                         to: &pending,
                         totalEmitted: &totalEmitted,
                         maxSamples: options.maxSamples
                     ) {
-                        lastEmittedBucket = prevBucketIndex
+                        break
                     }
-
-                    // Remove emitted bucket to prevent unbounded memory growth
-                    bucketFrames.removeValue(forKey: prevBucketIndex)
 
                     if pending.count >= options.emitEveryNSamples {
                         continuation.yield(makeUpdate())
                         pending.removeAll(keepingCapacity: true)
                     }
                 }
+
+                lastEmittedBucket = emitIndex
             }
         }
 
