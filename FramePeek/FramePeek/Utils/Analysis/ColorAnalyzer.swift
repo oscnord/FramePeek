@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import Accelerate
 import CoreImage
 import AppKit
 
@@ -149,35 +150,29 @@ public func analyzeFrame(
     // Extract pixel data at analysis resolution
     let analysisWidth = 256
     let analysisHeight = 256
+    let pixelCount = analysisWidth * analysisHeight
     let pixelData = extractPixelData(from: cgImage, width: analysisWidth, height: analysisHeight)
-    
-    // Calculate all metrics
-    let luminance = calculateLuminanceData(
-        pixelData: pixelData,
-        width: analysisWidth,
-        height: analysisHeight,
-        contentType: config.hdrContentType
-    )
-    
+
+    // One interleaved-to-planar conversion feeds every metric below
+    let rgb = planarRGB(from: pixelData, pixelCount: pixelCount)
+    let luminancePlane = rec709LuminancePlane(rgb)
+
+    let luminance = calculateLuminanceData(luminancePlane: luminancePlane)
+
     let histogram = calculateColorHistogramFromPixels(
         pixelData: pixelData,
         width: analysisWidth,
         height: analysisHeight
     )
-    
-    let saturation = calculateAverageSaturation(
-        pixelData: pixelData,
-        width: analysisWidth,
-        height: analysisHeight
-    )
-    
+
+    let saturation = calculateAverageSaturation(rgb: rgb)
+
     // CCT calculation - may return nil for HDR content or highly saturated frames
     let cct: ColorTemperatureData?
     if config.hdrContentType == .sdr {
         cct = calculateFrameAverageCCT(
-            pixelData: pixelData,
-            width: analysisWidth,
-            height: analysisHeight,
+            rgb: rgb,
+            luminancePlane: luminancePlane,
             colorSpace: colorSpace,
             contentType: config.hdrContentType
         )
@@ -185,12 +180,12 @@ public func analyzeFrame(
         // CCT is unreliable for tone-mapped HDR content
         cct = nil
     }
-    
+
     // Generate waveform data if requested
     let waveform: WaveformData?
     if config.generateWaveform {
         waveform = generateWaveformData(
-            pixelData: pixelData,
+            luminancePlane: luminancePlane,
             width: analysisWidth,
             height: analysisHeight,
             resolution: config.waveformResolution
@@ -198,23 +193,22 @@ public func analyzeFrame(
     } else {
         waveform = nil
     }
-    
+
     // Generate vectorscope data if requested
     let vectorscope: VectorscopeData?
     if config.generateVectorscope {
         vectorscope = generateVectorscopeData(
-            pixelData: pixelData,
-            width: analysisWidth,
-            height: analysisHeight,
+            rgb: rgb,
+            pixelCount: pixelCount,
             resolution: config.vectorscopeResolution
         )
     } else {
         vectorscope = nil
     }
-    
+
     // Determine exposure status
     let exposure = determineExposureStatus(luminance: luminance, histogram: histogram)
-    
+
     return FrameColorAnalysis(
         time: time,
         luminance: luminance,
@@ -225,6 +219,49 @@ public func analyzeFrame(
         vectorscopeData: vectorscope,
         exposureStatus: exposure
     )
+}
+
+// MARK: - Planar Conversion
+
+struct PlanarRGB {
+    var r: [Float]
+    var g: [Float]
+    var b: [Float]
+    var count: Int { r.count }
+}
+
+/// Deinterleaves RGBA8 into planar Float channels scaled to 0...1
+func planarRGB(from pixelData: [UInt8], pixelCount: Int) -> PlanarRGB {
+    var r = [Float](repeating: 0, count: pixelCount)
+    var g = [Float](repeating: 0, count: pixelCount)
+    var b = [Float](repeating: 0, count: pixelCount)
+
+    pixelData.withUnsafeBufferPointer { buffer in
+        let base = buffer.baseAddress!
+        vDSP_vfltu8(base, 4, &r, 1, vDSP_Length(pixelCount))
+        vDSP_vfltu8(base + 1, 4, &g, 1, vDSP_Length(pixelCount))
+        vDSP_vfltu8(base + 2, 4, &b, 1, vDSP_Length(pixelCount))
+    }
+
+    var scale = Float(1.0 / 255.0)
+    vDSP_vsmul(r, 1, &scale, &r, 1, vDSP_Length(pixelCount))
+    vDSP_vsmul(g, 1, &scale, &g, 1, vDSP_Length(pixelCount))
+    vDSP_vsmul(b, 1, &scale, &b, 1, vDSP_Length(pixelCount))
+
+    return PlanarRGB(r: r, g: g, b: b)
+}
+
+/// Rec.709 luminance plane (appropriate for SDR and tone-mapped HDR)
+func rec709LuminancePlane(_ rgb: PlanarRGB) -> [Float] {
+    let n = vDSP_Length(rgb.count)
+    var lum = [Float](repeating: 0, count: rgb.count)
+    var cR: Float = 0.2126
+    var cG: Float = 0.7152
+    var cB: Float = 0.0722
+    vDSP_vsmul(rgb.r, 1, &cR, &lum, 1, n)
+    vDSP_vsma(rgb.g, 1, &cG, lum, 1, &lum, 1, n)
+    vDSP_vsma(rgb.b, 1, &cB, lum, 1, &lum, 1, n)
+    return lum
 }
 
 // MARK: - Pixel Data Extraction
@@ -257,48 +294,35 @@ private func extractPixelData(from cgImage: CGImage, width: Int, height: Int) ->
 
 // MARK: - Luminance Calculation
 
-private func calculateLuminanceData(
-    pixelData: [UInt8],
-    width: Int,
-    height: Int,
-    contentType: HDRContentType
-) -> LuminanceData {
-    let pixelCount = width * height
-    let bytesPerPixel = 4
-    
-    var luminanceValues: [Double] = []
-    luminanceValues.reserveCapacity(pixelCount)
-    
-    for i in 0..<pixelCount {
-        let offset = i * bytesPerPixel
-        let r = Double(pixelData[offset]) / 255.0
-        let g = Double(pixelData[offset + 1]) / 255.0
-        let b = Double(pixelData[offset + 2]) / 255.0
-        
-        // Use Rec.709 luminance coefficients (appropriate for SDR and tone-mapped HDR)
-        let luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
-        luminanceValues.append(luminance)
+private func calculateLuminanceData(luminancePlane: [Float]) -> LuminanceData {
+    let pixelCount = luminancePlane.count
+    guard pixelCount > 0 else {
+        return LuminanceData(min: 0, max: 1, average: 0, percentile98: 1, percentile02: 0)
     }
-    
-    // Sort for percentile calculations
-    let sorted = luminanceValues.sorted()
-    
-    let minLum = sorted.first ?? 0
-    let maxLum = sorted.last ?? 1
-    let avgLum = luminanceValues.reduce(0, +) / Double(pixelCount)
-    
-    // Percentiles
+    let n = vDSP_Length(pixelCount)
+
+    var minLum: Float = 0
+    var maxLum: Float = 0
+    var avgLum: Float = 0
+    vDSP_minv(luminancePlane, 1, &minLum, n)
+    vDSP_maxv(luminancePlane, 1, &maxLum, n)
+    vDSP_meanv(luminancePlane, 1, &avgLum, n)
+
+    // SIMD sort for exact percentiles
+    var sorted = luminancePlane
+    vDSP_vsort(&sorted, n, 1)
+
     let p02Index = Int(Double(pixelCount) * 0.02)
     let p98Index = Int(Double(pixelCount) * 0.98)
     let percentile02 = sorted[Swift.max(0, Swift.min(p02Index, pixelCount - 1))]
     let percentile98 = sorted[Swift.max(0, Swift.min(p98Index, pixelCount - 1))]
-    
+
     return LuminanceData(
-        min: minLum,
-        max: maxLum,
-        average: avgLum,
-        percentile98: percentile98,
-        percentile02: percentile02
+        min: Double(minLum),
+        max: Double(maxLum),
+        average: Double(avgLum),
+        percentile98: Double(percentile98),
+        percentile02: Double(percentile02)
     )
 }
 
@@ -310,23 +334,41 @@ private func calculateColorHistogramFromPixels(
     height: Int
 ) -> ColorHistogram {
     let pixelCount = width * height
-    let bytesPerPixel = 4
-    
-    var redHist = [Int](repeating: 0, count: 256)
-    var greenHist = [Int](repeating: 0, count: 256)
-    var blueHist = [Int](repeating: 0, count: 256)
-    
-    for i in 0..<pixelCount {
-        let offset = i * bytesPerPixel
-        let r = Int(pixelData[offset])
-        let g = Int(pixelData[offset + 1])
-        let b = Int(pixelData[offset + 2])
-        
-        redHist[r] += 1
-        greenHist[g] += 1
-        blueHist[b] += 1
+
+    var redHist = [vImagePixelCount](repeating: 0, count: 256)
+    var greenHist = [vImagePixelCount](repeating: 0, count: 256)
+    var blueHist = [vImagePixelCount](repeating: 0, count: 256)
+    var alphaHist = [vImagePixelCount](repeating: 0, count: 256)
+
+    var mutablePixels = pixelData
+    mutablePixels.withUnsafeMutableBytes { rawBuffer in
+        var buffer = vImage_Buffer(
+            data: rawBuffer.baseAddress,
+            height: vImagePixelCount(height),
+            width: vImagePixelCount(width),
+            rowBytes: width * 4
+        )
+        // Channel order matches memory layout: R, G, B, X
+        redHist.withUnsafeMutableBufferPointer { r in
+            greenHist.withUnsafeMutableBufferPointer { g in
+                blueHist.withUnsafeMutableBufferPointer { b in
+                    alphaHist.withUnsafeMutableBufferPointer { a in
+                        var histograms: [UnsafeMutablePointer<vImagePixelCount>?] = [
+                            r.baseAddress, g.baseAddress, b.baseAddress, a.baseAddress
+                        ]
+                        histograms.withUnsafeMutableBufferPointer { histPtr in
+                            _ = vImageHistogramCalculation_ARGB8888(
+                                &buffer,
+                                histPtr.baseAddress!,
+                                vImage_Flags(kvImageNoFlags)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
-    
+
     let total = Double(pixelCount)
     return ColorHistogram(
         red: redHist.map { Double($0) / total },
@@ -337,94 +379,84 @@ private func calculateColorHistogramFromPixels(
 
 // MARK: - Saturation Calculation
 
-private func calculateAverageSaturation(
-    pixelData: [UInt8],
-    width: Int,
-    height: Int
-) -> Double {
-    let pixelCount = width * height
-    let bytesPerPixel = 4
-    
-    var totalSaturation: Double = 0
+private func calculateAverageSaturation(rgb: PlanarRGB) -> Double {
+    let pixelCount = rgb.count
+    let n = vDSP_Length(pixelCount)
+
+    // HSL max/min/delta planes via vDSP; the gated mean below stays scalar
+    var maxC = [Float](repeating: 0, count: pixelCount)
+    var minC = [Float](repeating: 0, count: pixelCount)
+    vDSP_vmax(rgb.r, 1, rgb.g, 1, &maxC, 1, n)
+    vDSP_vmax(maxC, 1, rgb.b, 1, &maxC, 1, n)
+    vDSP_vmin(rgb.r, 1, rgb.g, 1, &minC, 1, n)
+    vDSP_vmin(minC, 1, rgb.b, 1, &minC, 1, n)
+
+    var totalSaturation: Float = 0
     var validPixels = 0
-    
+
     for i in 0..<pixelCount {
-        let offset = i * bytesPerPixel
-        let r = Double(pixelData[offset]) / 255.0
-        let g = Double(pixelData[offset + 1]) / 255.0
-        let b = Double(pixelData[offset + 2]) / 255.0
-        
-        // Calculate saturation using HSL model
-        let maxC = Swift.max(r, Swift.max(g, b))
-        let minC = Swift.min(r, Swift.min(g, b))
-        let delta = maxC - minC
-        
+        let delta = maxC[i] - minC[i]
+
         // Skip very dark pixels (saturation is unreliable)
-        let lightness = (maxC + minC) / 2
+        let lightness = (maxC[i] + minC[i]) / 2
         guard lightness > 0.05 && lightness < 0.95 else { continue }
-        
-        let saturation: Double
+
+        let saturation: Float
         if delta < 0.001 {
             saturation = 0  // Achromatic
         } else {
             saturation = delta / (1 - abs(2 * lightness - 1))
         }
-        
+
         totalSaturation += Swift.min(1.0, saturation)  // Clamp to prevent >1.0 values
         validPixels += 1
     }
-    
-    return validPixels > 0 ? totalSaturation / Double(validPixels) : 0
+
+    return validPixels > 0 ? Double(totalSaturation) / Double(validPixels) : 0
 }
 
 // MARK: - Waveform Generation
 
 /// Generates traditional broadcast-style waveform data
 private func generateWaveformData(
-    pixelData: [UInt8],
+    luminancePlane: [Float],
     width: Int,
     height: Int,
     resolution: Int
 ) -> WaveformData {
-    let bytesPerPixel = 4
     let numColumns = resolution
     let numLevels = 256
-    
-    // Initialize columns (each column is a histogram of luminance at that x position)
-    var columns = [[Double]](repeating: [Double](repeating: 0, count: numLevels), count: numColumns)
-    
-    // Map source x coordinates to waveform columns
-    for y in 0..<height {
-        for x in 0..<width {
-            let pixelIndex = y * width + x
-            let offset = pixelIndex * bytesPerPixel
-            
-            let r = Double(pixelData[offset]) / 255.0
-            let g = Double(pixelData[offset + 1]) / 255.0
-            let b = Double(pixelData[offset + 2]) / 255.0
-            
-            // Calculate luminance
-            let luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
-            
-            // Map to column and level
-            let column = Int(Double(x) / Double(width) * Double(numColumns - 1))
-            let level = Int(luminance * Double(numLevels - 1))
-            
-            let clampedColumn = Swift.max(0, Swift.min(column, numColumns - 1))
-            let clampedLevel = Swift.max(0, Swift.min(level, numLevels - 1))
-            
-            columns[clampedColumn][clampedLevel] += 1
+
+    // Column index per source x, computed once instead of per pixel
+    let columnForX: [Int] = (0..<width).map { x in
+        let column = Int(Double(x) / Double(width) * Double(numColumns - 1))
+        return Swift.max(0, Swift.min(column, numColumns - 1))
+    }
+
+    // Accumulate into one flat buffer; nested-array indexing per pixel is slow
+    var flat = [Double](repeating: 0, count: numColumns * numLevels)
+    let levelScale = Float(numLevels - 1)
+
+    luminancePlane.withUnsafeBufferPointer { lum in
+        flat.withUnsafeMutableBufferPointer { counts in
+            for y in 0..<height {
+                let rowStart = y * width
+                for x in 0..<width {
+                    let level = Int(lum[rowStart + x] * levelScale)
+                    let clampedLevel = Swift.max(0, Swift.min(level, numLevels - 1))
+                    counts[columnForX[x] * numLevels + clampedLevel] += 1
+                }
+            }
         }
     }
-    
-    // Normalize each column
-    let pixelsPerColumn = Double(height)
-    for col in 0..<numColumns {
-        for level in 0..<numLevels {
-            columns[col][level] /= pixelsPerColumn
-        }
+
+    var normalize = 1.0 / Double(height)
+    vDSP_vsmulD(flat, 1, &normalize, &flat, 1, vDSP_Length(flat.count))
+
+    let columns: [[Double]] = (0..<numColumns).map { col in
+        Array(flat[(col * numLevels)..<((col + 1) * numLevels)])
     }
-    
+
     return WaveformData(columns: columns, channelMode: .luma)
 }
 
@@ -432,25 +464,20 @@ private func generateWaveformData(
 
 /// Generates vectorscope data showing color distribution
 private func generateVectorscopeData(
-    pixelData: [UInt8],
-    width: Int,
-    height: Int,
+    rgb: PlanarRGB,
+    pixelCount: Int,
     resolution: Int
 ) -> VectorscopeData {
-    let bytesPerPixel = 4
-    let pixelCount = width * height
-    
     // Sample pixels (use every Nth pixel for performance)
     let sampleStep = Swift.max(1, pixelCount / 10000)
-    
+
     var points: [VectorscopePoint] = []
-    
+
     for i in stride(from: 0, to: pixelCount, by: sampleStep) {
-        let offset = i * bytesPerPixel
-        let r = Double(pixelData[offset]) / 255.0
-        let g = Double(pixelData[offset + 1]) / 255.0
-        let b = Double(pixelData[offset + 2]) / 255.0
-        
+        let r = Double(rgb.r[i])
+        let g = Double(rgb.g[i])
+        let b = Double(rgb.b[i])
+
         // Convert RGB to YUV (BT.709)
         // Y = 0.2126*R + 0.7152*G + 0.0722*B
         // U = -0.09991*R - 0.33609*G + 0.436*B  (Cb - 0.5)
