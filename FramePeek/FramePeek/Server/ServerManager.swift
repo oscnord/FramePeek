@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CryptoKit
 import HTTPTypes
 import Observation
 import Hummingbird
@@ -22,15 +23,15 @@ public struct ServerConfiguration: Codable, Sendable {
     public static let `default` = ServerConfiguration(
         port: 8080,
         bindAddress: "127.0.0.1",
-        enableAuth: false,
+        enableAuth: true,
         apiKey: UUID().uuidString,
         allowRemoteConnections: false
     )
-    
+
     public init(
         port: Int = 8080,
         bindAddress: String = "127.0.0.1",
-        enableAuth: Bool = false,
+        enableAuth: Bool = true,
         apiKey: String = UUID().uuidString,
         allowRemoteConnections: Bool = false
     ) {
@@ -126,6 +127,7 @@ public final class ServerManager {
         let bindAddress = configuration.effectiveBindAddress
         let requiresAuth = configuration.requiresAuth
         let apiKey = configuration.apiKey
+        let allowRemoteConnections = configuration.allowRemoteConnections
         let jobQueue = self.jobQueue
         let requestLogger = self.requestLogger
         let probeHost = serverReadinessProbeHost(bindAddress: bindAddress)
@@ -144,13 +146,27 @@ public final class ServerManager {
                     method: String,
                     path: String,
                     start: Date
-                ) throws {
+                ) async throws {
+                    // Loopback binds must reject foreign Host headers, or a
+                    // webpage can reach the API via DNS rebinding
+                    guard allowRemoteConnections || isLoopbackHost(request.head.authority) else {
+                        await MainActor.run {
+                            requestLogger.log(
+                                method: method,
+                                path: path,
+                                statusCode: 403,
+                                duration: Date.now.timeIntervalSince(start)
+                            )
+                        }
+                        throw HTTPError(.forbidden, message: "Forbidden")
+                    }
+
                     guard isServerRequestAuthorized(
                         headers: request.headers,
                         requiresAuth: requiresAuth,
                         apiKey: apiKey
                     ) else {
-                        Task { @MainActor in
+                        await MainActor.run {
                             requestLogger.log(
                                 method: method,
                                 path: path,
@@ -170,14 +186,14 @@ public final class ServerManager {
                         version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
                         uptime: await MainActor.run { ServerManager.shared.uptime }
                     )
-                    Task { @MainActor in requestLogger.log(method: "GET", path: "/health", statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
+                    await MainActor.run { requestLogger.log(method: "GET", path: "/health", statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                     return response
                 }
                 
                 // Info endpoint
                 router.get("/info") { request, _ -> ServerInfoResponse in
                     let start = Date.now
-                    try requireAuthorization(request, method: "GET", path: "/info", start: start)
+                    try await requireAuthorization(request, method: "GET", path: "/info", start: start)
                     let (activeCount, pendingCount) = await MainActor.run {
                         (jobQueue.activeJobs.count, jobQueue.pendingCount)
                     }
@@ -188,7 +204,7 @@ public final class ServerManager {
                         activeJobs: activeCount,
                         queuedJobs: pendingCount
                     )
-                    Task { @MainActor in requestLogger.log(method: "GET", path: "/info", statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
+                    await MainActor.run { requestLogger.log(method: "GET", path: "/info", statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                     return response
                 }
                 
@@ -196,13 +212,14 @@ public final class ServerManager {
                 router.post("/analyze/path") { request, context -> JobCreatedResponse in
                     let start = Date.now
                     do {
-                        try requireAuthorization(request, method: "POST", path: "/analyze/path", start: start)
+                        try await requireAuthorization(request, method: "POST", path: "/analyze/path", start: start)
+
                         let body = try await request.decode(as: AnalyzePathRequest.self, context: context)
                         
                         let url = URL(fileURLWithPath: body.path)
                         
                         guard FileManager.default.fileExists(atPath: url.path) else {
-                            Task { @MainActor in requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 404, duration: Date.now.timeIntervalSince(start)) }
+                            await MainActor.run { requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 404, duration: Date.now.timeIntervalSince(start)) }
                             throw HTTPError(.notFound, message: "File not found: \(body.path)")
                         }
                         
@@ -213,12 +230,12 @@ public final class ServerManager {
                             jobQueue.enqueue(job)
                         }
                         
-                        Task { @MainActor in requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 202, duration: Date.now.timeIntervalSince(start)) }
+                        await MainActor.run { requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 202, duration: Date.now.timeIntervalSince(start)) }
                         return JobCreatedResponse(job: enqueuedJob)
                     } catch let error as HTTPError {
                         throw error
                     } catch {
-                        Task { @MainActor in requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 400, duration: Date.now.timeIntervalSince(start)) }
+                        await MainActor.run { requestLogger.log(method: "POST", path: "/analyze/path", statusCode: 400, duration: Date.now.timeIntervalSince(start)) }
                         throw HTTPError(.badRequest, message: error.localizedDescription)
                     }
                 }
@@ -226,7 +243,7 @@ public final class ServerManager {
                 // List jobs endpoint
                 router.get("/jobs") { request, _ -> JobListResponse in
                     let start = Date.now
-                    try requireAuthorization(request, method: "GET", path: "/jobs", start: start)
+                    try await requireAuthorization(request, method: "GET", path: "/jobs", start: start)
                     let (activeJobs, completedJobs) = await MainActor.run {
                         (jobQueue.activeJobs, Array(jobQueue.completedJobs.prefix(20)))
                     }
@@ -253,7 +270,7 @@ public final class ServerManager {
                         )
                     }
                     
-                    Task { @MainActor in requestLogger.log(method: "GET", path: "/jobs", statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
+                    await MainActor.run { requestLogger.log(method: "GET", path: "/jobs", statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                     return JobListResponse(activeJobs: active, recentJobs: recent)
                 }
                 
@@ -262,14 +279,14 @@ public final class ServerManager {
                     let start = Date.now
                     let jobId = try context.parameters.require("id", as: String.self)
                     let path = "/jobs/\(jobId)"
-                    try requireAuthorization(request, method: "GET", path: path, start: start)
+                    try await requireAuthorization(request, method: "GET", path: path, start: start)
                     
                     let (activeJob, completedJob) = await MainActor.run {
                         (jobQueue.job(withId: jobId), jobQueue.completedJob(withId: jobId))
                     }
                     
                     if let job = activeJob {
-                        Task { @MainActor in requestLogger.log(method: "GET", path: path, statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
+                        await MainActor.run { requestLogger.log(method: "GET", path: path, statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                         return JobStatusResponse(from: job)
                     }
                     
@@ -277,7 +294,7 @@ public final class ServerManager {
                         var job = AnalysisJob(
                             id: completed.id,
                             fileURL: URL(fileURLWithPath: completed.filePath),
-                            options: .metadataOnly,
+                            options: completed.options ?? .metadataOnly,
                             source: completed.source
                         )
                         job.status = completed.status
@@ -285,11 +302,11 @@ public final class ServerManager {
                         job.error = completed.error
                         job.result = completed.decodeResult()
                         
-                        Task { @MainActor in requestLogger.log(method: "GET", path: path, statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
+                        await MainActor.run { requestLogger.log(method: "GET", path: path, statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                         return JobStatusResponse(from: job)
                     }
                     
-                    Task { @MainActor in requestLogger.log(method: "GET", path: path, statusCode: 404, duration: Date.now.timeIntervalSince(start)) }
+                    await MainActor.run { requestLogger.log(method: "GET", path: path, statusCode: 404, duration: Date.now.timeIntervalSince(start)) }
                     throw HTTPError(.notFound, message: "Job not found: \(jobId)")
                 }
                 
@@ -298,17 +315,17 @@ public final class ServerManager {
                     let start = Date.now
                     let jobId = try context.parameters.require("id", as: String.self)
                     let path = "/jobs/\(jobId)"
-                    try requireAuthorization(request, method: "DELETE", path: path, start: start)
+                    try await requireAuthorization(request, method: "DELETE", path: path, start: start)
                     
                     let cancelled = await MainActor.run {
                         jobQueue.cancel(jobId: jobId)
                     }
                     
                     if cancelled {
-                        Task { @MainActor in requestLogger.log(method: "DELETE", path: path, statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
+                        await MainActor.run { requestLogger.log(method: "DELETE", path: path, statusCode: 200, duration: Date.now.timeIntervalSince(start)) }
                         return CancelResponse(id: jobId, cancelled: true)
                     } else {
-                        Task { @MainActor in requestLogger.log(method: "DELETE", path: path, statusCode: 404, duration: Date.now.timeIntervalSince(start)) }
+                        await MainActor.run { requestLogger.log(method: "DELETE", path: path, statusCode: 404, duration: Date.now.timeIntervalSince(start)) }
                         throw HTTPError(.notFound, message: "Job not found or already completed: \(jobId)")
                     }
                 }
@@ -487,6 +504,25 @@ func serverReadinessProbeHost(bindAddress: String) -> String {
     bindAddress == "0.0.0.0" ? "127.0.0.1" : bindAddress
 }
 
+/// True when the request's Host/authority targets the local machine.
+func isLoopbackHost(_ authority: String?) -> Bool {
+    guard let authority, !authority.isEmpty else { return false }
+    let host: String
+    if authority.hasPrefix("[") {
+        host = String(authority.prefix(while: { $0 != "]" }).dropFirst())
+    } else {
+        host = String(authority.prefix(while: { $0 != ":" }))
+    }
+    return host == "127.0.0.1" || host == "localhost" || host == "::1"
+}
+
+/// Compares two secrets in constant time via their SHA-256 digests
+private func matchesAPIKey(_ candidate: String, _ expected: String) -> Bool {
+    let candidateDigest = SHA256.hash(data: Data(candidate.utf8))
+    let expectedDigest = SHA256.hash(data: Data(expected.utf8))
+    return candidateDigest == expectedDigest
+}
+
 func isServerRequestAuthorized(
     headers: HTTPFields,
     requiresAuth: Bool,
@@ -501,17 +537,17 @@ func isServerRequestAuthorized(
         if lowercased.hasPrefix("bearer ") {
             let bearerToken = String(authorization.dropFirst("Bearer ".count))
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            if bearerToken == expectedKey {
+            if matchesAPIKey(bearerToken, expectedKey) {
                 return true
             }
-        } else if authorization == expectedKey {
+        } else if matchesAPIKey(authorization, expectedKey) {
             return true
         }
     }
 
     if let xAPIKeyHeader = HTTPField.Name("x-api-key"),
        let xAPIKey = headers[xAPIKeyHeader]?.trimmingCharacters(in: .whitespacesAndNewlines),
-       xAPIKey == expectedKey {
+       matchesAPIKey(xAPIKey, expectedKey) {
         return true
     }
 

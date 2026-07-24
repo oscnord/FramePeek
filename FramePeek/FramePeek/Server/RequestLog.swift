@@ -45,10 +45,14 @@ public struct RequestLogEntry: Identifiable, Sendable {
     
     /// Formatted timestamp
     public var timeString: String {
+        Self.timeFormatter.string(from: timestamp)
+    }
+
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: timestamp)
-    }
+        return formatter
+    }()
     
     /// Formatted duration
     public var durationString: String {

@@ -158,7 +158,9 @@ public actor WebhookService {
     
     /// Send a webhook with retry logic
     public func send(config: WebhookConfig, payload: WebhookPayload) async -> WebhookDeliveryResult {
-        guard let url = URL(string: config.url) else {
+        guard let url = URL(string: config.url),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https" else {
             return WebhookDeliveryResult(
                 success: false,
                 attempts: 0,

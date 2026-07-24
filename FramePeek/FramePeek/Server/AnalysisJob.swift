@@ -99,14 +99,19 @@ public struct AnalysisJob: Identifiable, Sendable {
     
     /// Formatted duration string
     public var durationFormatted: String? {
-        guard let duration = duration else { return nil }
-        if duration < 1 {
-            return String(format: "%.0fms", duration * 1000)
-        } else if duration < 60 {
-            return String(format: "%.1fs", duration)
+        duration?.jobDurationFormatted
+    }
+}
+
+extension TimeInterval {
+    var jobDurationFormatted: String {
+        if self < 1 {
+            return String(format: "%.0fms", self * 1000)
+        } else if self < 60 {
+            return String(format: "%.1fs", self)
         } else {
-            let minutes = Int(duration) / 60
-            let seconds = Int(duration) % 60
+            let minutes = Int(self) / 60
+            let seconds = Int(self) % 60
             return "\(minutes)m \(seconds)s"
         }
     }
@@ -135,7 +140,9 @@ public struct CompletedJob: Identifiable, Codable, Sendable {
     public let status: JobStatus
     public let error: String?
     public let resultJSON: Data?  // Stored as JSON data to save memory
-    
+    // Optional so history persisted before this field decodes fine
+    public let options: AnalysisOptions?
+
     public init(from job: AnalysisJob) {
         self.id = job.id
         self.fileName = job.fileName
@@ -146,7 +153,8 @@ public struct CompletedJob: Identifiable, Codable, Sendable {
         self.duration = job.duration ?? 0
         self.status = job.status
         self.error = job.error
-        
+        self.options = job.options
+
         // Encode result to JSON data
         if let result = job.result {
             self.resultJSON = try? JSONEncoder().encode(result)
@@ -154,32 +162,28 @@ public struct CompletedJob: Identifiable, Codable, Sendable {
             self.resultJSON = nil
         }
     }
-    
+
     /// Decode the stored result
     public func decodeResult() -> AnalysisResult? {
         guard let data = resultJSON else { return nil }
         return try? JSONDecoder().decode(AnalysisResult.self, from: data)
     }
-    
+
     /// Formatted duration string
     public var durationFormatted: String {
-        if duration < 1 {
-            return String(format: "%.0fms", duration * 1000)
-        } else if duration < 60 {
-            return String(format: "%.1fs", duration)
-        } else {
-            let minutes = Int(duration) / 60
-            let seconds = Int(duration) % 60
-            return "\(minutes)m \(seconds)s"
-        }
+        duration.jobDurationFormatted
     }
     
     /// Relative time string (e.g., "5 min ago")
     public var relativeTimeString: String {
+        Self.relativeFormatter.localizedString(for: completedAt, relativeTo: Date.now)
+    }
+
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: completedAt, relativeTo: Date.now)
-    }
+        return formatter
+    }()
 }
 
 // MARK: - API Response Models
@@ -271,7 +275,7 @@ public struct AnalyzePathRequest: Codable, Sendable {
                 includeKeyframes: runAll || (keyframes ?? false),
                 includeThumbnails: thumbnails ?? false,
                 bitrateMode: mode,
-                maxSamples: maxSamples ?? 2000,
+                maxSamples: min(max(maxSamples ?? 2000, 1), 20_000),
                 gopDetectFrameTypes: gopFrameTypes ?? true,
                 gopMaxScanSeconds: gopMaxSeconds
             )

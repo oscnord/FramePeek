@@ -142,62 +142,47 @@ public final class JobQueue {
         do {
             // Run analysis
             let result = try await engine.analyze(url: job.fileURL, options: job.options)
-            
-            // Update job with result
-            let completedJob: AnalysisJob? = await MainActor.run {
-                if let index = activeJobs.firstIndex(where: { $0.id == job.id }) {
-                    activeJobs[index].status = .complete
-                    activeJobs[index].progress = 1.0
-                    activeJobs[index].completedAt = Date.now
-                    activeJobs[index].result = result
-                    
-                    // Move to completed
-                    let completedJob = activeJobs.remove(at: index)
-                    let completed = CompletedJob(from: completedJob)
-                    addToHistory(completed)
-                    
-                    processingTasks.removeValue(forKey: job.id)
-                    processNextJobIfNeeded()
-                    
-                    return completedJob
-                }
-                
-                processingTasks.removeValue(forKey: job.id)
-                processNextJobIfNeeded()
-                return nil
+
+            // Update job with result (already on MainActor)
+            var completedJob: AnalysisJob?
+            if let index = activeJobs.firstIndex(where: { $0.id == job.id }) {
+                activeJobs[index].status = .complete
+                activeJobs[index].progress = 1.0
+                activeJobs[index].completedAt = Date.now
+                activeJobs[index].result = result
+
+                // Move to completed
+                let finished = activeJobs.remove(at: index)
+                addToHistory(CompletedJob(from: finished))
+                completedJob = finished
             }
-            
+
+            processingTasks.removeValue(forKey: job.id)
+            processNextJobIfNeeded()
+
             // Trigger webhook if configured
-            if let completedJob = completedJob, let webhookConfig = completedJob.webhook {
+            if let completedJob, let webhookConfig = completedJob.webhook {
                 await sendWebhook(for: completedJob, config: webhookConfig)
             }
-            
+
         } catch {
-            // Handle error
-            let failedJob: AnalysisJob? = await MainActor.run {
-                if let index = activeJobs.firstIndex(where: { $0.id == job.id }) {
-                    activeJobs[index].status = .failed
-                    activeJobs[index].completedAt = Date.now
-                    activeJobs[index].error = error.localizedDescription
-                    
-                    // Move to completed
-                    let failedJob = activeJobs.remove(at: index)
-                    let completed = CompletedJob(from: failedJob)
-                    addToHistory(completed)
-                    
-                    processingTasks.removeValue(forKey: job.id)
-                    processNextJobIfNeeded()
-                    
-                    return failedJob
-                }
-                
-                processingTasks.removeValue(forKey: job.id)
-                processNextJobIfNeeded()
-                return nil
+            var failedJob: AnalysisJob?
+            if let index = activeJobs.firstIndex(where: { $0.id == job.id }) {
+                activeJobs[index].status = .failed
+                activeJobs[index].completedAt = Date.now
+                activeJobs[index].error = error.localizedDescription
+
+                // Move to completed
+                let failed = activeJobs.remove(at: index)
+                addToHistory(CompletedJob(from: failed))
+                failedJob = failed
             }
-            
+
+            processingTasks.removeValue(forKey: job.id)
+            processNextJobIfNeeded()
+
             // Trigger webhook if configured
-            if let failedJob = failedJob, let webhookConfig = failedJob.webhook {
+            if let failedJob, let webhookConfig = failedJob.webhook {
                 await sendWebhook(for: failedJob, config: webhookConfig)
             }
         }
