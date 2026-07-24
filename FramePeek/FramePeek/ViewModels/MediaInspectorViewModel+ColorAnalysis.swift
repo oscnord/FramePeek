@@ -10,7 +10,7 @@ extension FramePeekViewModel {
         colorAnalysisTask?.cancel()
 
         isAnalyzingColor = true
-        professionalColorAnalysis = []
+        colorAnalysis = []
         colorAnalysisProgress = 0
 
         let assetForColor = AVURLAsset(url: url)
@@ -45,7 +45,7 @@ extension FramePeekViewModel {
         colorAnalysisTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
 
-            for await update in analyzeColorProfessional(
+            for await update in analyzeColor(
                 asset: assetForColor,
                 config: config,
                 sampleInterval: effectiveInterval,
@@ -55,7 +55,7 @@ extension FramePeekViewModel {
 
                 await MainActor.run {
                     if !Task.isCancelled {
-                        self.professionalColorAnalysis = update.samples
+                        self.colorAnalysis = update.samples
                         self.colorAnalysisProgress = update.progress
                         
                         if update.isFinished {
@@ -124,13 +124,13 @@ extension FramePeekViewModel {
         }
     }
     
-    /// Gets aggregated color statistics from professional analysis
+    /// Gets aggregated color statistics from the analysis
     var aggregatedColorStats: AggregatedColorStats? {
-        guard !professionalColorAnalysis.isEmpty else { return nil }
+        guard !colorAnalysis.isEmpty else { return nil }
         
-        let luminances = professionalColorAnalysis.map { $0.luminance }
-        let saturations = professionalColorAnalysis.map { $0.saturation }
-        let temperatures = professionalColorAnalysis.compactMap { $0.colorTemperature }
+        let luminances = colorAnalysis.map { $0.luminance }
+        let saturations = colorAnalysis.map { $0.saturation }
+        let temperatures = colorAnalysis.compactMap { $0.colorTemperature }
         
         return AggregatedColorStats(
             luminanceMin: luminances.map { $0.min }.min() ?? 0,
@@ -145,41 +145,41 @@ extension FramePeekViewModel {
     
     /// Gets the latest waveform data for display
     var latestWaveformData: WaveformData? {
-        professionalColorAnalysis.last?.waveformData
+        colorAnalysis.last?.waveformData
     }
     
     /// Gets the latest vectorscope data for display
     var latestVectorscopeData: VectorscopeData? {
-        professionalColorAnalysis.last?.vectorscopeData
+        colorAnalysis.last?.vectorscopeData
     }
     
     /// Gets waveform data at a specific time
     func waveformDataAtTime(_ time: Double) -> WaveformData? {
         guard let idx = binarySearchClosest(
-            in: professionalColorAnalysis,
+            in: colorAnalysis,
             targetTime: time,
             timeKeyPath: \.time
         ) else { return nil }
-        return professionalColorAnalysis[idx].waveformData
+        return colorAnalysis[idx].waveformData
     }
     
     /// Gets vectorscope data at a specific time
     func vectorscopeDataAtTime(_ time: Double) -> VectorscopeData? {
         guard let idx = binarySearchClosest(
-            in: professionalColorAnalysis,
+            in: colorAnalysis,
             targetTime: time,
             timeKeyPath: \.time
         ) else { return nil }
-        return professionalColorAnalysis[idx].vectorscopeData
+        return colorAnalysis[idx].vectorscopeData
     }
     
     /// Gets frame analysis at a specific time
     func frameAnalysisAtTime(_ time: Double) -> FrameColorAnalysis? {
         guard let idx = binarySearchClosest(
-            in: professionalColorAnalysis,
+            in: colorAnalysis,
             targetTime: time,
             timeKeyPath: \.time
         ) else { return nil }
-        return professionalColorAnalysis[idx]
+        return colorAnalysis[idx]
     }
 }
