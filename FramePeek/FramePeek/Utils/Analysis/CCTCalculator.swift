@@ -225,70 +225,52 @@ public enum ColorSpace: String, CaseIterable {
 
 // MARK: - Frame Average CCT Calculation
 
-/// Calculates average CCT from frame pixel data
-/// - Parameters:
-///   - pixelData: Raw pixel data (RGBA format)
-///   - width: Frame width
-///   - height: Frame height
-///   - colorSpace: Source color space
-///   - contentType: HDR content type
-/// - Returns: Color temperature data for the frame average
+/// Calculates average CCT from planar frame data
+/// Weight by luminance and inverse saturation so neutral, bright pixels dominate
 func calculateFrameAverageCCT(
-    pixelData: [UInt8],
-    width: Int,
-    height: Int,
+    rgb: PlanarRGB,
+    luminancePlane: [Float],
     colorSpace: ColorSpace = .bt709,
     contentType: HDRContentType = .sdr
 ) -> ColorTemperatureData? {
-    let pixelCount = width * height
-    let bytesPerPixel = 4
-    
-    guard pixelData.count >= pixelCount * bytesPerPixel else { return nil }
-    
-    // Calculate weighted average RGB
-    // Weight by luminance to reduce impact of very dark pixels
-    var totalR: Double = 0
-    var totalG: Double = 0
-    var totalB: Double = 0
-    var totalWeight: Double = 0
-    
+    let pixelCount = rgb.count
+    guard luminancePlane.count == pixelCount else { return nil }
+
+    var totalR: Float = 0
+    var totalG: Float = 0
+    var totalB: Float = 0
+    var totalWeight: Float = 0
+
     for i in 0..<pixelCount {
-        let offset = i * bytesPerPixel
-        let r = Double(pixelData[offset]) / 255.0
-        let g = Double(pixelData[offset + 1]) / 255.0
-        let b = Double(pixelData[offset + 2]) / 255.0
-        
-        // Use luminance as weight (Rec.709 coefficients)
-        let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
-        
+        let luma = luminancePlane[i]
+
         // Skip very dark pixels (unreliable for CCT)
         guard luma > 0.05 else { continue }
-        
+
+        let r = rgb.r[i]
+        let g = rgb.g[i]
+        let b = rgb.b[i]
+
         // Skip highly saturated pixels - CCT is only meaningful for near-neutral colors
-        // Calculate saturation using min/max method
         let maxC = Swift.max(r, Swift.max(g, b))
         let minC = Swift.min(r, Swift.min(g, b))
         let saturation = maxC > 0.001 ? (maxC - minC) / maxC : 0
-        guard saturation < 0.5 else { continue }  // Skip if saturation > 50%
-        
-        // Weight by luminance and inverse saturation - neutral, bright pixels contribute more
-        let neutralWeight = 1.0 - saturation  // More neutral = higher weight
-        let weight = luma * neutralWeight
-        
+        guard saturation < 0.5 else { continue }
+
+        let weight = luma * (1.0 - saturation)
+
         totalR += r * weight
         totalG += g * weight
         totalB += b * weight
         totalWeight += weight
     }
-    
+
     guard totalWeight > 0 else { return nil }
-    
-    let avgR = totalR / totalWeight
-    let avgG = totalG / totalWeight
-    let avgB = totalB / totalWeight
-    
+
     return calculateCCTFromRGB(
-        r: avgR, g: avgG, b: avgB,
+        r: Double(totalR / totalWeight),
+        g: Double(totalG / totalWeight),
+        b: Double(totalB / totalWeight),
         colorSpace: colorSpace,
         contentType: contentType
     )
