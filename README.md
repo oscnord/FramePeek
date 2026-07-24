@@ -46,6 +46,17 @@ https://github.com/user-attachments/assets/bbd946b5-e3d0-4659-8169-be47a73d1ab8
 - **Per-Track Waveforms**: Peak waveform visualization for every audio track
 - **Sync Analysis**: Audio/video timestamp drift detection
 
+### Loudness (EBU R128)
+- **Integrated Loudness**: ITU-R BS.1770-4 gated measurement in LUFS with R128 compliance badge
+- **True Peak**: 4x-oversampled inter-sample peak detection in dBTP
+- **Loudness Range**: EBU Tech 3342 LRA plus momentary/short-term maxima
+- **Short-Term Chart**: 3-second loudness over time with the -23 LUFS target line
+
+### HLS Ladder Inspection
+- **Manifest Parsing**: RFC 8216 multivariant and media playlists, local folders or remote URLs
+- **Declared vs Measured**: Per-variant peak/average segment bitrate compared against BANDWIDTH and AVERAGE-BANDWIDTH
+- **QC Findings**: Segment duration compliance, cross-variant keyframe alignment, codec verification, ladder shape checks, and DRM detection, grouped by severity
+
 ### Container Inspector
 - **Atom/Box Tree**: Browse MP4/MOV container structure with size breakdowns
 
@@ -111,6 +122,9 @@ framepeek-cli video.mp4 --all --pretty
 
 # Bitrate as CSV
 framepeek-cli video.mp4 --bitrate --format csv
+
+# EBU R128 loudness
+framepeek-cli video.mp4 --loudness --pretty
 
 # Multiple files
 framepeek-cli *.mp4 --info --parallel
