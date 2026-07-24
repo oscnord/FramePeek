@@ -200,7 +200,7 @@ public final class ServerManager {
                     let response = ServerInfoResponse(
                         name: "FramePeek",
                         version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
-                        capabilities: ["metadata", "bitrate", "gop", "waveform", "sync", "color", "keyframes", "thumbnails"],
+                        capabilities: ["metadata", "bitrate", "gop", "waveform", "sync", "color", "keyframes", "thumbnails", "loudness", "mcp"],
                         activeJobs: activeCount,
                         queuedJobs: pendingCount
                     )
@@ -208,6 +208,28 @@ public final class ServerManager {
                     return response
                 }
                 
+                // MCP endpoint (Streamable HTTP transport)
+                let mcpServer = MCPServer()
+                router.post("/mcp") { request, _ -> Response in
+                    let start = Date.now
+                    try await requireAuthorization(request, method: "POST", path: "/mcp", start: start)
+                    let buffer = try await request.body.collect(upTo: 4 * 1024 * 1024)
+                    let reply = await mcpServer.handleHTTP(String(buffer: buffer))
+                    await MainActor.run {
+                        requestLogger.log(method: "POST", path: "/mcp", statusCode: reply.status, duration: Date.now.timeIntervalSince(start))
+                    }
+                    guard let body = reply.body else { return Response(status: .accepted) }
+                    var headers = HTTPFields()
+                    headers[.contentType] = "application/json"
+                    return Response(status: .ok, headers: headers, body: .init(byteBuffer: ByteBuffer(string: body)))
+                }
+                // No server-initiated messages, so no SSE stream to offer
+                router.get("/mcp") { request, _ -> Response in
+                    let start = Date.now
+                    try await requireAuthorization(request, method: "GET", path: "/mcp", start: start)
+                    return Response(status: .methodNotAllowed)
+                }
+
                 // Analyze by path endpoint
                 router.post("/analyze/path") { request, context -> JobCreatedResponse in
                     let start = Date.now

@@ -31,6 +31,22 @@ struct APIDocumentationView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         EndpointRow(
                             method: "POST",
+                            path: "/mcp",
+                            description: "MCP endpoint for AI agents (Streamable HTTP): claude mcp add --transport http framepeek \(viewModel.serverURL)/mcp",
+                            example: """
+                            {
+                              "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                              "params": { "name": "media_summary", "arguments": { "path": "/path/to/video.mp4" } }
+                            }
+                            """,
+                            baseURL: viewModel.serverURL,
+                            copiedEndpoint: $copiedEndpoint
+                        )
+
+                        Divider().padding(.vertical, DesignSystem.Padding.lg)
+
+                        EndpointRow(
+                            method: "POST",
                             path: "/analyze/path",
                             description: "Analyze a video file by path (with optional webhook callback)",
                             example: """

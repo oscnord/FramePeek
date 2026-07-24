@@ -83,9 +83,22 @@ public struct MCPServer: Sendable {
 
     public init() {}
 
+    public struct HTTPReply: Sendable {
+        public let status: Int
+        public let body: String?
+    }
+
+    /// Streamable-HTTP mapping: requests get 200 + JSON, notifications 202.
+    public func handleHTTP(_ body: String) async -> HTTPReply {
+        guard let response = await handle(body) else {
+            return HTTPReply(status: 202, body: nil)
+        }
+        return HTTPReply(status: 200, body: response)
+    }
+
     /// Returns the JSON response line, or nil for notifications.
     public func handle(_ line: String) async -> String? {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
         guard let request = try? JSONDecoder().decode(RPCRequest.self, from: Data(trimmed.utf8)) else {

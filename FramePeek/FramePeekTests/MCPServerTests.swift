@@ -145,6 +145,19 @@ struct MCPServerTests {
         #expect(text.contains("File not found"))
     }
 
+    @Test func httpMapping_requestsGet200_notifications202() async throws {
+        let request = await server.handleHTTP(#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#)
+        #expect(request.status == 200)
+        #expect(request.body?.contains(#""id":1"#) == true)
+
+        let prettyPrinted = await server.handleHTTP("{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"ping\"\n}\n")
+        #expect(prettyPrinted.status == 200)
+
+        let notification = await server.handleHTTP(#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#)
+        #expect(notification.status == 202)
+        #expect(notification.body == nil)
+    }
+
     @Test func unknownTool_isRPCError() async throws {
         let response = try #require(try await send(
             #"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"bogus_tool","arguments":{}}}"#

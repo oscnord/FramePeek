@@ -136,9 +136,14 @@ framepeek-cli *.mp4 --info --parallel
 
 ### MCP Server (AI agents)
 
+Two ways to connect:
+
 ```bash
-# Claude Code
+# stdio: the client spawns the CLI itself
 claude mcp add framepeek -- framepeek-cli mcp
+
+# HTTP: connect to the running app (start the server in the Server tab)
+claude mcp add --transport http framepeek http://127.0.0.1:8080/mcp
 ```
 
 Claude Desktop (`claude_desktop_config.json`):
