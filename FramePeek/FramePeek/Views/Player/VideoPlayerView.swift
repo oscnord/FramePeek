@@ -26,6 +26,7 @@ struct VideoPlayerView: View {
     @AppStorage("overlayShowAnalysis") private var showAnalysisSection: Bool = true
 
     @State private var player: AVPlayer?
+    @State private var playerURL: URL?
     @State private var currentTime: Double = 0
     @State private var isPlaying: Bool = false
     @State private var timeObserver: Any?
@@ -159,10 +160,11 @@ struct VideoPlayerView: View {
                         player?.isMuted = newValue
                     }
                     .onChange(of: manager.seekTime) { _, newValue in
-                        // Handle seek request
+                        // Handle seek request (clamped and frame-exact, matching step buttons)
                         if let seekTime = newValue, let player = player {
-                            let time = CMTime(seconds: seekTime, preferredTimescale: 600)
-                            player.seek(to: time)
+                            let clamped = duration > 0 ? min(max(seekTime, 0), duration) : max(seekTime, 0)
+                            let time = CMTime(seconds: clamped, preferredTimescale: 600)
+                            player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
                         }
                     }
 
@@ -781,10 +783,15 @@ struct VideoPlayerView: View {
     // MARK: - Player Setup
 
     private func setupPlayer(url: URL) {
+        // onAppear and two onChange handlers can all fire for the same load;
+        // don't tear down and rebuild the player for a URL it already plays
+        guard url != playerURL || player == nil else { return }
+
         cleanupPlayer()
 
         let newPlayer = AVPlayer(url: url)
         self.player = newPlayer
+        self.playerURL = url
 
         // Reset audio track selection
         selectedAudioTrackIndex = 0
@@ -808,8 +815,8 @@ struct VideoPlayerView: View {
             let seconds = CMTimeGetSeconds(time)
             if seconds.isFinite {
                 currentTime = seconds
-                // Update PlayerViewModelManager with current playback time
-                Task { @MainActor in
+                // Observer runs on the main queue; no task hop per tick
+                MainActor.assumeIsolated {
                     PlayerViewModelManager.shared.updatePlaybackTime(seconds)
                 }
             }
@@ -864,6 +871,7 @@ struct VideoPlayerView: View {
         }
         player?.pause()
         player = nil
+        playerURL = nil
         currentTime = 0
         isPlaying = false
         duration = 0
