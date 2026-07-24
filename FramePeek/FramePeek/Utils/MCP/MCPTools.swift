@@ -21,7 +21,7 @@ enum MCPTools {
     static let analysisKinds = ["metadata", "bitrate", "gop", "waveform", "sync", "keyframes", "color", "loudness"]
 
     static var definitions: [JSONValue] {
-        [analyzeMediaDefinition, mediaSummaryDefinition, inspectContainerDefinition]
+        [analyzeMediaDefinition, mediaSummaryDefinition, inspectContainerDefinition, inspectHLSLadderDefinition]
     }
 
     private static let pathProperty: JSONValue = .object([
@@ -46,7 +46,7 @@ enum MCPTools {
                         ]),
                         "max_samples": .object([
                             "type": .string("number"),
-                            "description": .string("Maximum bitrate samples (1-20000, default 2000)"),
+                            "description": .string("Maximum bitrate samples (1-20000). Defaults to 200, which keeps results compact; raise it only when you need fine-grained data"),
                         ]),
                     ]),
                     "required": .array([.string("path")]),
@@ -73,12 +73,28 @@ enum MCPTools {
         ]),
     ])
 
+    private static let inspectHLSLadderDefinition: JSONValue = .object([
+        "name": .string("inspect_hls_ladder"),
+        "description": .string("QC an HLS ladder from a multivariant playlist (local path or http(s) URL): per-variant declared vs measured bitrates, segment duration compliance, cross-variant keyframe alignment, codec verification, and DRM detection, returned as severity-graded findings."),
+        "inputSchema": .object([
+            "type": .string("object"),
+            "properties": .object([
+                "url": .object([
+                    "type": .string("string"),
+                    "description": .string("Absolute path or http(s) URL to a .m3u8 playlist"),
+                ]),
+            ]),
+            "required": .array([.string("url")]),
+        ]),
+    ])
+
     static func call(name: String, arguments: JSONValue) async -> Result<String, Error> {
         do {
             switch name {
             case "analyze_media": return .success(try await analyzeMedia(arguments))
             case "media_summary": return .success(try await mediaSummary(arguments))
             case "inspect_container": return .success(try await inspectContainer(arguments))
+            case "inspect_hls_ladder": return .success(try await inspectHLSLadder(arguments))
             default: return .failure(MCPToolError.unknownTool)
             }
         } catch {
@@ -112,7 +128,7 @@ enum MCPTools {
             includeColor: include.contains("color"),
             includeKeyframes: include.contains("keyframes"),
             includeLoudness: include.contains("loudness"),
-            maxSamples: min(max(params.max_samples ?? 2000, 1), 20_000)
+            maxSamples: min(max(params.max_samples ?? 200, 1), 20_000)
         )
 
         do {
@@ -223,6 +239,79 @@ enum MCPTools {
             children: atom.children.prefix(50).map(summarize),
             truncated: atom.children.count > 50
         )
+    }
+
+    private struct HLSLadderParams: Decodable {
+        let url: String
+    }
+
+    private struct LadderVariantSummary: Encodable {
+        let uri: String
+        let declaredBandwidth: Int
+        let declaredAverageBandwidth: Int?
+        let resolution: String?
+        let frameRate: Double?
+        let codecs: [String]
+        let measuredPeakBitrate: Double?
+        let measuredAverageBitrate: Double?
+        let segmentCount: Int?
+        let averageSegmentDuration: Double?
+        let isDRMProtected: Bool
+    }
+
+    private struct LadderSummary: Encodable {
+        let sourceURL: String
+        let isVOD: Bool
+        let variants: [LadderVariantSummary]
+        let findings: [StreamingFinding]
+    }
+
+    private static func inspectHLSLadder(_ arguments: JSONValue) async throws -> String {
+        let params: HLSLadderParams = try decode(arguments)
+
+        let url: URL
+        if params.url.hasPrefix("http://") || params.url.hasPrefix("https://") {
+            guard let remote = URL(string: params.url) else {
+                throw MCPToolError.invalidArguments("Not a valid URL: \(params.url)")
+            }
+            url = remote
+        } else {
+            url = try validatedFileURL(params.url)
+        }
+
+        var analysis: StreamingLadderAnalysis?
+        for await progress in analyzeHLSLadder(url: url) {
+            if let result = progress.result {
+                analysis = result
+            }
+        }
+        guard let analysis else {
+            throw MCPToolError.analysisFailed("Ladder analysis produced no result")
+        }
+
+        let summary = LadderSummary(
+            sourceURL: analysis.sourceURL,
+            isVOD: analysis.isVOD,
+            variants: analysis.variants.map { variant in
+                LadderVariantSummary(
+                    uri: variant.uri,
+                    declaredBandwidth: variant.declaredBandwidth,
+                    declaredAverageBandwidth: variant.declaredAverageBandwidth,
+                    resolution: variant.resolutionWidth.flatMap { w in
+                        variant.resolutionHeight.map { h in "\(w)x\(h)" }
+                    },
+                    frameRate: variant.frameRate,
+                    codecs: variant.codecs,
+                    measuredPeakBitrate: variant.measuredPeakBitrate,
+                    measuredAverageBitrate: variant.measuredAverageBitrate,
+                    segmentCount: variant.segmentStats?.count,
+                    averageSegmentDuration: variant.segmentStats?.averageDuration,
+                    isDRMProtected: variant.isDRMProtected
+                )
+            },
+            findings: analysis.findings
+        )
+        return try encodeJSON(summary)
     }
 
     // MARK: - Helpers

@@ -55,19 +55,35 @@ struct MCPServerTests {
         #expect(((garbage["error"] as? [String: Any])?["code"] as? Int) == -32700)
     }
 
-    @Test func toolsList_declaresThreeToolsWithSchemas() async throws {
+    @Test func toolsList_declaresToolsWithSchemas() async throws {
         let response = try #require(try await send(#"{"jsonrpc":"2.0","id":3,"method":"tools/list"}"#))
         let result = try #require(response["result"] as? [String: Any])
         let tools = try #require(result["tools"] as? [[String: Any]])
         let names = Set(tools.compactMap { $0["name"] as? String })
-        #expect(names == ["analyze_media", "media_summary", "inspect_container"])
+        #expect(names == ["analyze_media", "media_summary", "inspect_container", "inspect_hls_ladder"])
 
         for tool in tools {
             let schema = try #require(tool["inputSchema"] as? [String: Any])
             #expect(schema["type"] as? String == "object")
-            #expect((schema["required"] as? [String]) == ["path"])
+            #expect((schema["required"] as? [String])?.count == 1)
             #expect((tool["description"] as? String)?.isEmpty == false)
         }
+    }
+
+    @Test func inspectHLSLadder_returnsVariantsAndFindings() async throws {
+        let masterPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/hls/master.m3u8")
+            .path
+        let (text, isError) = try await callTool("inspect_hls_ladder", arguments: #"{"url":"\#(masterPath)"}"#)
+        #expect(!isError)
+        let result = try #require(try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
+        let variants = try #require(result["variants"] as? [[String: Any]])
+        #expect(variants.count == 2)
+        #expect(variants.allSatisfy { ($0["measuredAverageBitrate"] as? Double ?? 0) > 0 })
+        #expect(result["isVOD"] as? Bool == true)
+        #expect(result["findings"] is [Any])
+        #expect(!text.contains("keyframeTimes"))
     }
 
     @Test func mediaSummary_returnsCompactMetadata() async throws {
@@ -93,6 +109,15 @@ struct MCPServerTests {
         let samples = try #require(bitrate["samples"] as? [[String: Any]])
         #expect(!samples.isEmpty)
         #expect(samples.count <= 100)
+
+        let (compact, _) = try await callTool(
+            "analyze_media",
+            arguments: #"{"path":"\#(fixturePath)","include":["bitrate"]}"#
+        )
+        let compactResult = try #require(try JSONSerialization.jsonObject(with: Data(compact.utf8)) as? [String: Any])
+        let compactBitrate = try #require(compactResult["bitrate"] as? [String: Any])
+        let compactSamples = try #require(compactBitrate["samples"] as? [[String: Any]])
+        #expect(compactSamples.count <= 200)
     }
 
     @Test func analyzeMedia_unknownKind_isToolError() async throws {

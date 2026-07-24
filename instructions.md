@@ -107,7 +107,7 @@ Sampling behavior is configured via `FrameSamplingOptions` (mode auto/everyFrame
 
 ### MCP server
 
-`framepeek-cli mcp` speaks newline-delimited JSON-RPC 2.0 on stdio. The protocol layer lives in Core (`Utils/MCP/MCPServer.swift` + `MCPTools.swift`, tested in-process by `MCPServerTests`); the CLI subcommand is a thin stdin/stdout pump. Tools: `analyze_media`, `media_summary`, `inspect_container`.
+`framepeek-cli mcp` speaks newline-delimited JSON-RPC 2.0 on stdio. The protocol layer lives in Core (`Utils/MCP/MCPServer.swift` + `MCPTools.swift`, tested in-process by `MCPServerTests`); the CLI subcommand is a thin stdin/stdout pump. Tools: `analyze_media`, `media_summary`, `inspect_container`, `inspect_hls_ladder`.
 
 ### Caching
 

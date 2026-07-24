@@ -72,7 +72,7 @@ https://github.com/user-attachments/assets/bbd946b5-e3d0-4659-8169-be47a73d1ab8
 
 ### MCP Server
 - **AI agent integration**: `framepeek-cli mcp` runs a Model Context Protocol server on stdio
-- Tools: `analyze_media` (full structured results), `media_summary` (cheap metadata call), `inspect_container` (atom tree)
+- Tools: `analyze_media` (structured results), `media_summary` (cheap metadata call), `inspect_container` (atom tree), `inspect_hls_ladder` (streaming QC findings)
 
 ### REST API
 - **Embedded HTTP server** for remote analysis
@@ -151,7 +151,7 @@ Claude Desktop (`claude_desktop_config.json`):
 }
 ```
 
-Agents can then call `media_summary` for a quick look at any local file, `analyze_media` for full structured results (bitrate, GOP, loudness, …), and `inspect_container` for the MP4/MOV atom tree.
+Agents can then call `media_summary` for a quick look at any local file, `analyze_media` for full structured results (bitrate, GOP, loudness, …), `inspect_container` for the MP4/MOV atom tree, and `inspect_hls_ladder` to QC an HLS ladder by path or URL.
 
 ### REST API
 
