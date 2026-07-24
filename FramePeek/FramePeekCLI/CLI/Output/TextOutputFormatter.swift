@@ -108,6 +108,24 @@ struct TextOutputFormatter: OutputFormatter {
                 }
             }
             
+            // Loudness
+            if let loudness = result.loudness {
+                lines.append("")
+                lines.append("LOUDNESS (EBU R128)")
+                if let integrated = loudness.integratedLUFS {
+                    lines.append("  Integrated: \(String(format: "%.1f", integrated)) LUFS")
+                }
+                if let range = loudness.loudnessRangeLU {
+                    lines.append("  Range: \(String(format: "%.1f", range)) LU")
+                }
+                if let peak = loudness.truePeakDBTP {
+                    lines.append("  True Peak: \(String(format: "%.1f", peak)) dBTP")
+                }
+                if let maxShortTerm = loudness.maxShortTermLUFS {
+                    lines.append("  Max Short-term: \(String(format: "%.1f", maxShortTerm)) LUFS")
+                }
+            }
+
             // Keyframes
             if let keyframes = result.keyframes, !keyframes.isEmpty {
                 lines.append("")

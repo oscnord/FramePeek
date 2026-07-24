@@ -85,6 +85,7 @@ public struct AnalysisJob: Identifiable, Sendable {
         statuses[.waveform] = options.includeWaveform ? .pending : .skipped
         statuses[.keyframes] = options.includeKeyframes ? .pending : .skipped
         statuses[.sync] = options.includeSync ? .pending : .skipped
+        statuses[.loudness] = options.includeLoudness ? .pending : .skipped
         statuses[.color] = options.includeColor ? .pending : .skipped
         statuses[.thumbnails] = options.includeThumbnails ? .pending : .skipped
         
@@ -251,6 +252,7 @@ public struct AnalyzePathRequest: Codable, Sendable {
         public var maxSamples: Int?
         public var gopFrameTypes: Bool?
         public var gopMaxSeconds: Double?
+        public var loudness: Bool?
         
         /// Convert to FramePeekCore AnalysisOptions
         public func toAnalysisOptions() -> AnalysisOptions {
@@ -275,6 +277,7 @@ public struct AnalyzePathRequest: Codable, Sendable {
                 includeColor: runAll || (color ?? false),
                 includeKeyframes: runAll || (keyframes ?? false),
                 includeThumbnails: thumbnails ?? false,
+                includeLoudness: runAll || (loudness ?? false),
                 bitrateMode: mode,
                 maxSamples: min(max(maxSamples ?? 2000, 1), 20_000),
                 gopDetectFrameTypes: gopFrameTypes ?? true,

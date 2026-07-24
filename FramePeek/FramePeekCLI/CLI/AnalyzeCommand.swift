@@ -38,6 +38,9 @@ struct AnalyzeCommand: AsyncParsableCommand {
     
     @Flag(name: [.customShort("k"), .long], help: "List keyframe timestamps")
     var keyframes: Bool = false
+
+    @Flag(name: [.customShort("l"), .long], help: "EBU R128 loudness measurement")
+    var loudness: Bool = false
     
     @Option(name: [.customShort("t"), .long], help: "Export thumbnails to directory")
     var thumbnails: String?
@@ -187,6 +190,7 @@ struct AnalyzeCommand: AsyncParsableCommand {
             includeColor: all || color,
             includeKeyframes: all || keyframes,
             includeThumbnails: thumbnails != nil,
+            includeLoudness: all || loudness,
             bitrateMode: bitrateMode.toFramePeekCore(),
             preferAccuracy: preferAccuracy,
             maxSamples: maxSamples,
