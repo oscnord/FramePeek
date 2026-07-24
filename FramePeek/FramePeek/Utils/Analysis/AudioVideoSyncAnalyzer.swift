@@ -11,10 +11,45 @@ private enum SyncThresholds {
     static let gapThresholdSeconds: Double = 0.5  // 500ms gap detection
 }
 
-/// Analyzes audio/video synchronization by examining actual sample timestamps
-/// - Parameter asset: The AVAsset to analyze
-/// - Returns: SyncAnalysisResult with track timing information, or nil on failure
+// MARK: - Streaming Sync Analysis
+
+/// Progressive update from sync analysis: chart batches while scanning,
+/// the aggregate result once at the end
+public struct SyncAnalysisUpdate: Sendable {
+    public let frameTimingSamples: [FrameTimingSample]?
+    public let result: SyncAnalysisResult?
+}
+
+/// Analyzes audio/video synchronization with one pass over the video track,
+/// producing both the frame-timing chart samples and the aggregate result.
+public func analyzeSyncStream(
+    asset: AVAsset,
+    maxChartSamples: Int = 500
+) -> AsyncStream<SyncAnalysisUpdate> {
+    AsyncStream { continuation in
+        let task = Task.detached(priority: .userInitiated) {
+            let result = await runSyncAnalysis(asset: asset, maxChartSamples: maxChartSamples) { batch in
+                continuation.yield(SyncAnalysisUpdate(frameTimingSamples: batch, result: nil))
+            }
+            continuation.yield(SyncAnalysisUpdate(frameTimingSamples: nil, result: result))
+            continuation.finish()
+        }
+
+        continuation.onTermination = { _ in task.cancel() }
+    }
+}
+
+/// Single-shot variant used by AnalysisEngine/CLI; runs the same single scan
+/// without chart batches
 public func analyzeAudioVideoSync(asset: AVAsset) async -> SyncAnalysisResult? {
+    await runSyncAnalysis(asset: asset, maxChartSamples: 0) { _ in }
+}
+
+private func runSyncAnalysis(
+    asset: AVAsset,
+    maxChartSamples: Int,
+    onChartBatch: ([FrameTimingSample]) -> Void
+) async -> SyncAnalysisResult? {
     do {
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
@@ -62,7 +97,12 @@ public func analyzeAudioVideoSync(asset: AVAsset) async -> SyncAnalysisResult? {
         let videoFirstPTS = await getFirstSamplePTS(asset: asset, track: videoTrack) ?? videoTimeRange.start.seconds
         guard videoFirstPTS.isFinite else { return nil }
 
-        let frameAnalysis = await analyzeFrameTiming(asset: asset, videoTrack: videoTrack)
+        let frameAnalysis = await scanVideoTiming(
+            asset: asset,
+            videoTrack: videoTrack,
+            maxChartSamples: maxChartSamples,
+            onChartBatch: onChartBatch
+        )
 
         var audioTrackSyncInfos: [AudioTrackSyncInfo] = []
 
@@ -137,115 +177,126 @@ private func getFirstSamplePTS(asset: AVAsset, track: AVAssetTrack) async -> Dou
     return firstPTS
 }
 
-/// Analyzes frame timing to detect VFR and gaps
-/// Returns frame timing samples for visualization with progressive updates
-public func analyzeFrameTimingStream(
+// MARK: - Combined Video Timing Scan
+
+private struct FrameTimingAnalysis {
+    let frameCount: Int
+    let averageInterval: Double?
+    let intervalVariance: Double?
+    let hasGaps: Bool
+}
+
+/// One pass over the video track collects both the interval statistics
+/// (previously a private full scan) and the chart samples (previously a
+/// second full scan)
+private func scanVideoTiming(
     asset: AVAsset,
-    maxSamples: Int = 500
-) -> AsyncStream<[FrameTimingSample]> {
-    AsyncStream { continuation in
-        let task = Task.detached(priority: .userInitiated) {
-            guard let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
-                continuation.finish()
-                return
-            }
+    videoTrack: AVAssetTrack,
+    maxChartSamples: Int,
+    onChartBatch: ([FrameTimingSample]) -> Void
+) async -> FrameTimingAnalysis {
+    let empty = FrameTimingAnalysis(frameCount: 0, averageInterval: nil, intervalVariance: nil, hasGaps: false)
 
-            guard let reader = try? AVAssetReader(asset: asset) else {
-                continuation.finish()
-                return
-            }
+    guard let reader = try? AVAssetReader(asset: asset) else { return empty }
 
-            let output = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: nil)
-            output.alwaysCopiesSampleData = false
+    let output = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: nil)
+    output.alwaysCopiesSampleData = false
 
-            guard reader.canAdd(output) else {
-                continuation.finish()
-                return
-            }
-            reader.add(output)
+    guard reader.canAdd(output) else { return empty }
+    reader.add(output)
 
-            guard reader.startReading() else {
-                continuation.finish()
-                return
-            }
+    guard reader.startReading() else { return empty }
 
-            // Estimate frame count for sampling strategy
-            let timeRange = (try? await videoTrack.load(.timeRange)) ?? CMTimeRange.zero
-            let duration = timeRange.duration.seconds
-            let nominalFrameRate = await AVAssetLoader.nominalFrameRate(of: videoTrack)
-            let estimatedFrameCount = Int(duration * Double(nominalFrameRate))
+    // Estimate frame count for the sampling cadences
+    let timeRange = (try? await videoTrack.load(.timeRange)) ?? CMTimeRange.zero
+    let duration = timeRange.duration.seconds
+    let nominalFrameRate = await AVAssetLoader.nominalFrameRate(of: videoTrack)
+    let estimatedFrameCount = Int(duration * Double(nominalFrameRate))
 
-            // Calculate frame skip interval: sample enough to get maxSamples intervals
-            // We need roughly 2x maxSamples frames to get maxSamples intervals
-            let targetFramesToRead = maxSamples * 2
-            let frameSkipInterval = max(1, estimatedFrameCount / max(targetFramesToRead, 1))
+    // Statistics want 1000-5000 intervals; the chart wants ~2x its target
+    let statsTarget = min(5000, max(1000, estimatedFrameCount / 10))
+    let statsSkipInterval = max(1, estimatedFrameCount / max(statsTarget, 1))
+    let chartTarget = maxChartSamples * 2
+    let chartSkipInterval = max(1, estimatedFrameCount / max(chartTarget, 1))
 
-            var allFrames: [(time: Double, interval: Double)] = []
-            allFrames.reserveCapacity(targetFramesToRead)
-            var previousPTS: Double?
-            var frameIndex = 0
-            var lastYieldTime = Date.now
-            let yieldInterval: TimeInterval = 0.2 // Yield every 200ms for UI responsiveness
+    var intervals: [Double] = []
+    intervals.reserveCapacity(statsTarget)
+    var chartFrames: [(time: Double, interval: Double)] = []
+    chartFrames.reserveCapacity(chartTarget)
 
-            while let sampleBuffer = output.copyNextSampleBuffer() {
-                if Task.isCancelled { break }
+    var previousPTS: Double?
+    var frameCount = 0
+    var frameIndex = 0
+    var hasGaps = false
+    var lastYieldTime = Date.now
+    let yieldInterval: TimeInterval = 0.2
 
-                let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-                guard pts.isFinite else {
-                    frameIndex += 1
-                    continue
-                }
+    while let sampleBuffer = output.copyNextSampleBuffer() {
+        if Task.isCancelled { break }
 
-                // Always track previous PTS to calculate true interval between consecutive frames
-                if let prev = previousPTS {
-                    let interval = (pts - prev) * 1000.0
-                    if interval > 0 && interval < 1000 {
-                        // Only store intervals for sampled frames, but use true consecutive frame interval
-                        if frameIndex % frameSkipInterval == 0 {
-                            allFrames.append((time: pts, interval: interval))
-                        }
-                    }
-                }
+        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+        frameCount += 1
 
-                previousPTS = pts
-                frameIndex += 1
-
-                // Early termination: if we have enough samples
-                if allFrames.count >= maxSamples * 2 {
-                    break
-                }
-
-                // Yield progressive updates periodically
-                let now = Date.now
-                if now.timeIntervalSince(lastYieldTime) >= yieldInterval && !allFrames.isEmpty {
-                    // Downsample current frames for progressive display
-                    let currentSamples = downsampleFrameTiming(allFrames, targetCount: min(maxSamples, allFrames.count))
-                    continuation.yield(currentSamples)
-                    lastYieldTime = now
-                }
-            }
-
-            reader.cancelReading()
-
-            guard !allFrames.isEmpty else {
-                continuation.finish()
-                return
-            }
-
-            // Final downsampling if needed
-            let samples: [FrameTimingSample]
-            if allFrames.count <= maxSamples {
-                samples = allFrames.map { FrameTimingSample(time: $0.time, intervalMs: $0.interval) }
-            } else {
-                samples = downsampleFrameTiming(allFrames, targetCount: maxSamples)
-            }
-
-            continuation.yield(samples)
-            continuation.finish()
+        guard pts.isFinite else {
+            frameIndex += 1
+            continue
         }
 
-        continuation.onTermination = { _ in task.cancel() }
+        if let prev = previousPTS {
+            let interval = pts - prev
+            if interval > 0 && interval < 10 {
+                if frameIndex % statsSkipInterval == 0 {
+                    intervals.append(interval)
+                }
+                if interval > SyncThresholds.gapThresholdSeconds {
+                    hasGaps = true
+                }
+            }
+
+            if maxChartSamples > 0, interval > 0, interval < 1,
+               frameIndex % chartSkipInterval == 0, chartFrames.count < chartTarget {
+                chartFrames.append((time: pts, interval: interval * 1000.0))
+            }
+        }
+
+        previousPTS = pts
+        frameIndex += 1
+
+        if maxChartSamples > 0, !chartFrames.isEmpty {
+            let now = Date.now
+            if now.timeIntervalSince(lastYieldTime) >= yieldInterval {
+                onChartBatch(downsampleFrameTiming(chartFrames, targetCount: min(maxChartSamples, chartFrames.count)))
+                lastYieldTime = now
+            }
+        }
+
+        // Keep cancellation responsive on long files while scanning full timeline for late gaps.
+        if frameCount % 5000 == 0 {
+            await Task.yield()
+        }
     }
+
+    if reader.status == .reading {
+        reader.cancelReading()
+    }
+
+    if maxChartSamples > 0, !chartFrames.isEmpty {
+        onChartBatch(downsampleFrameTiming(chartFrames, targetCount: min(maxChartSamples, chartFrames.count)))
+    }
+
+    guard !intervals.isEmpty else {
+        return FrameTimingAnalysis(frameCount: frameCount, averageInterval: nil, intervalVariance: nil, hasGaps: hasGaps)
+    }
+
+    let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
+    let variance = intervals.map { pow($0 - avgInterval, 2) }.reduce(0, +) / Double(intervals.count)
+
+    return FrameTimingAnalysis(
+        frameCount: frameCount,
+        averageInterval: avgInterval,
+        intervalVariance: variance,
+        hasGaps: hasGaps
+    )
 }
 
 /// Downsamples frame timing data using uniform sampling
@@ -271,102 +322,4 @@ private func downsampleFrameTiming(
     }
 
     return samples
-}
-
-private struct FrameTimingAnalysis {
-    let frameCount: Int
-    let averageInterval: Double?
-    let intervalVariance: Double?
-    let hasGaps: Bool
-}
-
-private func analyzeFrameTiming(asset: AVAsset, videoTrack: AVAssetTrack) async -> FrameTimingAnalysis {
-    guard let reader = try? AVAssetReader(asset: asset) else {
-        return FrameTimingAnalysis(frameCount: 0, averageInterval: nil, intervalVariance: nil, hasGaps: false)
-    }
-
-    let output = AVAssetReaderTrackOutput(track: videoTrack, outputSettings: nil)
-    output.alwaysCopiesSampleData = false
-
-    guard reader.canAdd(output) else {
-        return FrameTimingAnalysis(frameCount: 0, averageInterval: nil, intervalVariance: nil, hasGaps: false)
-    }
-    reader.add(output)
-
-    guard reader.startReading() else {
-        return FrameTimingAnalysis(frameCount: 0, averageInterval: nil, intervalVariance: nil, hasGaps: false)
-    }
-
-    // Estimate frame count for sampling strategy
-    let timeRange = (try? await videoTrack.load(.timeRange)) ?? CMTimeRange.zero
-    let duration = timeRange.duration.seconds
-    let nominalFrameRate = await AVAssetLoader.nominalFrameRate(of: videoTrack)
-    let estimatedFrameCount = Int(duration * Double(nominalFrameRate))
-
-    // Sample frames strategically: for long videos, we don't need every frame
-    // Target: collect enough intervals for accurate statistics (1000-5000 samples)
-    let targetSamples = min(5000, max(1000, estimatedFrameCount / 10))
-    let frameSkipInterval = max(1, estimatedFrameCount / max(targetSamples, 1))
-
-    var intervals: [Double] = []
-    intervals.reserveCapacity(targetSamples)
-    var previousPTS: Double?
-    var frameCount = 0
-    var frameIndex = 0
-    var hasGaps = false
-
-    while let sampleBuffer = output.copyNextSampleBuffer() {
-        if Task.isCancelled { break }
-
-        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-        frameCount += 1
-
-        // Skip non-finite PTS values
-        guard pts.isFinite else {
-            frameIndex += 1
-            continue
-        }
-
-        // Calculate interval between consecutive frames (always, for accuracy)
-        let shouldRecordInterval = frameIndex % frameSkipInterval == 0
-
-        if let prev = previousPTS {
-            let interval = pts - prev
-            if interval > 0 && interval < 10 {
-                // Only record intervals for sampled frames to limit memory
-                if shouldRecordInterval {
-                    intervals.append(interval)
-                }
-                // Always check for gaps regardless of sampling
-                if interval > SyncThresholds.gapThresholdSeconds {
-                    hasGaps = true
-                }
-            }
-        }
-
-        // Always update previousPTS to get accurate single-frame intervals
-        previousPTS = pts
-        frameIndex += 1
-
-        // Keep cancellation responsive on long files while scanning full timeline for late gaps.
-        if frameCount % 5000 == 0 {
-            await Task.yield()
-        }
-    }
-
-    reader.cancelReading()
-
-    guard !intervals.isEmpty else {
-        return FrameTimingAnalysis(frameCount: frameCount, averageInterval: nil, intervalVariance: nil, hasGaps: hasGaps)
-    }
-
-    let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
-    let variance = intervals.map { pow($0 - avgInterval, 2) }.reduce(0, +) / Double(intervals.count)
-
-    return FrameTimingAnalysis(
-        frameCount: frameCount,
-        averageInterval: avgInterval,
-        intervalVariance: variance,
-        hasGaps: hasGaps
-    )
 }
