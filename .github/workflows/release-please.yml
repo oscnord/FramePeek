@@ -1,9 +1,11 @@
 name: Release Please
 
+# Manual-only by design: nothing releases on push or merge to main.
+# Run once to open/refresh the release PR from accumulated conventional
+# commits; merge that PR when ready; run again to create the tag and
+# GitHub release and dispatch the signed build.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,7 +15,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - name: Maintain release PR / create release on merge
+      - name: Maintain release PR / create release on merged release PR
         id: release
         uses: googleapis/release-please-action@v4
         with:
