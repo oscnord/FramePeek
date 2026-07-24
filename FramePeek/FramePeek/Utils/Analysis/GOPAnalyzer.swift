@@ -291,7 +291,9 @@ private func extractGOPSegmentsStandard(
                                     CMBlockBufferGetDataPointer(dataBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &totalLength, dataPointerOut: nil)
                                     frameSize = Int64(totalLength)
                                 }
-                                frameType = .unknown
+                                // Same sdtp-based fallback FrameDetailExtractor uses, so the
+                                // GOP view and frame-detail view agree on frame types
+                                frameType = detectFrameTypeFromAttachments(sbuf) ?? .unknown
                             }
                         } else {
                             frameType = isKeyframe ? .i : .unknown

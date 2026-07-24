@@ -29,27 +29,28 @@ private func findNearestTime(in sortedTimes: [Double], target: Double) -> Double
     return sortedTimes[low]
 }
 
+private let sRGBColorSpace = CGColorSpace(name: CGColorSpace.sRGB)
+
+// CIContext setup is expensive (Metal pipeline); one shared instance for all
+// thumbnails. CIContext is documented thread-safe.
+private let sRGBConversionContext: CIContext? = sRGBColorSpace.map {
+    CIContext(options: [.outputColorSpace: $0])
+}
+
 /// Simple, direct sRGB conversion for HDR content
 /// This is the simplest possible approach - just convert everything to sRGB using CoreImage
 private func convertToSRGBSimple(_ cgImage: CGImage) -> CGImage? {
-    guard let sRGBColorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
+    guard let sRGBColorSpace, let context = sRGBConversionContext else {
         return cgImage
     }
 
     // Check if already sRGB
-    if let colorSpace = cgImage.colorSpace,
-       let sRGB = CGColorSpace(name: CGColorSpace.sRGB),
-       CFEqual(colorSpace, sRGB) {
+    if let colorSpace = cgImage.colorSpace, CFEqual(colorSpace, sRGBColorSpace) {
         return cgImage
     }
 
-    // Simple CoreImage conversion - let it handle everything automatically
-    let ciImage = CIImage(cgImage: cgImage)
-    let context = CIContext(options: [
-        .outputColorSpace: sRGBColorSpace
-    ])
-
     // Render directly to sRGB - CoreImage will handle tone mapping automatically
+    let ciImage = CIImage(cgImage: cgImage)
     return context.createCGImage(ciImage, from: ciImage.extent, format: .BGRA8, colorSpace: sRGBColorSpace)
 }
 

@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import CoreMedia
+import Synchronization
 
 // MARK: - Dolby Vision Configuration
 
@@ -142,13 +143,8 @@ func parseDolbyVisionConfig(data: Data) -> DolbyVisionConfig? {
     guard version == 1 || version == 0 else { return nil }
     
     // Parse fields
-    let byte1 = bytes[1]
     let byte2 = bytes[2]
     let byte3 = bytes[3]
-    
-    // dv_version_major: bits 7-6 of byte1
-    // dv_version_minor: bits 5-0 of byte1
-    // (we don't need these for now)
     
     // dv_profile: bit 7 of byte1 (MSB) + bits 7-2 of byte2 = 7 bits total
     // Actually: profile is bits 0-6 starting from byte 1 bit 0 across bytes
@@ -213,29 +209,35 @@ public func extractDolbyVisionConfig(from track: AVAssetTrack) async -> DolbyVis
 // MARK: - dovi_tool Integration
 
 /// Manager for dovi_tool CLI integration
-public class DoviToolManager {
+public final class DoviToolManager: Sendable {
     public static let shared = DoviToolManager()
-    
-    private var cachedPath: String?
-    private var pathChecked = false
-    
+
+    // Called from both background analysis and the settings UI; a racy lookup
+    // just runs twice, so the lock only guards the cache, not the search
+    private let cache = Mutex<(path: String?, checked: Bool)>((nil, false))
+
     /// Finds dovi_tool in PATH or user-configured location
     public func findDoviTool() -> String? {
-        if pathChecked, let cached = cachedPath {
-            return cached
+        let cached = cache.withLock { $0 }
+        if cached.checked {
+            return cached.path
         }
-        
+
+        let path = locateDoviTool()
+        cache.withLock { $0 = (path, true) }
+        return path
+    }
+
+    private func locateDoviTool() -> String? {
         // Check user-configured path first (if set)
         let userPath = UserDefaults.standard.string(forKey: "doviToolPath") ?? ""
         if !userPath.isEmpty {
             let expandedUserPath = NSString(string: userPath).expandingTildeInPath
             if FileManager.default.isExecutableFile(atPath: expandedUserPath) {
-                cachedPath = expandedUserPath
-                pathChecked = true
                 return expandedUserPath
             }
         }
-        
+
         // Auto-detect in common locations
         // Order matters: Apple Silicon Homebrew, Intel Homebrew, system paths, Cargo
         let commonPaths = [
@@ -246,27 +248,17 @@ public class DoviToolManager {
             "/opt/local/bin/dovi_tool",          // MacPorts
             "~/bin/dovi_tool"                    // User bin directory
         ]
-        
+
         for path in commonPaths {
             let expandedPath = NSString(string: path).expandingTildeInPath
             if FileManager.default.isExecutableFile(atPath: expandedPath) {
-                cachedPath = expandedPath
-                pathChecked = true
                 return expandedPath
             }
         }
-        
+
         // Try finding via shell (spawn a login shell to get proper PATH)
         // This handles cases where the tool is in a non-standard location added to user's PATH
-        if let shellPath = findViaShell() {
-            cachedPath = shellPath
-            pathChecked = true
-            return shellPath
-        }
-        
-        pathChecked = true
-        cachedPath = nil
-        return nil
+        return findViaShell()
     }
     
     /// Attempts to find dovi_tool using a login shell (to get user's PATH)
@@ -305,8 +297,7 @@ public class DoviToolManager {
     
     /// Resets the cached path (call when user changes settings)
     public func resetCache() {
-        pathChecked = false
-        cachedPath = nil
+        cache.withLock { $0 = (nil, false) }
     }
     
     /// Analyzes a Dolby Vision file using dovi_tool
