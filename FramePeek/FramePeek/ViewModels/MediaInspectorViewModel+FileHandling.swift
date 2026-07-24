@@ -227,7 +227,7 @@ extension FramePeekViewModel {
         legacySamplesCache = nil
         legacySamplesCacheCount = 0
         isAnalyzingColor = false
-        professionalColorAnalysis = []
+        colorAnalysis = []
         colorAnalysisProgress = 0
         currentFrameAnalysis = nil
         hdrContentType = .sdr

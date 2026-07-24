@@ -74,23 +74,23 @@ final class FramePeekViewModel {
     var frameTimingSamples: [FrameTimingSample] = []
     var isAnalyzingSync: Bool = false
 
-    // Color analysis (legacy) — computed from professionalColorAnalysis with caching
+    // Color analysis (legacy) — computed from colorAnalysis with caching
     @ObservationIgnored var legacySamplesCache: [ColorSample]?
     @ObservationIgnored var legacySamplesCacheCount: Int = 0
     var colorSamples: [ColorSample] {
-        if legacySamplesCacheCount == professionalColorAnalysis.count,
+        if legacySamplesCacheCount == colorAnalysis.count,
            let cached = legacySamplesCache {
             return cached
         }
-        let converted = convertToLegacyColorSamples(professionalColorAnalysis)
+        let converted = convertToLegacyColorSamples(colorAnalysis)
         legacySamplesCache = converted
-        legacySamplesCacheCount = professionalColorAnalysis.count
+        legacySamplesCacheCount = colorAnalysis.count
         return converted
     }
     var isAnalyzingColor: Bool = false
 
-    // Professional color analysis
-    var professionalColorAnalysis: [FrameColorAnalysis] = []
+    // Color analysis
+    var colorAnalysis: [FrameColorAnalysis] = []
     var colorAnalysisProgress: Double = 0
     var currentFrameAnalysis: FrameColorAnalysis?  // For real-time overlay
     var hdrContentType: HDRContentType = .sdr

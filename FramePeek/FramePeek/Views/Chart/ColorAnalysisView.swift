@@ -46,7 +46,7 @@ struct ColorAnalysisView: View {
         if let time = currentScopeTime {
             return viewModel.frameAnalysisAtTime(time)
         }
-        return viewModel.professionalColorAnalysis.last
+        return viewModel.colorAnalysis.last
     }
     
     /// Waveform data for the current frame
@@ -74,9 +74,9 @@ struct ColorAnalysisView: View {
         viewModel.hdrContentType == .dolbyVision
     }
 
-    // MARK: - Statistics from Professional Analysis
+    // MARK: - Aggregated Statistics
 
-    private var professionalStats: AggregatedColorStats? {
+    private var aggregatedStats: AggregatedColorStats? {
         viewModel.aggregatedColorStats
     }
 
@@ -85,7 +85,7 @@ struct ColorAnalysisView: View {
 
     private var histogramInputHash: Int {
         var hasher = Hasher()
-        hasher.combine(viewModel.professionalColorAnalysis.count)
+        hasher.combine(viewModel.colorAnalysis.count)
         hasher.combine(viewModel.visibleTimeRange?.lowerBound)
         hasher.combine(viewModel.visibleTimeRange?.upperBound)
         return hasher.finalize()
@@ -151,7 +151,7 @@ struct ColorAnalysisView: View {
             .onAppear {
                 recomputeAggregatedHistogram()
             }
-            .onChange(of: viewModel.professionalColorAnalysis.count) { _, _ in
+            .onChange(of: viewModel.colorAnalysis.count) { _, _ in
                 let hash = histogramInputHash
                 if hash != lastHistogramInputHash {
                     recomputeAggregatedHistogram()
@@ -256,9 +256,8 @@ struct ColorAnalysisView: View {
                 hdrWarningBanner
             }
             
-            // Professional metrics
-            if let stats = professionalStats {
-                professionalMetricsSection(stats: stats)
+            if let stats = aggregatedStats {
+                colorMetricsSection(stats: stats)
             }
             
             // Scopes section (Waveform & Vectorscope)
@@ -275,7 +274,7 @@ struct ColorAnalysisView: View {
     // MARK: - Metrics Section
     
     @ViewBuilder
-    private func professionalMetricsSection(stats: AggregatedColorStats) -> some View {
+    private func colorMetricsSection(stats: AggregatedColorStats) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             Text("Color Metrics")
                 .font(.subheadline)

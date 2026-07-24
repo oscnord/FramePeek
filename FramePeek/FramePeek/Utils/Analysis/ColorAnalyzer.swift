@@ -3,9 +3,9 @@ import AVFoundation
 import CoreImage
 import AppKit
 
-// MARK: - Professional Color Analyzer
+// MARK: - Color Analyzer
 
-/// Professional color analysis with proper CCT, luminance metrics, and scope generation
+/// Color analysis with proper CCT, luminance metrics, and scope generation
 /// This replaces the simplified color analysis with broadcast-quality measurements
 
 /// Performs comprehensive color analysis on video frames
@@ -15,7 +15,7 @@ import AppKit
 ///   - sampleInterval: Interval in seconds between frame samples
 ///   - maxSamples: Maximum number of samples to analyze
 /// - Returns: AsyncStream of progressive analysis updates
-public func analyzeColorProfessional(
+public func analyzeColor(
     asset: AVAsset,
     config: ColorAnalysisConfig = .default,
     sampleInterval: Double = 1.0,
@@ -503,7 +503,7 @@ private func detectColorSpace(from track: AVAssetTrack) async -> ColorSpace {
 
 // MARK: - Legacy Compatibility
 
-/// Converts professional analysis to legacy ColorSample format
+/// Converts frame analysis to legacy ColorSample format
 /// This maintains backward compatibility with existing UI components
 public func convertToLegacyColorSample(_ analysis: FrameColorAnalysis) -> ColorSample {
     return ColorSample(
@@ -514,7 +514,7 @@ public func convertToLegacyColorSample(_ analysis: FrameColorAnalysis) -> ColorS
     )
 }
 
-/// Converts array of professional analyses to legacy format
+/// Converts frame analyses to legacy format
 public func convertToLegacyColorSamples(_ analyses: [FrameColorAnalysis]) -> [ColorSample] {
     return analyses.map { convertToLegacyColorSample($0) }
 }

@@ -741,7 +741,7 @@ struct VideoPlayerView: View {
                     }
                 }
             } else if let viewModel = viewModel, let colorSample = getColorSampleAtTime(currentTime, samples: viewModel.colorSamples) {
-                // Fallback to legacy brightness/temperature if no professional analysis
+                // Fallback to legacy brightness/temperature if no color analysis
                 HStack(spacing: DesignSystem.Spacing.md) {
                     HStack(spacing: DesignSystem.Spacing.xs) {
                         Image(systemName: "sun.max")
