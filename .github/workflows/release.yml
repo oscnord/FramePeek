@@ -57,6 +57,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Build the tagged commit also for workflow_dispatch runs, which
+          # otherwise check out the default branch head
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
 
       - name: Derive version from tag
         id: version
@@ -260,7 +263,8 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: FramePeek ${{ steps.version.outputs.marketing }}
-          generate_release_notes: true
+          # Body comes from release-please's generated changelog; only the
+          # build artifacts are attached here
           fail_on_unmatched_files: true
           files: |
             ${{ runner.temp }}/FramePeek-${{ steps.version.outputs.marketing }}.dmg
