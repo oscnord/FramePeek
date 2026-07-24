@@ -94,7 +94,7 @@ public func extractCodecInfo(videoTrack: AVAssetTrack) async -> CodecInfo? {
             maxBitrate: maxBitrate
         )
     } catch {
-        print("Error extracting codec info: \(error.localizedDescription)")
+        Log.media.error("Error extracting codec info: \(error.localizedDescription)")
         return nil
     }
 }

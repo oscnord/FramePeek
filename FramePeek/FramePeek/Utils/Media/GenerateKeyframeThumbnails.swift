@@ -95,10 +95,9 @@ public func GenerateKeyframeThumbnailsStream(
                     let targetTime = Double(i) * interval
                     // Use binary search to find nearest keyframe — O(log n) instead of O(n)
                     let nearest = findNearestTime(in: sortedKeyframeTimes, target: targetTime)
-                    if let nearest {
-                        if selectedTimes.isEmpty || abs(selectedTimes.last! - nearest) > 0.001 {
-                            selectedTimes.append(nearest)
-                        }
+                    if let nearest,
+                       selectedTimes.last.map({ abs($0 - nearest) > 0.001 }) ?? true {
+                        selectedTimes.append(nearest)
                     }
                 }
 

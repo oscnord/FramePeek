@@ -13,17 +13,16 @@ public func extractBitratesFast(
         let task = Task.detached(priority: .userInitiated) {
             let finish = FrameAnalysisUpdate(appendedSamples: [], isFinished: true)
 
-            guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
+            guard let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
                 continuation.yield(finish)
                 continuation.finish()
                 return
             }
 
-            let duration = (try? await asset.load(.duration)) ?? .zero
-            let durationSeconds = duration.seconds
-            let nominalFrameRate = (try? await videoTrack.load(.nominalFrameRate)) ?? 30.0
+            let durationSeconds = await AVAssetLoader.durationSeconds(of: asset)
+            let nominalFrameRate = await AVAssetLoader.nominalFrameRate(of: videoTrack)
 
-            guard durationSeconds.isFinite, durationSeconds > 0 else {
+            guard durationSeconds > 0 else {
                 continuation.yield(finish)
                 continuation.finish()
                 return
@@ -67,8 +66,8 @@ public func extractBitratesFast(
                         continuation: continuation
                     )
                 } else {
-                    if let formatDescriptions = try? await videoTrack.load(.formatDescriptions),
-                       !formatDescriptions.isEmpty {
+                    let formatDescriptions = await AVAssetLoader.formatDescriptions(of: videoTrack)
+                    if !formatDescriptions.isEmpty {
 
                         let success = await extractWithCursor(
                             track: videoTrack,

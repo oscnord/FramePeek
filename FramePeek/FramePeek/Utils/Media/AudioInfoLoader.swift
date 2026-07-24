@@ -10,13 +10,7 @@ import CoreMedia
 public func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
     var result: [AudioTrackInfo] = []
 
-    let tracks: [AVAssetTrack]
-    do {
-        tracks = try await asset.loadTracks(withMediaType: .audio)
-    } catch {
-        print("Failed to load audio tracks: \(error.localizedDescription)")
-        return []
-    }
+    let tracks = await AVAssetLoader.tracks(of: asset, mediaType: .audio)
 
     for (idx, track) in tracks.enumerated() {
         let index = idx + 1
@@ -25,8 +19,7 @@ public func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
         var channels = 0
         var sampleRateHz: Double = 0
 
-        let formatDescs = (try? await track.load(.formatDescriptions)) ?? []
-        if let formatDesc = formatDescs.first {
+        if let formatDesc = await AVAssetLoader.firstFormatDescription(of: track) {
             let codecFourCC = CMFormatDescriptionGetMediaSubType(formatDesc)
             codec = fourCCToString(codecFourCC)
 
@@ -38,7 +31,7 @@ public func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
             }
         }
 
-        let bitrateBps: Float = (try? await track.load(.estimatedDataRate)) ?? 0
+        let bitrateBps = await AVAssetLoader.estimatedDataRate(of: track)
         let bitrateKbps: Float? = bitrateBps > 0 ? bitrateBps / 1000.0 : nil
         let languageCode = try? await track.load(.languageCode)
 

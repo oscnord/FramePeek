@@ -59,7 +59,7 @@ public func extractAV1Info(videoTrack: AVAssetTrack) async -> AV1Info? {
             chromaSubsampling: chromaSubsampling
         )
     } catch {
-        print("Error extracting AV1 info: \(error.localizedDescription)")
+        Log.media.error("Error extracting AV1 info: \(error.localizedDescription)")
         return nil
     }
 }

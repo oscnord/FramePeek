@@ -200,12 +200,12 @@ struct InfoInspectorView: View {
                 }
                 .animation(.snappy(duration: 0.2), value: copiedBannerText)
                 .onAppear {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         autoExpandIfNewFile(info.fileName)
                     }
                 }
                 .onChange(of: info.fileName) {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         autoExpandIfNewFile(info.fileName)
                     }
                 }

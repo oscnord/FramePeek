@@ -18,12 +18,12 @@ public func analyzeColor(
 ) -> AsyncStream<[ColorSample]> {
     AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
-            guard (try? await asset.loadTracks(withMediaType: .video).first) != nil else {
+            guard await AVAssetLoader.firstTrack(of: asset, mediaType: .video) != nil else {
                 continuation.finish()
                 return
             }
 
-            let duration = (try? await asset.load(.duration).seconds) ?? 0
+            let duration = await AVAssetLoader.durationSeconds(of: asset)
             guard duration > 0 else {
                 continuation.finish()
                 return

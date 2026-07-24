@@ -126,7 +126,7 @@ public func extractWithReader(
     // Sort by PTS to ensure chronological order
     allSamples.sort { $0.pts < $1.pts }
 
-    guard let firstPTS = allSamples.first?.pts else {
+    guard let firstPTS = allSamples.first?.pts, let lastPTS = allSamples.last?.pts else {
         continuation.yield(makeFinalUpdate(rawFrames: []))
         continuation.finish()
         return
@@ -135,7 +135,7 @@ public func extractWithReader(
     // Use fixed 1-second buckets aligned with aggregation
     let bucketSize: Double = 1.0
     let startTime = firstPTS
-    let endTime = allSamples.last!.pts
+    let endTime = lastPTS
     let totalDuration = endTime - startTime + defaultFrameDuration
     let numBuckets = Int(ceil(totalDuration / bucketSize))
 

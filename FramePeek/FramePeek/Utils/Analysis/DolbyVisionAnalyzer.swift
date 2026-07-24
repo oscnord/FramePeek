@@ -317,12 +317,9 @@ public class DoviToolManager {
             return nil
         }
         
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let result = self.runDoviToolInfo(path: doviToolPath, fileURL: url)
-                continuation.resume(returning: result)
-            }
-        }
+        return await Task.detached(priority: .userInitiated) {
+            self.runDoviToolInfo(path: doviToolPath, fileURL: url)
+        }.value
     }
     
     private func runDoviToolInfo(path: String, fileURL: URL) -> DolbyVisionMetadata? {

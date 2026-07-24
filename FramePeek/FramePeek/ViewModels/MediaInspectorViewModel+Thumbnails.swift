@@ -133,7 +133,7 @@ extension FramePeekViewModel {
                 if let idx = binarySearchClosest(in: sortedKeyframes, targetTime: targetTime, timeKeyPath: \.self) {
                     let nearest = sortedKeyframes[idx]
                     // Avoid duplicates
-                    if selected.isEmpty || abs(selected.last! - nearest) > 0.001 {
+                    if selected.last.map({ abs($0 - nearest) > 0.001 }) ?? true {
                         selected.append(nearest)
                     }
                 }

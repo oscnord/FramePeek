@@ -37,16 +37,9 @@ public struct VideoTrackInfo {
 }
 
 public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
-    var videoTrack: AVAssetTrack?
-    do {
-        let tracks = try await asset.loadTracks(withMediaType: .video)
-        videoTrack = tracks.first
-    } catch {
-        print("Failed to load video tracks: \(error.localizedDescription)")
+    guard let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
         return nil
     }
-
-    guard let videoTrack = videoTrack else { return nil }
 
     do {
         let naturalSize = try await videoTrack.load(.naturalSize)
@@ -64,7 +57,7 @@ public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
         let orientationDegrees: Int? = normalized != 0 ? normalized : nil
 
         // Track bitrate
-        let estimated = (try? await videoTrack.load(.estimatedDataRate)) ?? 0
+        let estimated = await AVAssetLoader.estimatedDataRate(of: videoTrack)
         let trackBitrateValue = estimated
         let trackBitrate: String? = estimated > 0 ? String(format: "%.0f kb/s", estimated / 1000.0) : nil
 
@@ -122,7 +115,7 @@ public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
             frameRateMode: nil // Not extracted in original code
         )
     } catch {
-        print("Error loading video track info: \(error.localizedDescription)")
+        Log.media.error("Error loading video track info: \(error.localizedDescription)")
         return nil
     }
 }

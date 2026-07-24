@@ -269,12 +269,12 @@ actor JobHistoryStore {
     private let fileURL: URL
     
     init() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
         let appDir = appSupport.appendingPathComponent("FramePeek", isDirectory: true)
-        
-        // Create directory if needed
+
         try? FileManager.default.createDirectory(at: appDir, withIntermediateDirectories: true)
-        
+
         self.fileURL = appDir.appendingPathComponent("job_history.json")
     }
     
@@ -285,7 +285,7 @@ actor JobHistoryStore {
             let data = try encoder.encode(jobs)
             try data.write(to: fileURL, options: .atomic)
         } catch {
-            print("Failed to save job history: \(error)")
+            Log.server.error("Failed to save job history: \(error.localizedDescription)")
         }
     }
     
@@ -296,10 +296,13 @@ actor JobHistoryStore {
             decoder.dateDecodingStrategy = .iso8601
             return try decoder.decode([CompletedJob].self, from: data)
         } catch {
+            if (error as NSError).code != NSFileReadNoSuchFileError {
+                Log.server.error("Failed to load job history: \(error.localizedDescription)")
+            }
             return []
         }
     }
-    
+
     func clear() {
         try? FileManager.default.removeItem(at: fileURL)
     }

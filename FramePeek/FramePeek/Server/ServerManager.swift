@@ -448,31 +448,37 @@ public final class ServerManager {
     
     // MARK: - Configuration Persistence
     
+    private static var appSupportDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
+    }
+
     private static func loadConfiguration() -> ServerConfiguration {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let configURL = appSupport.appendingPathComponent("FramePeek/server_config.json")
-        
+        let configURL = appSupportDirectory.appendingPathComponent("FramePeek/server_config.json")
+
         do {
             let data = try Data(contentsOf: configURL)
             return try JSONDecoder().decode(ServerConfiguration.self, from: data)
         } catch {
+            if (error as NSError).code != NSFileReadNoSuchFileError {
+                Log.server.error("Failed to load server configuration: \(error.localizedDescription)")
+            }
             return .default
         }
     }
-    
+
     private func saveConfiguration() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let appDir = appSupport.appendingPathComponent("FramePeek", isDirectory: true)
-        
+        let appDir = Self.appSupportDirectory.appendingPathComponent("FramePeek", isDirectory: true)
+
         try? FileManager.default.createDirectory(at: appDir, withIntermediateDirectories: true)
-        
+
         let configURL = appDir.appendingPathComponent("server_config.json")
         
         do {
             let data = try JSONEncoder().encode(configuration)
             try data.write(to: configURL, options: .atomic)
         } catch {
-            print("Failed to save server configuration: \(error)")
+            Log.server.error("Failed to save server configuration: \(error.localizedDescription)")
         }
     }
 }
@@ -503,8 +509,8 @@ func isServerRequestAuthorized(
         }
     }
 
-    let xAPIKeyHeader = HTTPField.Name("x-api-key")!
-    if let xAPIKey = headers[xAPIKeyHeader]?.trimmingCharacters(in: .whitespacesAndNewlines),
+    if let xAPIKeyHeader = HTTPField.Name("x-api-key"),
+       let xAPIKey = headers[xAPIKeyHeader]?.trimmingCharacters(in: .whitespacesAndNewlines),
        xAPIKey == expectedKey {
         return true
     }

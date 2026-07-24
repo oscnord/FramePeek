@@ -30,14 +30,14 @@ extension FramePeekViewModel {
         let maxBitrateKbps: Double
         let minBitrateKbps: Double
 
-        if !rawFrames.isEmpty {
+        if let firstFrame = rawFrames.first, let lastFrame = rawFrames.last {
             // Calculate bitrate for all 1-second windows from raw frames
             // rawFrames is pre-sorted by PTS at storage time
             let estimatedFPS = effectiveFPS ?? 30.0
             let defaultFrameDuration = 1.0 / estimatedFPS
 
-            let startTime = rawFrames.first!.pts
-            let endTime = rawFrames.last!.pts
+            let startTime = firstFrame.pts
+            let endTime = lastFrame.pts
             let totalDuration = endTime - startTime + defaultFrameDuration
             let numBuckets = Int(ceil(totalDuration / 1.0))
 

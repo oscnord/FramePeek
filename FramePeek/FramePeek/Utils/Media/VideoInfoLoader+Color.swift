@@ -91,7 +91,7 @@ public func extractColorInfo(videoTrack: AVAssetTrack, hasDolbyVision: Bool) asy
             hdrFormat: hdrFormat
         )
     } catch {
-        print("Error extracting color info: \(error.localizedDescription)")
+        Log.media.error("Error extracting color info: \(error.localizedDescription)")
         return nil
     }
 }

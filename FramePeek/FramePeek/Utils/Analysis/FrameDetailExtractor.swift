@@ -23,15 +23,14 @@ public enum FrameDetailExtractor {
         from asset: AVAsset,
         timeRange: ClosedRange<Double>
     ) async -> ExtractionResult? {
-        guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
+        guard let track = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
             return nil
         }
-        
+
         // Get codec type
         var codecType: FourCharCode?
         var codecName = "Unknown"
-        if let formatDescs = try? await track.load(.formatDescriptions),
-           let firstDesc = formatDescs.first {
+        if let firstDesc = await AVAssetLoader.firstFormatDescription(of: track) {
             codecType = CMFormatDescriptionGetMediaSubType(firstDesc)
             if let code = codecType {
                 codecName = fourCCToString(code)
@@ -115,9 +114,7 @@ public enum FrameDetailExtractor {
                 codecName: codecName
             )
         } catch {
-            #if DEBUG
-            print("FrameDetailExtractor: Failed to extract frame details - \(error.localizedDescription)")
-            #endif
+            Log.analysis.error("FrameDetailExtractor: Failed to extract frame details - \(error.localizedDescription)")
             return nil
         }
     }

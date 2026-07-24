@@ -103,11 +103,11 @@ enum TimestampDataProvider {
     
     /// Interpolates bitrate at a given timestamp using binary search
     static func interpolateBitrate(at time: Double, samples: [BitrateSample]) -> Double? {
-        guard !samples.isEmpty else { return nil }
+        guard let first = samples.first, let last = samples.last else { return nil }
 
         // Edge cases: before first or after last
-        if time <= samples.first!.time { return samples.first!.bitrate }
-        if time >= samples.last!.time { return samples.last!.bitrate }
+        if time <= first.time { return first.bitrate }
+        if time >= last.time { return last.bitrate }
 
         // Binary search for interpolation pair
         if let (s1, s2, t) = binarySearchInterpolationPair(in: samples, targetTime: time, timeKeyPath: \.time) {
@@ -121,11 +121,11 @@ enum TimestampDataProvider {
     
     /// Interpolates audio amplitude at a given timestamp using binary search
     static func interpolateWaveform(at time: Double, samples: [WaveformSample]) -> Double? {
-        guard !samples.isEmpty else { return nil }
+        guard let first = samples.first, let last = samples.last else { return nil }
 
         // Edge cases: before first or after last
-        if time <= samples.first!.time { return samples.first!.amplitude }
-        if time >= samples.last!.time { return samples.last!.amplitude }
+        if time <= first.time { return first.amplitude }
+        if time >= last.time { return last.amplitude }
 
         // Binary search for interpolation pair
         if let (s1, s2, t) = binarySearchInterpolationPair(in: samples, targetTime: time, timeKeyPath: \.time) {
@@ -155,14 +155,14 @@ enum TimestampDataProvider {
     
     /// Interpolates color data at a given timestamp using binary search
     static func interpolateColor(at time: Double, samples: [ColorSample]) -> (brightness: Double, colorTemperature: Double?)? {
-        guard !samples.isEmpty else { return nil }
+        guard let first = samples.first, let last = samples.last else { return nil }
 
         // Edge cases: before first or after last
-        if time <= samples.first!.time {
-            return (samples.first!.brightness, samples.first!.colorTemperature)
+        if time <= first.time {
+            return (first.brightness, first.colorTemperature)
         }
-        if time >= samples.last!.time {
-            return (samples.last!.brightness, samples.last!.colorTemperature)
+        if time >= last.time {
+            return (last.brightness, last.colorTemperature)
         }
 
         // Binary search for interpolation pair

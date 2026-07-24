@@ -23,13 +23,13 @@ public func analyzeColorProfessional(
 ) -> AsyncStream<ColorAnalysisUpdate> {
     AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
-            guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first else {
+            guard let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
                 continuation.yield(ColorAnalysisUpdate(samples: [], progress: 1.0, isFinished: true))
                 continuation.finish()
                 return
             }
-            
-            let duration = (try? await asset.load(.duration).seconds) ?? 0
+
+            let duration = await AVAssetLoader.durationSeconds(of: asset)
             guard duration > 0 else {
                 continuation.yield(ColorAnalysisUpdate(samples: [], progress: 1.0, isFinished: true))
                 continuation.finish()

@@ -17,6 +17,49 @@ private enum CacheConfig {
     static let gopFrameDetailExtension = "gopframes"
 }
 
+// MARK: - Generic In-Memory LRU
+
+/// Bounded in-memory LRU cache. Most-recently-used at the tail of `accessOrder`.
+public struct LRUCache<Key: Hashable, Value> {
+    private var storage: [Key: Value] = [:]
+    private var accessOrder: [Key] = []
+    public let capacity: Int
+
+    public init(capacity: Int) {
+        precondition(capacity > 0, "LRUCache capacity must be positive")
+        self.capacity = capacity
+    }
+
+    public var keys: Dictionary<Key, Value>.Keys { storage.keys }
+
+    public mutating func get(_ key: Key) -> Value? {
+        guard let value = storage[key] else { return nil }
+        promote(key)
+        return value
+    }
+
+    public mutating func set(_ key: Key, _ value: Value) {
+        storage[key] = value
+        promote(key)
+        while accessOrder.count > capacity {
+            let evicted = accessOrder.removeFirst()
+            storage.removeValue(forKey: evicted)
+        }
+    }
+
+    public mutating func removeAll() {
+        storage.removeAll()
+        accessOrder.removeAll()
+    }
+
+    private mutating func promote(_ key: Key) {
+        if let existingIndex = accessOrder.firstIndex(of: key) {
+            accessOrder.remove(at: existingIndex)
+        }
+        accessOrder.append(key)
+    }
+}
+
 // MARK: - Cached Data Structures
 
 public struct CachedWaveformData: Codable {

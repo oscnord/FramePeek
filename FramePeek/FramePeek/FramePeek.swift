@@ -662,7 +662,7 @@ private struct ScrollEdgeEffectModifier: ViewModifier {
 private struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        DispatchQueue.main.async {
+        Task { @MainActor in
             view.window?.tabbingMode = .disallowed
             view.window?.titleVisibility = .hidden
         }
