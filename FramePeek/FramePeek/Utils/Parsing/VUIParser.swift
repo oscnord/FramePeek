@@ -1,86 +1,5 @@
 import Foundation
 
-// MARK: - Bit Reader
-
-/// Simple bit-level reader for parsing NAL unit bitstreams
-private struct BitReader {
-    let data: Data
-    var byteOffset: Int = 0
-    var bitOffset: Int = 0
-
-    init(data: Data) {
-        self.data = data
-    }
-
-    /// Checks if we can read more bits
-    var hasMoreBits: Bool {
-        byteOffset < data.count
-    }
-
-    /// Reads a single bit
-    mutating func readBit() -> UInt8? {
-        guard byteOffset < data.count else { return nil }
-        let byte = data[byteOffset]
-        let bit = (byte >> (7 - bitOffset)) & 1
-        bitOffset += 1
-        if bitOffset >= 8 {
-            bitOffset = 0
-            byteOffset += 1
-        }
-        return bit
-    }
-
-    /// Reads n bits as an unsigned integer
-    mutating func readBits(_ n: Int) -> UInt32? {
-        guard n > 0 && n <= 32 else { return nil }
-        var value: UInt32 = 0
-        for _ in 0..<n {
-            guard let bit = readBit() else { return nil }
-            value = (value << 1) | UInt32(bit)
-        }
-        return value
-    }
-
-    /// Reads an unsigned Exp-Golomb coded value (ue(v))
-    mutating func readUE() -> UInt32? {
-        var leadingZeros = 0
-        while let bit = readBit(), bit == 0 {
-            leadingZeros += 1
-            if leadingZeros > 31 { return nil }
-        }
-
-        guard let bits = readBits(leadingZeros) else { return nil }
-        return (1 << leadingZeros) - 1 + bits
-    }
-
-    /// Reads a signed Exp-Golomb coded value (se(v))
-    mutating func readSE() -> Int32? {
-        guard let ue = readUE() else { return nil }
-        if ue % 2 == 0 {
-            return -Int32(ue / 2)
-        } else {
-            return Int32((ue + 1) / 2)
-        }
-    }
-
-    /// Skips n bits (returns false if we run out of data)
-    @discardableResult
-    mutating func skipBits(_ n: Int) -> Bool {
-        for _ in 0..<n {
-            guard readBit() != nil else { return false }
-        }
-        return true
-    }
-
-    /// Aligns to next byte boundary
-    mutating func alignToByte() {
-        if bitOffset > 0 {
-            bitOffset = 0
-            byteOffset += 1
-        }
-    }
-}
-
 // MARK: - AVC (H.264) VUI Parser
 
 /// Extracts max bitrate from AVC (H.264) codec configuration
@@ -116,7 +35,7 @@ public func parseAVCMaxBitrate(_ avcCData: Data) -> String? {
 private func parseAVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
     guard spsData.count > 1 else { return nil }
 
-    var reader = BitReader(data: spsData)
+    var reader = BitReader([UInt8](spsData))
 
     reader.skipBits(8)
 
@@ -355,7 +274,7 @@ public func parseHEVCMaxBitrate(_ hvcCData: Data) -> String? {
 private func parseHEVCSPSForMaxBitrate(_ spsData: Data) -> UInt32? {
     guard spsData.count > 2 else { return nil }
 
-    var reader = BitReader(data: spsData)
+    var reader = BitReader([UInt8](spsData))
 
     reader.skipBits(16)
 
