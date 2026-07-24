@@ -8,9 +8,7 @@ struct WaveformScopeView: View {
     let scale: WaveformScale
     let isHDR: Bool
     let height: CGFloat
-    
-    @State private var hoveredColumn: Int?
-    @State private var hoveredLevel: Double?
+
     @State private var showInfoPopover: Bool = false
     
     init(
@@ -30,8 +28,11 @@ struct WaveformScopeView: View {
             headerView
             
             if let data = waveformData {
-                waveformCanvas(data: data)
-                    .frame(height: height)
+                ZStack {
+                    WaveformScopeLayer(data: data, scale: scale, isHDR: isHDR)
+                    WaveformHoverOverlay(data: data, scale: scale, isHDR: isHDR)
+                }
+                .frame(height: height)
             } else {
                 emptyStateView
             }
@@ -66,15 +67,7 @@ struct WaveformScopeView: View {
             }
             
             Spacer()
-            
-            if let hoveredLevel = hoveredLevel {
-                Text(formatLevel(hoveredLevel))
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(DesignSystem.Colors.Chart.primary)
-                    .monospacedDigit()
-            }
-            
+
             scaleLabel
         }
     }
@@ -140,7 +133,16 @@ struct WaveformScopeView: View {
         .frame(maxWidth: .infinity, minHeight: height)
     }
     
-    private func waveformCanvas(data: WaveformData) -> some View {
+}
+
+// MARK: - Static Scope Layer
+
+private struct WaveformScopeLayer: View {
+    let data: WaveformData
+    let scale: WaveformScale
+    let isHDR: Bool
+
+    var body: some View {
         GeometryReader { geometry in
             Canvas { context, size in
                 drawWaveform(context: context, size: size, data: data)
@@ -150,42 +152,32 @@ struct WaveformScopeView: View {
             .overlay(
                 graticuleOverlay(size: geometry.size)
             )
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        updateHover(at: value.location, in: geometry.size, data: data)
-                    }
-                    .onEnded { _ in
-                        hoveredColumn = nil
-                        hoveredLevel = nil
-                    }
-            )
         }
     }
-    
+
     private func drawWaveform(context: GraphicsContext, size: CGSize, data: WaveformData) {
         let columnCount = data.columns.count
         let levelCount = data.columns.first?.count ?? 256
-        
+
         guard columnCount > 0 && levelCount > 0 else { return }
-        
+
         let columnWidth = size.width / CGFloat(columnCount)
-        
+
         // Draw each column
         for (colIndex, column) in data.columns.enumerated() {
             let x = CGFloat(colIndex) * columnWidth
-            
+
             for (levelIndex, intensity) in column.enumerated() {
                 guard intensity > 0.001 else { continue }
-                
+
                 // Y position (0 at bottom, max at top)
                 let normalizedY = 1.0 - (CGFloat(levelIndex) / CGFloat(levelCount - 1))
                 let y = normalizedY * size.height
-                
+
                 // Color based on intensity (green phosphor look)
                 let alpha = min(1.0, intensity * 3)  // Amplify for visibility
                 let color = Color.green.opacity(alpha)
-                
+
                 // Draw a small rect for each active point
                 let rect = CGRect(
                     x: x,
@@ -193,40 +185,31 @@ struct WaveformScopeView: View {
                     width: columnWidth + 1,  // Slight overlap to avoid gaps
                     height: 2
                 )
-                
+
                 context.fill(Path(rect), with: .color(color))
             }
         }
-        
-        // Draw hover indicator
-        if let col = hoveredColumn {
-            let x = CGFloat(col) * columnWidth
-            var path = Path()
-            path.move(to: CGPoint(x: x, y: 0))
-            path.addLine(to: CGPoint(x: x, y: size.height))
-            context.stroke(path, with: .color(.white.opacity(0.5)), lineWidth: 1)
-        }
     }
-    
+
     private func graticuleOverlay(size: CGSize) -> some View {
         Canvas { context, size in
             // Draw horizontal reference lines
             let referenceLines: [(level: Double, label: String)] = referenceLineValues()
-            
+
             for ref in referenceLines {
                 let y = (1.0 - ref.level) * size.height
-                
+
                 var path = Path()
                 path.move(to: CGPoint(x: 0, y: y))
                 path.addLine(to: CGPoint(x: size.width, y: y))
-                
+
                 context.stroke(path, with: .color(.white.opacity(0.2)), style: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
-                
+
                 // Draw label
                 let text = Text(ref.label)
                     .font(.system(size: 8))
                     .foregroundStyle(.white.opacity(0.5))
-                
+
                 context.draw(
                     context.resolve(text),
                     at: CGPoint(x: 4, y: y - 6),
@@ -236,7 +219,7 @@ struct WaveformScopeView: View {
         }
         .allowsHitTesting(false)
     }
-    
+
     private func referenceLineValues() -> [(level: Double, label: String)] {
         switch scale {
         case .percentage:
@@ -283,19 +266,69 @@ struct WaveformScopeView: View {
             ]
         }
     }
-    
-    private func updateHover(at location: CGPoint, in size: CGSize, data: WaveformData) {
+}
+
+// MARK: - Hover Overlay
+
+private struct WaveformHoverOverlay: View {
+    let data: WaveformData
+    let scale: WaveformScale
+    let isHDR: Bool
+
+    @State private var hoveredColumn: Int?
+    @State private var hoveredLevel: Double?
+
+    var body: some View {
+        GeometryReader { geometry in
+            Color.clear
+                .contentShape(Rectangle())
+                .overlay(
+                    Canvas { context, size in
+                        guard let col = hoveredColumn, data.columns.count > 0 else { return }
+                        let columnWidth = size.width / CGFloat(data.columns.count)
+                        let x = CGFloat(col) * columnWidth
+                        var path = Path()
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x, y: size.height))
+                        context.stroke(path, with: .color(.white.opacity(0.5)), lineWidth: 1)
+                    }
+                    .allowsHitTesting(false)
+                )
+                .overlay(alignment: .topTrailing) {
+                    if let hoveredLevel {
+                        Text(formatLevel(hoveredLevel))
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundStyle(DesignSystem.Colors.Chart.primary)
+                            .monospacedDigit()
+                            .padding(DesignSystem.Padding.xs)
+                    }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            updateHover(at: value.location, in: geometry.size)
+                        }
+                        .onEnded { _ in
+                            hoveredColumn = nil
+                            hoveredLevel = nil
+                        }
+                )
+        }
+    }
+
+    private func updateHover(at location: CGPoint, in size: CGSize) {
         let columnCount = data.columns.count
         guard columnCount > 0 else { return }
-        
+
         let column = Int(location.x / size.width * CGFloat(columnCount))
         hoveredColumn = max(0, min(column, columnCount - 1))
-        
+
         // Calculate level from Y position
         let normalizedY = 1.0 - (location.y / size.height)
         hoveredLevel = max(0, min(1, normalizedY))
     }
-    
+
     private func formatLevel(_ level: Double) -> String {
         switch scale {
         case .percentage:

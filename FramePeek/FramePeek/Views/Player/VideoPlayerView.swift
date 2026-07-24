@@ -414,59 +414,19 @@ struct VideoPlayerView: View {
             isExpanded: $videoSectionExpanded
         ) {
             if let info = viewModel?.extendedInfo {
-                // Resolution + Codec line
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    Text(info.resolution)
-                        .font(.caption)
-                        .monospacedDigit()
-                    Text("·")
-                        .foregroundStyle(.tertiary)
-                    Text(info.codec)
-                        .font(.caption)
-                    if let profile = info.codecProfile {
-                        Text(profile)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                // Frame rate + mode
-                if !info.frameRate.isEmpty {
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Text(info.frameRate)
-                            .font(.caption)
-                            .monospacedDigit()
-                        if let mode = info.frameRateMode {
-                            Text("(\(mode))")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                // Bit depth + chroma
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    if let bitDepth = info.bitDepth {
-                        Text(bitDepth)
-                            .font(.caption)
-                    }
-                    if let chroma = info.chromaSubsampling {
-                        Text("·")
-                            .foregroundStyle(.tertiary)
-                        Text(chroma)
-                            .font(.caption)
-                    }
-                }
-
-                // HDR + Color info badges
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    if let hdr = info.hdrFormat, !hdr.isEmpty {
-                        OverlayBadgeRow(text: hdr, color: .purple)
-                    }
-                    if info.isWideGamut, let primaries = info.colorPrimaries {
-                        OverlayBadgeRow(text: primaries, color: .cyan)
-                    }
-                }
+                VideoMetadataSectionView(
+                    resolution: info.resolution,
+                    codec: info.codec,
+                    codecProfile: info.codecProfile,
+                    frameRate: info.frameRate,
+                    frameRateMode: info.frameRateMode,
+                    bitDepth: info.bitDepth,
+                    chromaSubsampling: info.chromaSubsampling,
+                    hdrFormat: info.hdrFormat,
+                    isWideGamut: info.isWideGamut,
+                    colorPrimaries: info.colorPrimaries
+                )
+                .equatable()
             }
         }
     }
@@ -566,47 +526,16 @@ struct VideoPlayerView: View {
                 let trackIndex = min(selectedAudioTrackIndex, info.audioTracks.count - 1)
                 let audioTrack = info.audioTracks[trackIndex]
 
-                // Track indicator (if multiple tracks)
-                if info.audioTracks.count > 1 {
-                    HStack(spacing: DesignSystem.Spacing.xs) {
-                        Text(String(localized: "Track"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text("\(trackIndex + 1)/\(info.audioTracks.count)")
-                            .font(.caption)
-                            .monospacedDigit()
-                    }
-                }
-
-                // Audio track info
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    Text(audioTrack.codecDisplayName)
-                        .font(.caption)
-                    Text("·")
-                        .foregroundStyle(.tertiary)
-                    Text(audioTrack.channelLayout)
-                        .font(.caption)
-                    Text("·")
-                        .foregroundStyle(.tertiary)
-                    Text(formatSampleRate(audioTrack.sampleRateHz))
-                        .font(.caption)
-                        .monospacedDigit()
-                }
-
-                // Bitrate + language
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    if let bitrate = audioTrack.bitrateKbps {
-                        Text("\(Int(bitrate)) kbps")
-                            .font(.caption)
-                            .monospacedDigit()
-                    }
-                    if let lang = audioTrack.languageCode, lang != "und" {
-                        Text("·")
-                            .foregroundStyle(.tertiary)
-                        Text(formatLanguage(lang))
-                            .font(.caption)
-                    }
-                }
+                AudioTrackMetadataView(
+                    trackIndex: trackIndex,
+                    trackCount: info.audioTracks.count,
+                    codecDisplayName: audioTrack.codecDisplayName,
+                    channelLayout: audioTrack.channelLayout,
+                    sampleRateHz: audioTrack.sampleRateHz,
+                    bitrateKbps: audioTrack.bitrateKbps,
+                    languageCode: audioTrack.languageCode
+                )
+                .equatable()
 
                 // Audio level meter (if waveform data available for this track)
                 // Note: waveformData is keyed by audioTrack.index, not array position
@@ -979,18 +908,6 @@ struct VideoPlayerView: View {
         return String(format: "%02d:%02d:%02d:%02d", hours, mins, secs, frames)
     }
 
-    private func formatSampleRate(_ hz: Double) -> String {
-        if hz >= 1000 {
-            return String(format: "%.1f kHz", hz / 1000.0)
-        }
-        return String(format: "%.0f Hz", hz)
-    }
-
-    private func formatLanguage(_ code: String) -> String {
-        let locale = Locale.current
-        return locale.localizedString(forLanguageCode: code) ?? code.uppercased()
-    }
-
     /// Gets the amplitude at the current time from waveform samples
     private func getAmplitudeAtTime(_ time: Double, samples: [WaveformSample]) -> Double? {
         guard let idx = binarySearchClosest(in: samples, targetTime: time, timeKeyPath: \.time) else {
@@ -1174,6 +1091,147 @@ struct VideoPlayerView: View {
             colorTemperature: interpolatedTemperature,
             histogram: nil
         )
+    }
+}
+
+// MARK: - Video Metadata Section (Static)
+
+private struct VideoMetadataSectionView: View, Equatable {
+    let resolution: String
+    let codec: String
+    let codecProfile: String?
+    let frameRate: String
+    let frameRateMode: String?
+    let bitDepth: String?
+    let chromaSubsampling: String?
+    let hdrFormat: String?
+    let isWideGamut: Bool
+    let colorPrimaries: String?
+
+    @ViewBuilder
+    var body: some View {
+        // Resolution + Codec line
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Text(resolution)
+                .font(.caption)
+                .monospacedDigit()
+            Text("·")
+                .foregroundStyle(.tertiary)
+            Text(codec)
+                .font(.caption)
+            if let codecProfile {
+                Text(codecProfile)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+
+        // Frame rate + mode
+        if !frameRate.isEmpty {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Text(frameRate)
+                    .font(.caption)
+                    .monospacedDigit()
+                if let frameRateMode {
+                    Text("(\(frameRateMode))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+
+        // Bit depth + chroma
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            if let bitDepth {
+                Text(bitDepth)
+                    .font(.caption)
+            }
+            if let chromaSubsampling {
+                Text("·")
+                    .foregroundStyle(.tertiary)
+                Text(chromaSubsampling)
+                    .font(.caption)
+            }
+        }
+
+        // HDR + Color info badges
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            if let hdrFormat, !hdrFormat.isEmpty {
+                OverlayBadgeRow(text: hdrFormat, color: .purple)
+            }
+            if isWideGamut, let colorPrimaries {
+                OverlayBadgeRow(text: colorPrimaries, color: .cyan)
+            }
+        }
+    }
+}
+
+// MARK: - Audio Track Metadata (Static)
+
+private struct AudioTrackMetadataView: View, Equatable {
+    let trackIndex: Int
+    let trackCount: Int
+    let codecDisplayName: String
+    let channelLayout: String
+    let sampleRateHz: Double
+    let bitrateKbps: Float?
+    let languageCode: String?
+
+    @ViewBuilder
+    var body: some View {
+        // Track indicator (if multiple tracks)
+        if trackCount > 1 {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                Text(String(localized: "Track"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text("\(trackIndex + 1)/\(trackCount)")
+                    .font(.caption)
+                    .monospacedDigit()
+            }
+        }
+
+        // Audio track info
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Text(codecDisplayName)
+                .font(.caption)
+            Text("·")
+                .foregroundStyle(.tertiary)
+            Text(channelLayout)
+                .font(.caption)
+            Text("·")
+                .foregroundStyle(.tertiary)
+            Text(formatSampleRate(sampleRateHz))
+                .font(.caption)
+                .monospacedDigit()
+        }
+
+        // Bitrate + language
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            if let bitrateKbps {
+                Text("\(Int(bitrateKbps)) kbps")
+                    .font(.caption)
+                    .monospacedDigit()
+            }
+            if let languageCode, languageCode != "und" {
+                Text("·")
+                    .foregroundStyle(.tertiary)
+                Text(formatLanguage(languageCode))
+                    .font(.caption)
+            }
+        }
+    }
+
+    private func formatSampleRate(_ hz: Double) -> String {
+        if hz >= 1000 {
+            return String(format: "%.1f kHz", hz / 1000.0)
+        }
+        return String(format: "%.0f Hz", hz)
+    }
+
+    private func formatLanguage(_ code: String) -> String {
+        let locale = Locale.current
+        return locale.localizedString(forLanguageCode: code) ?? code.uppercased()
     }
 }
 

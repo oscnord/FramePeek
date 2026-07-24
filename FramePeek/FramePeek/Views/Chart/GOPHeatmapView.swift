@@ -195,7 +195,8 @@ struct GOPHeatmapView: View {
         VStack(spacing: 0) {
             // Mini-map (overview of entire timeline)
             if visibleTimeRange != nil {
-                miniMapView
+                GOPMiniMapView(segments: segments, domainSeconds: domainSeconds, visibleTimeRange: visibleTimeRange, stats: allSegmentsStats)
+                    .equatable()
                     .frame(height: HeatmapConfig.miniMapHeight)
                     .padding(.horizontal, DesignSystem.Padding.md)
                     .padding(.bottom, DesignSystem.Spacing.sm)
@@ -207,7 +208,8 @@ struct GOPHeatmapView: View {
                 .padding(.horizontal, DesignSystem.Padding.md)
 
             // Time axis
-            timeAxisView
+            GOPTimeAxisView(domainStart: effectiveDomain.start, domainEnd: effectiveDomain.end)
+                .equatable()
                 .frame(height: 24)
                 .padding(.horizontal, DesignSystem.Padding.md)
                 .padding(.top, DesignSystem.Spacing.xs)
@@ -262,73 +264,6 @@ struct GOPHeatmapView: View {
             Array(gop.originalIndices)
         }
         viewModel.preloadFrameDetailsForVisibleGOPs(indices: visibleIndices)
-    }
-
-    // MARK: - Mini-map View
-
-    private var miniMapView: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            let height = geo.size.height
-
-            ZStack {
-                // Full timeline background
-                Canvas { context, size in
-                    drawMiniMap(context: context, size: size, segments: segments, domain: (0, domainSeconds))
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-
-                // Visible range indicator
-                if let range = visibleTimeRange {
-                    let startRatio = range.lowerBound / domainSeconds
-                    let endRatio = range.upperBound / domainSeconds
-                    let x = CGFloat(startRatio) * width
-                    let w = CGFloat(endRatio - startRatio) * width
-
-                    RoundedRectangle(cornerRadius: 3)
-                        .stroke(Color.accentColor, lineWidth: 2)
-                        .background(
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(Color.accentColor.opacity(0.15))
-                        )
-                        .frame(width: max(10, w), height: height)
-                        .offset(x: x - (width - max(10, w)) / 2)
-                }
-            }
-        }
-    }
-
-    private func drawMiniMap(context: GraphicsContext, size: CGSize, segments: [GOPSegment], domain: (start: Double, end: Double)) {
-        let width = size.width
-        let height = size.height
-        let domainDuration = max(0.001, domain.end - domain.start)
-
-        // Background
-        let bgPath = Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 4)
-        context.fill(bgPath, with: .color(Color.secondary.opacity(0.08)))
-
-        // Draw GOPs as simple bars with duration-based coloring (uses cached stats)
-        // For 10K+ segments, many are sub-pixel — skip those with zero pixel width
-        let stats = allSegmentsStats
-        let minPixelWidth: CGFloat = 0.5
-        for segment in segments {
-            let startRatio = (segment.startTime - domain.start) / domainDuration
-            let endRatio = (segment.endTime - domain.start) / domainDuration
-
-            // Skip segments entirely outside visible domain
-            guard endRatio > 0 && startRatio < 1 else { continue }
-
-            let x = CGFloat(max(0, startRatio)) * width
-            let rawW = CGFloat(min(1, endRatio) - max(0, startRatio)) * width
-            guard rawW >= minPixelWidth else { continue }
-            let w = max(1, rawW - 0.5)
-
-            let variance = stats.avgDuration > 0 ? (segment.duration - stats.avgDuration) / stats.avgDuration : 0
-            let category = GOPDurationCategory.from(variance: variance)
-
-            let rect = CGRect(x: x, y: 2, width: w, height: height - 4)
-            context.fill(Path(rect), with: .color(category.color.opacity(0.7)))
-        }
     }
 
     // MARK: - Main Heatmap View
@@ -565,54 +500,6 @@ struct GOPHeatmapView: View {
         .allowsHitTesting(false)
     }
 
-    // MARK: - Time Axis
-
-    private var timeAxisView: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            let domain = effectiveDomain
-            let domainDuration = max(0.001, domain.end - domain.start)
-
-            Canvas { context, size in
-                // Axis line
-                var linePath = Path()
-                linePath.move(to: CGPoint(x: 0, y: 0))
-                linePath.addLine(to: CGPoint(x: size.width, y: 0))
-                context.stroke(linePath, with: .color(DesignSystem.Colors.Chart.axisTick), lineWidth: 1)
-
-                // Time labels
-                let tickCount = 5
-                for i in 0...tickCount {
-                    let ratio = Double(i) / Double(tickCount)
-                    let time = domain.start + ratio * domainDuration
-                    let x = CGFloat(ratio) * width
-
-                    // Tick mark
-                    var tickPath = Path()
-                    tickPath.move(to: CGPoint(x: x, y: 0))
-                    tickPath.addLine(to: CGPoint(x: x, y: 4))
-                    context.stroke(tickPath, with: .color(DesignSystem.Colors.Chart.axisTick), lineWidth: 1)
-
-                    // Label
-                    let text = formatTime(time)
-                    let textX: CGFloat
-                    if i == 0 {
-                        textX = 0
-                    } else if i == tickCount {
-                        textX = x - 40
-                    } else {
-                        textX = x - 20
-                    }
-
-                    context.draw(
-                        Text(text).font(.system(size: 10, design: .monospaced)).foregroundStyle(DesignSystem.Colors.Chart.axisLabel),
-                        at: CGPoint(x: textX + 20, y: 14)
-                    )
-                }
-            }
-        }
-    }
-
     // MARK: - Tooltip
 
     private func tooltipView(for gop: DisplayGOP) -> some View {
@@ -822,7 +709,131 @@ struct GOPHeatmapView: View {
             }
     }
 
-    // MARK: - Helpers
+}
+
+// MARK: - Mini-map View (Static)
+
+private struct GOPMiniMapView: View, Equatable {
+    let segments: [GOPSegment]
+    let domainSeconds: Double
+    let visibleTimeRange: ClosedRange<Double>?
+    let stats: GOPStats
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let height = geo.size.height
+
+            ZStack {
+                // Full timeline background
+                Canvas { context, size in
+                    drawMiniMap(context: context, size: size, domain: (0, domainSeconds))
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                // Visible range indicator
+                if let range = visibleTimeRange {
+                    let startRatio = range.lowerBound / domainSeconds
+                    let endRatio = range.upperBound / domainSeconds
+                    let x = CGFloat(startRatio) * width
+                    let w = CGFloat(endRatio - startRatio) * width
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(Color.accentColor, lineWidth: 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.accentColor.opacity(0.15))
+                        )
+                        .frame(width: max(10, w), height: height)
+                        .offset(x: x - (width - max(10, w)) / 2)
+                }
+            }
+        }
+    }
+
+    private func drawMiniMap(context: GraphicsContext, size: CGSize, domain: (start: Double, end: Double)) {
+        let width = size.width
+        let height = size.height
+        let domainDuration = max(0.001, domain.end - domain.start)
+
+        // Background
+        let bgPath = Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 4)
+        context.fill(bgPath, with: .color(Color.secondary.opacity(0.08)))
+
+        // Draw GOPs as simple bars with duration-based coloring (uses cached stats)
+        // For 10K+ segments, many are sub-pixel — skip those with zero pixel width
+        let minPixelWidth: CGFloat = 0.5
+        for segment in segments {
+            let startRatio = (segment.startTime - domain.start) / domainDuration
+            let endRatio = (segment.endTime - domain.start) / domainDuration
+
+            // Skip segments entirely outside visible domain
+            guard endRatio > 0 && startRatio < 1 else { continue }
+
+            let x = CGFloat(max(0, startRatio)) * width
+            let rawW = CGFloat(min(1, endRatio) - max(0, startRatio)) * width
+            guard rawW >= minPixelWidth else { continue }
+            let w = max(1, rawW - 0.5)
+
+            let variance = stats.avgDuration > 0 ? (segment.duration - stats.avgDuration) / stats.avgDuration : 0
+            let category = GOPDurationCategory.from(variance: variance)
+
+            let rect = CGRect(x: x, y: 2, width: w, height: height - 4)
+            context.fill(Path(rect), with: .color(category.color.opacity(0.7)))
+        }
+    }
+}
+
+// MARK: - Time Axis (Static)
+
+private struct GOPTimeAxisView: View, Equatable {
+    let domainStart: Double
+    let domainEnd: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let domainDuration = max(0.001, domainEnd - domainStart)
+
+            Canvas { context, size in
+                // Axis line
+                var linePath = Path()
+                linePath.move(to: CGPoint(x: 0, y: 0))
+                linePath.addLine(to: CGPoint(x: size.width, y: 0))
+                context.stroke(linePath, with: .color(DesignSystem.Colors.Chart.axisTick), lineWidth: 1)
+
+                // Time labels
+                let tickCount = 5
+                for i in 0...tickCount {
+                    let ratio = Double(i) / Double(tickCount)
+                    let time = domainStart + ratio * domainDuration
+                    let x = CGFloat(ratio) * width
+
+                    // Tick mark
+                    var tickPath = Path()
+                    tickPath.move(to: CGPoint(x: x, y: 0))
+                    tickPath.addLine(to: CGPoint(x: x, y: 4))
+                    context.stroke(tickPath, with: .color(DesignSystem.Colors.Chart.axisTick), lineWidth: 1)
+
+                    // Label
+                    let text = formatTime(time)
+                    let textX: CGFloat
+                    if i == 0 {
+                        textX = 0
+                    } else if i == tickCount {
+                        textX = x - 40
+                    } else {
+                        textX = x - 20
+                    }
+
+                    context.draw(
+                        Text(text).font(.system(size: 10, design: .monospaced)).foregroundStyle(DesignSystem.Colors.Chart.axisLabel),
+                        at: CGPoint(x: textX + 20, y: 14)
+                    )
+                }
+            }
+        }
+    }
 
     private func formatTime(_ seconds: Double) -> String {
         let totalSeconds = Int(seconds)
@@ -844,7 +855,7 @@ private typealias FrameTypeColors = DesignSystem.Colors.FrameType
 
 // MARK: - Data Preparation
 
-private struct GOPStats {
+private struct GOPStats: Equatable {
     let avgDuration: Double
     let minDuration: Double
     let maxDuration: Double

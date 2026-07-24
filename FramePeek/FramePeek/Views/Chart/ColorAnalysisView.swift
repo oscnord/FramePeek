@@ -27,42 +27,6 @@ struct ColorAnalysisView: View {
     private var waveformScale: WaveformScale {
         WaveformScale(rawValue: waveformScaleRaw) ?? .percentage
     }
-    
-    // MARK: - Interactive Scope Data
-    
-    /// The time to use for scope display - playback time takes priority, falls back to visible range center
-    private var currentScopeTime: Double? {
-        if let playbackTime = playerManager.currentPlaybackTime {
-            return playbackTime
-        }
-        if let range = viewModel.visibleTimeRange {
-            return (range.lowerBound + range.upperBound) / 2
-        }
-        return nil
-    }
-    
-    /// The frame analysis to display in scopes - based on current time or latest
-    private var currentFrameAnalysis: FrameColorAnalysis? {
-        if let time = currentScopeTime {
-            return viewModel.frameAnalysisAtTime(time)
-        }
-        return viewModel.colorAnalysis.last
-    }
-    
-    /// Waveform data for the current frame
-    private var currentWaveformData: WaveformData? {
-        currentFrameAnalysis?.waveformData
-    }
-    
-    /// Vectorscope data for the current frame
-    private var currentVectorscopeData: VectorscopeData? {
-        currentFrameAnalysis?.vectorscopeData
-    }
-    
-    /// Histogram data for the current frame
-    private var currentHistogram: ColorHistogram? {
-        currentFrameAnalysis?.histogram
-    }
 
     // MARK: - HDR Detection
 
@@ -262,7 +226,16 @@ struct ColorAnalysisView: View {
             
             // Scopes section (Waveform & Vectorscope)
             if generateWaveformData || generateVectorscopeData {
-                scopesSection
+                ScopesSectionView(
+                    viewModel: viewModel,
+                    playerManager: playerManager,
+                    waveformScale: waveformScale,
+                    showReferenceBoxes: showReferenceBoxes,
+                    generateWaveformData: generateWaveformData,
+                    generateVectorscopeData: generateVectorscopeData,
+                    isHDRContent: isHDRContent,
+                    isDolbyVision: isDolbyVision
+                )
             }
 
             chartsSection
@@ -349,82 +322,12 @@ struct ColorAnalysisView: View {
         }
     }
     
-    // MARK: - Scopes Section
-    
-    private var scopesSection: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            // Header with time indicator
-            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.md) {
-                Text("Scopes")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                
-                if let time = currentFrameAnalysis?.time {
-                    Text("Frame at \(formatTimeForChart(time, frameRate: viewModel.effectiveFPS))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            
-            // Side-by-side Waveform and Vectorscope
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                // Waveform (flexible width - takes remaining space)
-                if generateWaveformData {
-                    if let waveformData = currentWaveformData {
-                        WaveformScopeView(
-                            waveformData: waveformData,
-                            scale: waveformScale,
-                            isHDR: isHDRContent,
-                            height: 200
-                        )
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        scopeNoDataView(type: "Waveform")
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                
-                // Vectorscope (fixed square)
-                if generateVectorscopeData {
-                    if let vectorscopeData = currentVectorscopeData {
-                        VectorscopeView(
-                            vectorscopeData: vectorscopeData,
-                            showReferenceBoxes: showReferenceBoxes,
-                            size: 200
-                        )
-                    } else {
-                        scopeNoDataView(type: "Vectorscope")
-                            .frame(width: 200, height: 200)
-                    }
-                }
-            }
-            
-            // Histogram below
-            if let histogram = currentHistogram {
-                RGBHistogramView(histogram: histogram, isHDRContent: isHDRContent, isDolbyVision: isDolbyVision)
-            }
-        }
-    }
-    
     private func scopeDisabledView(type: String) -> some View {
         VStack(spacing: DesignSystem.Spacing.sm) {
             Image(systemName: "gear")
                 .font(.title2)
                 .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.5))
             Text("\(type) generation is disabled in settings")
-                .font(.caption)
-                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 150)
-    }
-    
-    private func scopeNoDataView(type: String) -> some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: "waveform.slash")
-                .font(.title2)
-                .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.5))
-            Text("No \(type.lowercased()) data available")
                 .font(.caption)
                 .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
         }
@@ -496,7 +399,120 @@ struct ColorAnalysisView: View {
     }
 }
 
+// MARK: - Scopes Section
 
+private struct ScopesSectionView: View {
+    var viewModel: FramePeekViewModel
+    var playerManager: PlayerViewModelManager
+    let waveformScale: WaveformScale
+    let showReferenceBoxes: Bool
+    let generateWaveformData: Bool
+    let generateVectorscopeData: Bool
+    let isHDRContent: Bool
+    let isDolbyVision: Bool
+
+    /// The time to use for scope display - playback time takes priority, falls back to visible range center
+    private var currentScopeTime: Double? {
+        if let playbackTime = playerManager.currentPlaybackTime {
+            return playbackTime
+        }
+        if let range = viewModel.visibleTimeRange {
+            return (range.lowerBound + range.upperBound) / 2
+        }
+        return nil
+    }
+
+    /// The frame analysis to display in scopes - based on current time or latest
+    private var currentFrameAnalysis: FrameColorAnalysis? {
+        if let time = currentScopeTime {
+            return viewModel.frameAnalysisAtTime(time)
+        }
+        return viewModel.colorAnalysis.last
+    }
+
+    /// Waveform data for the current frame
+    private var currentWaveformData: WaveformData? {
+        currentFrameAnalysis?.waveformData
+    }
+
+    /// Vectorscope data for the current frame
+    private var currentVectorscopeData: VectorscopeData? {
+        currentFrameAnalysis?.vectorscopeData
+    }
+
+    /// Histogram data for the current frame
+    private var currentHistogram: ColorHistogram? {
+        currentFrameAnalysis?.histogram
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            // Header with time indicator
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.md) {
+                Text("Scopes")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                if let time = currentFrameAnalysis?.time {
+                    Text("Frame at \(formatTimeForChart(time, frameRate: viewModel.effectiveFPS))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Side-by-side Waveform and Vectorscope
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                // Waveform (flexible width - takes remaining space)
+                if generateWaveformData {
+                    if let waveformData = currentWaveformData {
+                        WaveformScopeView(
+                            waveformData: waveformData,
+                            scale: waveformScale,
+                            isHDR: isHDRContent,
+                            height: 200
+                        )
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        scopeNoDataView(type: "Waveform")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
+                // Vectorscope (fixed square)
+                if generateVectorscopeData {
+                    if let vectorscopeData = currentVectorscopeData {
+                        VectorscopeView(
+                            vectorscopeData: vectorscopeData,
+                            showReferenceBoxes: showReferenceBoxes,
+                            size: 200
+                        )
+                    } else {
+                        scopeNoDataView(type: "Vectorscope")
+                            .frame(width: 200, height: 200)
+                    }
+                }
+            }
+
+            // Histogram below
+            if let histogram = currentHistogram {
+                RGBHistogramView(histogram: histogram, isHDRContent: isHDRContent, isDolbyVision: isDolbyVision)
+            }
+        }
+    }
+
+    private func scopeNoDataView(type: String) -> some View {
+        VStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: "waveform.slash")
+                .font(.title2)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary.opacity(0.5))
+            Text("No \(type.lowercased()) data available")
+                .font(.caption)
+                .foregroundStyle(DesignSystem.Colors.Semantic.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 150)
+    }
+}
 
 // MARK: - Color Summary Item with Detail
 
