@@ -18,35 +18,31 @@ public func getExtendedInfo(url: URL, asset: AVAsset) async -> ExtendedVideoInfo
     async let durationInfo = extractDurationInfo(asset: asset)
     async let overallBitrate = getOverallBitrateString(asset: asset, fileURL: url)
     async let metadataInfo = extractMetadataInfo(asset: asset)
-    async let videoTrackInfo = extractVideoTrackInfo(asset: asset)
     async let audioTracks = loadAudioInfo(asset: asset)
 
-    // Wait for all parallel operations
-    let (duration, bitrate, metadata, videoInfo, audio) = await (
-        durationInfo, overallBitrate, metadataInfo, videoTrackInfo, audioTracks
-    )
-
-    // Extract video track for further processing if available
-    let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video)
-
-    // Extract codec, color, and AV1 info in parallel if we have a video track
+    // Load the video track and its format description once; codec, color,
+    // and AV1 extraction are plain dictionary reads on the same description
+    var videoInfo: VideoTrackInfo?
     var codecInfo: CodecInfo?
     var colorInfo: ColorInfo?
     var av1Info: AV1Info?
 
-    if let videoTrack = videoTrack {
-        async let codec = extractCodecInfo(videoTrack: videoTrack)
-        let codecResult = await codec
+    if let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) {
+        let formatDescription = (try? await videoTrack.load(.formatDescriptions))?.first
 
-        codecInfo = codecResult
-        let hasDolbyVision = codecResult?.hasDolbyVision ?? false
-
-        async let color = extractColorInfo(videoTrack: videoTrack, hasDolbyVision: hasDolbyVision)
-        async let av1 = extractAV1Info(videoTrack: videoTrack)
-
-        colorInfo = await color
-        av1Info = await av1
+        videoInfo = await extractVideoTrackInfo(videoTrack: videoTrack, formatDescription: formatDescription)
+        codecInfo = extractCodecInfo(formatDescription: formatDescription)
+        colorInfo = extractColorInfo(
+            formatDescription: formatDescription,
+            hasDolbyVision: codecInfo?.hasDolbyVision ?? false
+        )
+        av1Info = extractAV1Info(formatDescription: formatDescription)
     }
+
+    // Wait for the remaining parallel operations
+    let (duration, bitrate, metadata, audio) = await (
+        durationInfo, overallBitrate, metadataInfo, audioTracks
+    )
 
     // Combine all extracted information
     let videoWidth = videoInfo?.videoWidth ?? 0
