@@ -93,6 +93,44 @@ struct HLSLadderAnalyzerTests {
         #expect(result.findings(withSeverity: .error).isEmpty)
     }
 
+    @Test func dashManifest_reportsSingleUnsupportedFinding() async throws {
+        let mpd = FileManager.default.temporaryDirectory
+            .appendingPathComponent("manifest-\(UUID().uuidString).mpd")
+        try #"<?xml version="1.0" encoding="utf-8"?><MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static"></MPD>"#
+            .write(to: mpd, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: mpd) }
+
+        let result = try #require(await analyze(mpd))
+        #expect(result.variants.isEmpty)
+        #expect(result.findings.count == 1)
+        #expect(result.findings.first?.kind == "dash-not-supported")
+        #expect(result.findings.first?.severity == .error)
+    }
+
+    @Test func repeatedVariantURIs_dedupedWithoutBandwidthWarnings() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("hls-dup-\(UUID().uuidString)")
+        try FileManager.default.copyItem(at: fixtureDirectory, to: tempDir)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let masterURL = tempDir.appendingPathComponent("master.m3u8")
+        let master = try String(contentsOf: masterURL, encoding: .utf8)
+        let streamInfBlocks = master
+            .components(separatedBy: "#EXT-X-STREAM-INF")
+            .dropFirst()
+            .map { "#EXT-X-STREAM-INF\($0)" }
+            .joined()
+        let duplicated = master + "\n"
+            + streamInfBlocks.replacingOccurrences(of: ",CODECS", with: #",AUDIO="alt",CODECS"#)
+            + "\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"alt\",NAME=\"Alt\",DEFAULT=NO\n"
+        try duplicated.write(to: masterURL, atomically: true, encoding: .utf8)
+
+        let result = try #require(await analyze(masterURL))
+        #expect(result.variants.count == 2)
+        #expect(!result.findings.contains { $0.kind == "ladder-duplicate-bandwidth" })
+        #expect(result.findings(withSeverity: .error).isEmpty)
+    }
+
     @Test func unreachablePlaylist_reportsErrorFinding() async throws {
         let url = URL(fileURLWithPath: "/nonexistent/master.m3u8")
         let result = try #require(await analyze(url))

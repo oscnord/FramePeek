@@ -60,6 +60,20 @@ struct HLSLadderAnalyzer {
             )
         }
 
+        let head = masterText.prefix(500).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if head.hasPrefix("<?xml") || head.hasPrefix("<mpd") {
+            return StreamingLadderAnalysis(
+                sourceURL: sourceURL.absoluteString,
+                isVOD: false,
+                variants: [],
+                findings: [StreamingFinding(
+                    severity: .error,
+                    kind: "dash-not-supported",
+                    message: "This is a DASH manifest (MPD); FramePeek currently inspects HLS (.m3u8) ladders only"
+                )]
+            )
+        }
+
         switch HLSPlaylistParser.parse(masterText) {
         case .multivariant(let master):
             return await analyzeLadder(master: master, onProgress: onProgress)
@@ -89,9 +103,18 @@ struct HLSLadderAnalyzer {
     // MARK: - Ladder
 
     private func analyzeLadder(
-        master: HLSMultivariantPlaylist,
+        master rawMaster: HLSMultivariantPlaylist,
         onProgress: @escaping @Sendable (String) -> Void
     ) async -> StreamingLadderAnalysis {
+        // Ladders commonly repeat the same video URI once per audio group;
+        // analyze each unique variant once.
+        var seenURIs = Set<String>()
+        let master = HLSMultivariantPlaylist(
+            variants: rawMaster.variants.filter { seenURIs.insert($0.uri).inserted },
+            renditions: rawMaster.renditions,
+            warnings: rawMaster.warnings
+        )
+
         var findings = master.warnings.map(parserWarningFinding)
         findings += ladderShapeFindings(master: master)
 
