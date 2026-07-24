@@ -56,7 +56,7 @@ struct BitrateChartView: View {
         } else {
             filteredSamples = viewModel.samples
         }
-        cachedDisplaySamples = downsampleLTTB(filteredSamples, targetCount: maxDisplayPoints)
+        cachedDisplaySamples = downsampleLTTB(filteredSamples, targetCount: maxDisplayPoints, x: { $0.time }, y: { $0.bitrate })
     }
 
     private func combineHashValues(_ a: Int, _ b: Int) -> Int {

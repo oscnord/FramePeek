@@ -27,7 +27,12 @@ struct AudioWaveformView: View {
         } else {
             filtered = samples
         }
-        cachedDisplaySamples = downsampleWaveformLTTB(filtered, targetCount: maxDisplayPoints)
+        cachedDisplaySamples = downsampleLTTB(
+            filtered,
+            targetCount: maxDisplayPoints,
+            x: { $0.time },
+            y: { max($0.amplitude, $0.maxAmplitude) }
+        )
     }
 
     private func combineHashValues(_ a: Int, _ b: Int) -> Int {

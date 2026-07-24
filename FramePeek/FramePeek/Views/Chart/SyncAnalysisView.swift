@@ -22,7 +22,7 @@ struct SyncAnalysisView: View {
         } else {
             filteredSamples = viewModel.frameTimingSamples
         }
-        cachedDisplaySamples = downsampleFrameTiming(filteredSamples, targetCount: 500)
+        cachedDisplaySamples = downsampleLTTB(filteredSamples, targetCount: 500, x: { $0.time }, y: { $0.intervalMs })
     }
 
     private func combineHashValues(_ a: Int, _ b: Int) -> Int {
@@ -592,62 +592,6 @@ struct SyncAnalysisView: View {
             return String(format: "%02d:%02d.%03d", minutes, secs, ms)
         }
     }
-}
-
-private func downsampleFrameTiming(_ samples: [FrameTimingSample], targetCount: Int) -> [FrameTimingSample] {
-    guard samples.count > targetCount, targetCount >= 2 else { return samples }
-
-    var result: [FrameTimingSample] = []
-    result.reserveCapacity(targetCount)
-
-    result.append(samples[0])
-
-    let bucketSize = Double(samples.count - 2) / Double(targetCount - 2)
-    var lastSelectedIndex = 0
-
-    for i in 0..<(targetCount - 2) {
-        let bucketStart = Int(Double(i) * bucketSize) + 1
-        let bucketEnd = min(Int(Double(i + 1) * bucketSize) + 1, samples.count - 1)
-
-        let nextBucketStart = bucketEnd
-        let nextBucketEnd = min(Int(Double(i + 2) * bucketSize) + 1, samples.count - 1)
-
-        var avgX: Double = 0
-        var avgY: Double = 0
-        let nextBucketCount = nextBucketEnd - nextBucketStart + 1
-
-        for j in nextBucketStart...nextBucketEnd {
-            avgX += samples[j].time
-            avgY += samples[j].intervalMs
-        }
-        avgX /= Double(nextBucketCount)
-        avgY /= Double(nextBucketCount)
-
-        var maxArea: Double = -1
-        var maxAreaIndex = bucketStart
-
-        let pointA = samples[lastSelectedIndex]
-
-        for j in bucketStart..<bucketEnd {
-            let pointB = samples[j]
-            let area = abs(
-                (pointA.time - avgX) * (pointB.intervalMs - pointA.intervalMs) -
-                (pointA.time - pointB.time) * (avgY - pointA.intervalMs)
-            ) * 0.5
-
-            if area > maxArea {
-                maxArea = area
-                maxAreaIndex = j
-            }
-        }
-
-        result.append(samples[maxAreaIndex])
-        lastSelectedIndex = maxAreaIndex
-    }
-
-    result.append(samples[samples.count - 1])
-
-    return result
 }
 
 // MARK: - Skeleton View
