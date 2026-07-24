@@ -73,6 +73,7 @@ struct LoudnessCard: View {
         .padding(DesignSystem.Padding.lg)
         .background(DesignSystem.Materials.thin)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large, style: .continuous))
+        .padding(.horizontal, DesignSystem.Padding.lg)
         .onAppear { recomputeDisplaySamples() }
         .onChange(of: viewModel.shortTermLoudness.count) { _, _ in recomputeDisplaySamples() }
     }
