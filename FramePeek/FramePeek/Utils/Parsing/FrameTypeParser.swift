@@ -231,7 +231,6 @@ private func detectH264FrameType(from data: Data, nalLengthSize: Int) -> FrameTy
 
     var hasIDR = false
     var sliceTypes: [Int] = [] // Collect all slice types found
-    var hasNonIDR = false
 
     for nal in nalUnits {
         guard nal.count >= 1, let firstByte = nal.first else { continue }
@@ -241,8 +240,6 @@ private func detectH264FrameType(from data: Data, nalLengthSize: Int) -> FrameTy
             hasIDR = true
             continue
         } else if nalType == 1 {
-            hasNonIDR = true
-
             // Slice header is after 1-byte NAL header; but must parse RBSP (remove emulation bytes)
             let rbsp = ebspToRbsp(nal) // includes header; OK
             guard rbsp.count >= 2 else { continue }
@@ -278,8 +275,7 @@ private func detectH264FrameType(from data: Data, nalLengthSize: Int) -> FrameTy
         return .b
     }
 
-    // If we found non-IDR NAL units but couldn't determine type, return unknown
-    return hasNonIDR ? .unknown : .unknown
+    return .unknown
 }
 
 // MARK: - HEVC detection
@@ -290,7 +286,6 @@ private func detectHEVCFrameType(from data: Data, nalLengthSize: Int) -> FrameTy
 
     var hasIRAP = false
     var sliceTypes: [Int] = [] // Collect all slice types found
-    var hasNonIRAP = false
 
     for nal in nalUnits {
         // HEVC NAL header is 2 bytes
@@ -305,8 +300,6 @@ private func detectHEVCFrameType(from data: Data, nalLengthSize: Int) -> FrameTy
 
         // Non-IRAP VCL 0..9 (TRAIL/TSA/STSA/RADL/RASL)
         if (0...9).contains(nalType) {
-            hasNonIRAP = true
-
             // Parse slice header in RBSP
             let rbsp = ebspToRbsp(nal)
             guard rbsp.count >= 3 else { continue }
@@ -352,7 +345,7 @@ private func detectHEVCFrameType(from data: Data, nalLengthSize: Int) -> FrameTy
         return .b
     }
 
-    return hasNonIRAP ? .unknown : .unknown
+    return .unknown
 }
 
 // MARK: - CMFormatDescription helpers (nal length size)

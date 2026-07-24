@@ -57,27 +57,6 @@ public func extractKeyframesStream(
     }
 }
 
-/// Legacy function that collects all keyframes before returning
-public func extractKeyframes(
-    asset: AVAsset,
-    maxKeyframes: Int = 20_000,           // safety cap
-    minSpacingSeconds: Double = 0.0,      // optional downsample to avoid "solid line"
-    onProgress: ((String) -> Void)? = nil // Optional progress callback
-) async -> [KeyframeMarker] {
-    var allKeyframes: [KeyframeMarker] = []
-
-    for await batch in extractKeyframesStream(
-        asset: asset,
-        maxKeyframes: maxKeyframes,
-        minSpacingSeconds: minSpacingSeconds,
-        onProgress: onProgress
-    ) {
-        allKeyframes.append(contentsOf: batch)
-    }
-
-    return allKeyframes
-}
-
 // MARK: - Optimized reader-based extraction (streaming)
 
 private func extractKeyframesWithReaderStream(

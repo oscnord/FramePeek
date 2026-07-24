@@ -72,76 +72,76 @@ public enum SyncSampleParser {
     /// - Returns: SyncSampleResult if successful, nil otherwise (fragmented, unsupported, or parse error)
     public static func parseSyncSamples(from url: URL) async -> SyncSampleResult? {
         guard canUseFastParsing(for: url) else { return nil }
-        
-        return await Task.detached(priority: .userInitiated) {
-            guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
-            defer { try? fileHandle.close() }
-            
-            // First, check if this is a fragmented MP4 by looking for moof atoms
-            // If fragmented, we can't use the stss approach
-            if isFragmentedMP4(fileHandle: fileHandle) {
-                return nil
-            }
-            
-            // Reset to beginning for moov search
-            try? fileHandle.seek(toOffset: 0)
-            
-            // Find the moov atom
-            guard let moovRange = findAtom(fourCC: "moov", in: fileHandle, searchRange: nil) else {
-                return nil
-            }
-            
-            // Find the video trak within moov
-            guard let trakRange = findVideoTrack(in: fileHandle, moovRange: moovRange) else {
-                return nil
-            }
-            
-            // Find mdia within trak
-            guard let mdiaRange = findAtom(fourCC: "mdia", in: fileHandle, searchRange: trakRange) else {
-                return nil
-            }
-            
-            // Get timescale from mdhd
-            let timescale = parseMediaHeaderTimescale(in: fileHandle, mdiaRange: mdiaRange) ?? 90000
-            
-            // Find minf within mdia
-            guard let minfRange = findAtom(fourCC: "minf", in: fileHandle, searchRange: mdiaRange) else {
-                return nil
-            }
-            
-            // Find stbl within minf
-            guard let stblRange = findAtom(fourCC: "stbl", in: fileHandle, searchRange: minfRange) else {
-                return nil
-            }
-            
-            // Parse stss (sync sample table) - optional, some files may not have it
-            // No stss means either: all-intra codec OR fragmented MP4
-            let syncIndices = parseStssAtom(in: fileHandle, stblRange: stblRange)
-            
-            // If no stss found, this is likely an all-intra codec - can't use fast path
-            // (we'd need to scan all frames anyway since they're all keyframes)
-            guard let indices = syncIndices, !indices.isEmpty else {
-                return nil
-            }
-            
-            // Parse stts (time to sample)
-            guard let sttsEntries = parseSttsAtom(in: fileHandle, stblRange: stblRange) else {
-                return nil
-            }
-            
-            // Calculate total sample count from stts
-            var totalSamples: UInt32 = 0
-            for entry in sttsEntries {
-                totalSamples += entry.sampleCount
-            }
-            
-            return SyncSampleResult(
-                syncSampleIndices: indices,
-                timeToSampleEntries: sttsEntries,
-                totalSampleCount: totalSamples,
-                timescale: timescale
-            )
-        }.value
+
+        guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? fileHandle.close() }
+
+        // First, check if this is a fragmented MP4 by looking for moof atoms
+        // If fragmented, we can't use the stss approach
+        if isFragmentedMP4(fileHandle: fileHandle) {
+            return nil
+        }
+
+        // Reset to beginning for moov search
+        try? fileHandle.seek(toOffset: 0)
+
+        // Find the moov atom
+        guard let moovRange = findAtom(fourCC: "moov", in: fileHandle, searchRange: nil) else {
+            return nil
+        }
+
+        // Find the video trak within moov
+        guard let trakRange = findVideoTrack(in: fileHandle, moovRange: moovRange) else {
+            return nil
+        }
+
+        // Find mdia within trak
+        guard let mdiaRange = findAtom(fourCC: "mdia", in: fileHandle, searchRange: trakRange) else {
+            return nil
+        }
+
+        // Get timescale from mdhd
+        let timescale = parseMediaHeaderTimescale(in: fileHandle, mdiaRange: mdiaRange) ?? 90000
+
+        // Find minf within mdia
+        guard let minfRange = findAtom(fourCC: "minf", in: fileHandle, searchRange: mdiaRange) else {
+            return nil
+        }
+
+        // Find stbl within minf
+        guard let stblRange = findAtom(fourCC: "stbl", in: fileHandle, searchRange: minfRange) else {
+            return nil
+        }
+
+        // Parse stss (sync sample table) - optional, some files may not have it
+        // No stss means either: all-intra codec OR fragmented MP4
+        let syncIndices = parseStssAtom(in: fileHandle, stblRange: stblRange)
+
+        // If no stss found, this is likely an all-intra codec - can't use fast path
+        // (we'd need to scan all frames anyway since they're all keyframes)
+        guard let indices = syncIndices, !indices.isEmpty else {
+            return nil
+        }
+
+        // Parse stts (time to sample)
+        guard let sttsEntries = parseSttsAtom(in: fileHandle, stblRange: stblRange) else {
+            return nil
+        }
+
+        guard !Task.isCancelled else { return nil }
+
+        // Calculate total sample count from stts
+        var totalSamples: UInt64 = 0
+        for entry in sttsEntries {
+            totalSamples += UInt64(entry.sampleCount)
+        }
+
+        return SyncSampleResult(
+            syncSampleIndices: indices,
+            timeToSampleEntries: sttsEntries,
+            totalSampleCount: UInt32(clamping: totalSamples),
+            timescale: timescale
+        )
     }
     
     /// Convert sync sample result to keyframe timestamps
@@ -150,18 +150,41 @@ public enum SyncSampleParser {
     public static func keyframeTimestamps(from result: SyncSampleResult) -> [KeyframeInfo] {
         var keyframes: [KeyframeInfo] = []
         keyframes.reserveCapacity(result.syncSampleIndices.count)
-        
+
         let timescale = Double(result.timescale)
-        
+        let entries = result.timeToSampleEntries
+
+        // Sync indices are sorted, so a single forward cursor over the stts
+        // entries covers all keyframes in O(keyframes + entries).
+        var entryIndex = 0
+        var entryStartSample: UInt64 = 1
+        var entryStartTime: UInt64 = 0
+
         for syncIndex in result.syncSampleIndices {
-            let timestamp = calculateTimestamp(
-                forSampleIndex: syncIndex,
-                sttsEntries: result.timeToSampleEntries,
-                timescale: timescale
-            )
-            keyframes.append(KeyframeInfo(sampleIndex: syncIndex, timestamp: timestamp))
+            let target = UInt64(syncIndex)
+
+            if target < entryStartSample {
+                // Malformed (unsorted) stss - restart the cursor
+                entryIndex = 0
+                entryStartSample = 1
+                entryStartTime = 0
+            }
+
+            while entryIndex < entries.count,
+                  target >= entryStartSample + UInt64(entries[entryIndex].sampleCount) {
+                entryStartTime += UInt64(entries[entryIndex].sampleCount) * UInt64(entries[entryIndex].sampleDuration)
+                entryStartSample += UInt64(entries[entryIndex].sampleCount)
+                entryIndex += 1
+            }
+
+            var time = entryStartTime
+            if entryIndex < entries.count {
+                time += (target - entryStartSample) * UInt64(entries[entryIndex].sampleDuration)
+            }
+
+            keyframes.append(KeyframeInfo(sampleIndex: syncIndex, timestamp: Double(time) / timescale))
         }
-        
+
         return keyframes
     }
     
@@ -182,15 +205,16 @@ public enum SyncSampleParser {
             let maxScanOffset = min(fileSize, 10 * 1024 * 1024)
             
             while offset < maxScanOffset {
+                if Task.isCancelled { break }
                 try fileHandle.seek(toOffset: offset)
-                
+
                 guard let headerData = try fileHandle.read(upToCount: 8),
                       headerData.count == 8 else { break }
-                
+
                 let size = headerData.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
                 let typeData = headerData.subdata(in: 4..<8)
                 let type = String(data: typeData, encoding: .ascii) ?? ""
-                
+
                 // Handle extended size
                 var atomSize: UInt64
                 if size == 1 {
@@ -202,22 +226,23 @@ public enum SyncSampleParser {
                 } else {
                     atomSize = UInt64(size)
                 }
-                
+
                 // Found moof = fragmented MP4
                 if type == "moof" {
                     return true
                 }
-                
+
                 // If we found moov before moof, it's likely standard MP4
                 // But keep scanning a bit more to be sure
                 if type == "mdat" && offset > 1024 * 1024 {
                     // Large mdat without moof seen = standard MP4
                     break
                 }
-                
+
                 // Move to next atom
-                if atomSize == 0 { break }
-                offset += atomSize
+                let (next, overflow) = offset.addingReportingOverflow(atomSize)
+                if atomSize == 0 || overflow { break }
+                offset = next
             }
             
             return false
@@ -241,22 +266,23 @@ public enum SyncSampleParser {
         let endOffset = searchRange?.upperBound ?? fileSize
         
         var currentOffset = startOffset
-        
+
         while currentOffset < endOffset {
+            if Task.isCancelled { break }
             do {
                 try fileHandle.seek(toOffset: currentOffset)
-                
+
                 // Read atom header (8 bytes: 4 for size, 4 for type)
                 guard let headerData = try fileHandle.read(upToCount: 8),
                       headerData.count == 8 else { break }
-                
+
                 let size = headerData.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
                 let type = headerData.subdata(in: 4..<8)
-                
+
                 // Handle extended size (size == 1 means 64-bit size follows)
                 var atomSize: UInt64
                 var headerSize: UInt64 = 8
-                
+
                 if size == 1 {
                     guard let extSizeData = try fileHandle.read(upToCount: 8),
                           extSizeData.count == 8 else { break }
@@ -268,25 +294,28 @@ public enum SyncSampleParser {
                 } else {
                     atomSize = UInt64(size)
                 }
-                
+
+                guard atomSize >= headerSize else { break }
+
                 // Check if this is the atom we're looking for
                 if type == targetFourCC {
                     let contentStart = currentOffset + headerSize
-                    let contentEnd = min(currentOffset + atomSize, endOffset)
+                    let remaining = endOffset - currentOffset
+                    let contentEnd = atomSize >= remaining ? endOffset : currentOffset + atomSize
+                    guard contentStart <= contentEnd else { break }
                     return contentStart..<contentEnd
                 }
-                
+
                 // Move to next atom
-                currentOffset += atomSize
-                
-                // Safety check for invalid atom sizes
-                if atomSize == 0 { break }
-                
+                let (next, overflow) = currentOffset.addingReportingOverflow(atomSize)
+                if overflow { break }
+                currentOffset = next
+
             } catch {
                 break
             }
         }
-        
+
         return nil
     }
     
@@ -296,6 +325,7 @@ public enum SyncSampleParser {
         var searchOffset = moovRange.lowerBound
         
         while searchOffset < moovRange.upperBound {
+            if Task.isCancelled { break }
             do {
                 try fileHandle.seek(toOffset: searchOffset)
                 
@@ -320,22 +350,28 @@ public enum SyncSampleParser {
                     atomSize = UInt64(size)
                 }
                 
+                guard atomSize >= headerSize else { break }
+
                 if type == "trak" {
                     let trakContentStart = searchOffset + headerSize
-                    let trakContentEnd = searchOffset + atomSize
-                    let trakRange = trakContentStart..<trakContentEnd
-                    
-                    // Check if this is a video track by looking for vmhd in minf
-                    if let mdiaRange = findAtom(fourCC: "mdia", in: fileHandle, searchRange: trakRange),
-                       let minfRange = findAtom(fourCC: "minf", in: fileHandle, searchRange: mdiaRange),
-                       findAtom(fourCC: "vmhd", in: fileHandle, searchRange: minfRange) != nil {
-                        return trakRange
+                    let remaining = moovRange.upperBound - searchOffset
+                    let trakContentEnd = atomSize >= remaining ? moovRange.upperBound : searchOffset + atomSize
+                    if trakContentStart <= trakContentEnd {
+                        let trakRange = trakContentStart..<trakContentEnd
+
+                        // Check if this is a video track by looking for vmhd in minf
+                        if let mdiaRange = findAtom(fourCC: "mdia", in: fileHandle, searchRange: trakRange),
+                           let minfRange = findAtom(fourCC: "minf", in: fileHandle, searchRange: mdiaRange),
+                           findAtom(fourCC: "vmhd", in: fileHandle, searchRange: minfRange) != nil {
+                            return trakRange
+                        }
                     }
                 }
-                
+
                 // Move to next atom
-                searchOffset += atomSize
-                if atomSize == 0 { break }
+                let (next, overflow) = searchOffset.addingReportingOverflow(atomSize)
+                if overflow { break }
+                searchOffset = next
                 
             } catch {
                 break
@@ -404,19 +440,22 @@ public enum SyncSampleParser {
             guard let countData = try fileHandle.read(upToCount: 4),
                   countData.count == 4 else { return nil }
             
-            let entryCount = countData.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-            
+            var entryCount = countData.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+
             // Sanity check - don't try to allocate unreasonable amounts
             guard entryCount < 10_000_000 else { return nil }
-            
+
+            // Never read past the atom's own payload, whatever entryCount claims
+            let payloadBytes = stssRange.upperBound - stssRange.lowerBound
+            let maxEntries = payloadBytes >= 8 ? (payloadBytes - 8) / 4 : 0
+            entryCount = min(entryCount, UInt32(clamping: maxEntries))
+
             // Read all sync sample indices
             var indices: [UInt32] = []
             indices.reserveCapacity(Int(entryCount))
-            
-            // Read in chunks for efficiency
-            let chunkSize = min(Int(entryCount), 10000) * 4
+
             var remaining = Int(entryCount)
-            
+
             while remaining > 0 {
                 let toRead = min(remaining, 10000) * 4
                 guard let data = try fileHandle.read(upToCount: toRead),
@@ -458,11 +497,16 @@ public enum SyncSampleParser {
             guard let countData = try fileHandle.read(upToCount: 4),
                   countData.count == 4 else { return nil }
             
-            let entryCount = countData.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-            
+            var entryCount = countData.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+
             // Sanity check
             guard entryCount < 1_000_000 else { return nil }
-            
+
+            // Never read past the atom's own payload, whatever entryCount claims
+            let payloadBytes = sttsRange.upperBound - sttsRange.lowerBound
+            let maxEntries = payloadBytes >= 8 ? (payloadBytes - 8) / 8 : 0
+            entryCount = min(entryCount, UInt32(clamping: maxEntries))
+
             // Read all entries (8 bytes each: 4 for count, 4 for duration)
             let dataSize = Int(entryCount) * 8
             guard let data = try fileHandle.read(upToCount: dataSize),
@@ -486,33 +530,6 @@ public enum SyncSampleParser {
         }
     }
     
-    /// Calculate timestamp for a given sample index using stts entries
-    private static func calculateTimestamp(
-        forSampleIndex targetIndex: UInt32,
-        sttsEntries: [(sampleCount: UInt32, sampleDuration: UInt32)],
-        timescale: Double
-    ) -> Double {
-        // Sample indices are 1-based
-        var currentSample: UInt32 = 1
-        var currentTime: UInt64 = 0
-        
-        for entry in sttsEntries {
-            let entryEndSample = currentSample + entry.sampleCount
-            
-            if targetIndex < entryEndSample {
-                // Target sample is within this entry
-                let samplesIntoEntry = targetIndex - currentSample
-                currentTime += UInt64(samplesIntoEntry) * UInt64(entry.sampleDuration)
-                break
-            }
-            
-            // Add time for all samples in this entry
-            currentTime += UInt64(entry.sampleCount) * UInt64(entry.sampleDuration)
-            currentSample = entryEndSample
-        }
-        
-        return Double(currentTime) / timescale
-    }
 }
 
 // MARK: - GOP Segment Generation
@@ -582,11 +599,13 @@ extension SyncSampleParser {
             if i + 1 < keyframes.count {
                 let startIndex = keyframes[i].sampleIndex
                 let endIndex = keyframes[i + 1].sampleIndex
-                frameCount = Int(endIndex - startIndex)
+                frameCount = endIndex >= startIndex ? Int(endIndex - startIndex) : nil
             } else {
                 // Last GOP - estimate from total samples
                 let startIndex = keyframes[i].sampleIndex
-                frameCount = Int(result.totalSampleCount - startIndex + 1)
+                frameCount = result.totalSampleCount >= startIndex
+                    ? Int(result.totalSampleCount - startIndex) + 1
+                    : nil
             }
             
             let effectiveStart = max(startTime, timeRange?.lowerBound ?? startTime)
