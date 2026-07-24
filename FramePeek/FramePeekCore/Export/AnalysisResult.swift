@@ -36,10 +36,13 @@ public struct AnalysisResult: Codable, Sendable {
     
     /// Keyframe timestamps
     public let keyframes: [KeyframeOutput]?
-    
+
     /// Generated thumbnail paths
     public let thumbnails: [ThumbnailOutput]?
-    
+
+    /// EBU R128 loudness measurement (first audio track)
+    public let loudness: LoudnessResult?
+
     public init(
         analyzedAt: Date = Date(),
         file: FileInfo,
@@ -50,7 +53,8 @@ public struct AnalysisResult: Codable, Sendable {
         sync: SyncAnalysisOutput? = nil,
         color: ColorAnalysisSummary? = nil,
         keyframes: [KeyframeOutput]? = nil,
-        thumbnails: [ThumbnailOutput]? = nil
+        thumbnails: [ThumbnailOutput]? = nil,
+        loudness: LoudnessResult? = nil
     ) {
         self.version = Self.schemaVersion
         self.analyzedAt = analyzedAt
@@ -63,6 +67,7 @@ public struct AnalysisResult: Codable, Sendable {
         self.color = color
         self.keyframes = keyframes
         self.thumbnails = thumbnails
+        self.loudness = loudness
     }
 }
 

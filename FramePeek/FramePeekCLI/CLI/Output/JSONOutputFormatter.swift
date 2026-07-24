@@ -18,7 +18,10 @@ struct JSONOutputFormatter: OutputFormatter {
                     gop: fileResult.result?.gop,
                     waveforms: fileResult.result?.waveforms,
                     sync: fileResult.result?.sync,
-                    keyframes: fileResult.result?.keyframes
+                    color: fileResult.result?.color,
+                    keyframes: fileResult.result?.keyframes,
+                    thumbnails: fileResult.result?.thumbnails,
+                    loudness: fileResult.result?.loudness
                 )
             }
         )
@@ -50,5 +53,8 @@ struct CLIFileOutput: Codable {
     let gop: GOPAnalysisOutput?
     let waveforms: [String: [WaveformSampleOutput]]?
     let sync: SyncAnalysisOutput?
+    let color: ColorAnalysisSummary?
     let keyframes: [KeyframeOutput]?
+    let thumbnails: [ThumbnailOutput]?
+    let loudness: LoudnessResult?
 }

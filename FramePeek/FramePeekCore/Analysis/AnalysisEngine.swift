@@ -14,6 +14,7 @@ public struct AnalysisOptions: Codable, Sendable {
     public var includeColor: Bool
     public var includeKeyframes: Bool
     public var includeThumbnails: Bool
+    public var includeLoudness: Bool
     
     // Bitrate options
     public var bitrateMode: BitrateVisualizationMode
@@ -39,6 +40,7 @@ public struct AnalysisOptions: Codable, Sendable {
         includeColor: Bool = false,
         includeKeyframes: Bool = false,
         includeThumbnails: Bool = false,
+        includeLoudness: Bool = false,
         bitrateMode: BitrateVisualizationMode = .second,
         preferAccuracy: Bool = false,
         maxSamples: Int = 2000,
@@ -57,6 +59,7 @@ public struct AnalysisOptions: Codable, Sendable {
         self.includeColor = includeColor
         self.includeKeyframes = includeKeyframes
         self.includeThumbnails = includeThumbnails
+        self.includeLoudness = includeLoudness
         self.bitrateMode = bitrateMode
         self.preferAccuracy = preferAccuracy
         self.maxSamples = maxSamples
@@ -71,6 +74,30 @@ public struct AnalysisOptions: Codable, Sendable {
     /// Convenience initializer for metadata-only analysis
     public static var metadataOnly: AnalysisOptions {
         AnalysisOptions(includeMetadata: true)
+    }
+
+    // Persisted job history predates includeLoudness; decode it as optional
+    // so stored AnalysisOptions still round-trip
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        includeMetadata = try container.decode(Bool.self, forKey: .includeMetadata)
+        includeBitrate = try container.decode(Bool.self, forKey: .includeBitrate)
+        includeGOP = try container.decode(Bool.self, forKey: .includeGOP)
+        includeWaveform = try container.decode(Bool.self, forKey: .includeWaveform)
+        includeSync = try container.decode(Bool.self, forKey: .includeSync)
+        includeColor = try container.decode(Bool.self, forKey: .includeColor)
+        includeKeyframes = try container.decode(Bool.self, forKey: .includeKeyframes)
+        includeThumbnails = try container.decode(Bool.self, forKey: .includeThumbnails)
+        includeLoudness = try container.decodeIfPresent(Bool.self, forKey: .includeLoudness) ?? false
+        bitrateMode = try container.decode(BitrateVisualizationMode.self, forKey: .bitrateMode)
+        preferAccuracy = try container.decode(Bool.self, forKey: .preferAccuracy)
+        maxSamples = try container.decode(Int.self, forKey: .maxSamples)
+        gopDetectFrameTypes = try container.decode(Bool.self, forKey: .gopDetectFrameTypes)
+        gopMaxScanSeconds = try container.decodeIfPresent(Double.self, forKey: .gopMaxScanSeconds)
+        gopStatsOnly = try container.decode(Bool.self, forKey: .gopStatsOnly)
+        thumbnailCount = try container.decode(Int.self, forKey: .thumbnailCount)
+        thumbnailSize = try container.decode(ThumbnailSize.self, forKey: .thumbnailSize)
+        thumbnailOutputDirectory = try container.decodeIfPresent(URL.self, forKey: .thumbnailOutputDirectory)
     }
     
     /// Convenience initializer for full analysis
@@ -99,6 +126,7 @@ public enum AnalysisPhase: String, Codable, CaseIterable, Sendable {
     case keyframes
     case sync
     case color
+    case loudness
     case thumbnails
 
     public var displayName: String {
@@ -110,6 +138,7 @@ public enum AnalysisPhase: String, Codable, CaseIterable, Sendable {
         case .keyframes: return "Keyframe Extraction"
         case .sync: return "A/V Sync Analysis"
         case .color: return "Color Analysis"
+        case .loudness: return "Loudness Measurement"
         case .thumbnails: return "Thumbnail Generation"
         }
     }
@@ -278,6 +307,21 @@ public actor AnalysisEngine {
             onProgress?(.phaseComplete(phase: .sync))
         }
 
+        // Loudness measurement (first audio track)
+        var loudnessResult: LoudnessResult?
+        if options.includeLoudness {
+            try Task.checkCancellation()
+            onProgress?(.started(phase: .loudness))
+            if let audioTrack = try? await asset.loadTracks(withMediaType: .audio).first {
+                for await update in analyzeLoudness(asset: asset, audioTrack: audioTrack) {
+                    if let result = update.result {
+                        loudnessResult = result
+                    }
+                }
+            }
+            onProgress?(.phaseComplete(phase: .loudness))
+        }
+
         try Task.checkCancellation()
         
         // Note: Color analysis and thumbnails would need additional integration
@@ -291,7 +335,8 @@ public actor AnalysisEngine {
             sync: syncOutput,
             color: colorSummary,
             keyframes: keyframes,
-            thumbnails: thumbnails
+            thumbnails: thumbnails,
+            loudness: loudnessResult
         )
     }
     

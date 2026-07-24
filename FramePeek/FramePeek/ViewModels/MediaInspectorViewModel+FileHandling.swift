@@ -139,6 +139,8 @@ extension FramePeekViewModel {
                     self.startWaveformExtraction(asset: assetForInfo, audioTracks: info.audioTracks, duration: duration)
                     // Start sync analysis automatically when audio tracks are detected
                     self.startSyncAnalysis(asset: assetForInfo, audioTracks: info.audioTracks)
+                    // Start loudness measurement automatically when audio tracks are detected
+                    self.startLoudnessAnalysis(asset: assetForInfo, audioTracks: info.audioTracks)
                 }
 
                 // Update player window if it's open and this is the active ViewModel
@@ -169,6 +171,7 @@ extension FramePeekViewModel {
         thumbnailTask?.cancel()
         gopTask?.cancel()
         syncTask?.cancel()
+        loudnessTask?.cancel()
         colorAnalysisTask?.cancel()
         containerTask?.cancel()
         // Cancel all waveform extraction tasks
@@ -181,6 +184,7 @@ extension FramePeekViewModel {
         framesTask = nil
         gopTask = nil
         syncTask = nil
+        loudnessTask = nil
         colorAnalysisTask = nil
         containerTask = nil
     }
@@ -224,6 +228,9 @@ extension FramePeekViewModel {
         syncAnalysisResult = nil
         frameTimingSamples = []
         isAnalyzingSync = false
+        loudnessResult = nil
+        shortTermLoudness = []
+        isAnalyzingLoudness = false
         legacySamplesCache = nil
         legacySamplesCacheCount = 0
         isAnalyzingColor = false

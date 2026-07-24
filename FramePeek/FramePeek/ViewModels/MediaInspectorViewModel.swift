@@ -74,6 +74,11 @@ final class FramePeekViewModel {
     var frameTimingSamples: [FrameTimingSample] = []
     var isAnalyzingSync: Bool = false
 
+    // Loudness (EBU R128)
+    var loudnessResult: LoudnessResult?
+    var shortTermLoudness: [LoudnessSample] = []
+    var isAnalyzingLoudness: Bool = false
+
     // Color analysis (legacy) — computed from colorAnalysis with caching
     @ObservationIgnored var legacySamplesCache: [ColorSample]?
     @ObservationIgnored var legacySamplesCacheCount: Int = 0
@@ -196,6 +201,7 @@ final class FramePeekViewModel {
     @ObservationIgnored var gopTask: Task<Void, Never>?
     @ObservationIgnored var waveformTasks: [Int: Task<Void, Never>] = [:] // Dictionary of extraction tasks per track
     @ObservationIgnored var syncTask: Task<Void, Never>?
+    @ObservationIgnored var loudnessTask: Task<Void, Never>?
     @ObservationIgnored var colorAnalysisTask: Task<Void, Never>?
     @ObservationIgnored var containerTask: Task<Void, Never>?
 

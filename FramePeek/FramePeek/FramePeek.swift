@@ -203,6 +203,13 @@ struct FramePeek: View {
                                             .layoutPriority(0)
                                     }
 
+                                    // Loudness measurement (if audio tracks exist)
+                                    AnimatedContentWrapper(delay: 0.25) {
+                                        LoudnessCard(viewModel: viewModel)
+                                            .frame(maxWidth: .infinity)
+                                            .layoutPriority(0)
+                                    }
+
                                     // Sync analysis (if audio tracks exist)
                                     AnimatedContentWrapper(delay: 0.3) {
                                         SyncAnalysisView(viewModel: viewModel)
