@@ -117,6 +117,10 @@ public func extractFragmentedMP4(
         }
     }
 
+    if reader.status == .reading {
+        reader.cancelReading()
+    }
+
     allSamples.sort { $0.pts < $1.pts }
 
     guard let firstPTS = allSamples.first?.pts, let lastPTS = allSamples.last?.pts else {

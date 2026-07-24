@@ -14,7 +14,7 @@ extension FramePeekViewModel {
             let result = await ContainerParser.parse(url: url)
 
             await MainActor.run {
-                guard let self else { return }
+                guard let self, !Task.isCancelled else { return }
                 self.containerAnalysis = result
                 self.isAnalyzingContainer = false
             }

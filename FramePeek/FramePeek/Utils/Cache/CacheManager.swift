@@ -117,8 +117,6 @@ public final class CacheManager {
     public private(set) var isCalculatingSize: Bool = false
 
     private let fileManager = FileManager.default
-    private let encoder = PropertyListEncoder()
-    private let decoder = PropertyListDecoder()
 
     private var cacheBaseURL: URL? {
         fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first?
@@ -188,8 +186,7 @@ public final class CacheManager {
         guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
 
         do {
-            let data = try Data(contentsOf: fileURL)
-            let cached = try decoder.decode(CachedWaveformData.self, from: data)
+            let cached = try await Self.readPlist(CachedWaveformData.self, from: fileURL)
 
             // Version check
             guard cached.version == CacheConfig.waveformVersion else {
@@ -224,10 +221,8 @@ public final class CacheManager {
         let fileURL = cacheURL.appendingPathComponent("\(key).\(CacheConfig.waveformFileExtension)")
 
         do {
-            let data = try encoder.encode(cached)
-            try data.write(to: fileURL)
-            await enforceCacheSizeLimit()
-            await recalculateCacheSize()
+            try await Self.writePlist(cached, to: fileURL)
+            await enforceLimitAndRecalculateSize()
         } catch {
             // Cache write failed - not critical
         }
@@ -244,8 +239,7 @@ public final class CacheManager {
         guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
 
         do {
-            let data = try Data(contentsOf: fileURL)
-            let cached = try decoder.decode(CachedGOPData.self, from: data)
+            let cached = try await Self.readPlist(CachedGOPData.self, from: fileURL)
 
             // Version check
             guard cached.version == CacheConfig.version else {
@@ -300,10 +294,8 @@ public final class CacheManager {
         let fileURL = cacheURL.appendingPathComponent("\(key).\(CacheConfig.gopFileExtension)")
 
         do {
-            let data = try encoder.encode(cached)
-            try data.write(to: fileURL)
-            await enforceCacheSizeLimit()
-            await recalculateCacheSize()
+            try await Self.writePlist(cached, to: fileURL)
+            await enforceLimitAndRecalculateSize()
         } catch {
             // Cache write failed - not critical
         }
@@ -328,8 +320,7 @@ public final class CacheManager {
         guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
 
         do {
-            let data = try Data(contentsOf: fileURL)
-            let cached = try decoder.decode(CachedGOPFrameDetails.self, from: data)
+            let cached = try await Self.readPlist(CachedGOPFrameDetails.self, from: fileURL)
             guard cached.version == CacheConfig.version else { return nil }
 
             return cached.frames.map { cachedFrame in
@@ -361,10 +352,8 @@ public final class CacheManager {
         )
 
         do {
-            let data = try encoder.encode(cached)
-            try data.write(to: fileURL)
-            await enforceCacheSizeLimit()
-            await recalculateCacheSize()
+            try await Self.writePlist(cached, to: fileURL)
+            await enforceLimitAndRecalculateSize()
         } catch {
             // Cache write failed - not critical
         }
@@ -391,92 +380,71 @@ public final class CacheManager {
     // MARK: - Cache Size Management
 
     public func recalculateCacheSize() async {
+        guard let directories = cacheDirectories() else { return }
+
         isCalculatingSize = true
         defer { isCalculatingSize = false }
 
-        var totalSize: Int64 = 0
-
-        if let waveformURL = waveformCacheURL {
-            totalSize += calculateDirectorySize(at: waveformURL)
-        }
-
-        if let gopURL = gopCacheURL {
-            totalSize += calculateDirectorySize(at: gopURL)
-        }
-
-        if let gopFrameDetailURL = gopFrameDetailCacheURL {
-            totalSize += calculateDirectorySize(at: gopFrameDetailURL)
-        }
-
-        currentCacheSize = totalSize
+        currentCacheSize = await Task.detached(priority: .utility) { [fileManager] in
+            directories.reduce(Int64(0)) { $0 + Self.directorySize(at: $1, fileManager: fileManager) }
+        }.value
     }
 
-    private func calculateDirectorySize(at url: URL) -> Int64 {
-        guard let enumerator = fileManager.enumerator(
-            at: url,
-            includingPropertiesForKeys: [.fileSizeKey],
-            options: [.skipsHiddenFiles]
-        ) else { return 0 }
+    /// One directory walk per cache write: measures, evicts oldest files if
+    /// over the limit, and publishes the resulting size. Runs off the main actor.
+    private func enforceLimitAndRecalculateSize() async {
+        guard let directories = cacheDirectories() else { return }
 
-        var size: Int64 = 0
-        for case let fileURL as URL in enumerator {
-            if let fileSize = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize {
-                size += Int64(fileSize)
-            }
-        }
-        return size
+        isCalculatingSize = true
+        defer { isCalculatingSize = false }
+
+        currentCacheSize = await Task.detached(priority: .utility) { [fileManager] in
+            Self.enforceLimitAndMeasure(directories: directories, fileManager: fileManager)
+        }.value
     }
 
-    private func enforceCacheSizeLimit() async {
+    private func cacheDirectories() -> [URL]? {
         guard let waveformURL = waveformCacheURL,
               let gopURL = gopCacheURL,
-              let gopFrameDetailURL = gopFrameDetailCacheURL else { return }
+              let gopFrameDetailURL = gopFrameDetailCacheURL else { return nil }
+        return [waveformURL, gopURL, gopFrameDetailURL]
+    }
 
-        let currentSize = await Task.detached { [fileManager] in
-            var size: Int64 = 0
-            size += Self.calculateDirectorySizeStatic(at: waveformURL, fileManager: fileManager)
-            size += Self.calculateDirectorySizeStatic(at: gopURL, fileManager: fileManager)
-            size += Self.calculateDirectorySizeStatic(at: gopFrameDetailURL, fileManager: fileManager)
-            return size
-        }.value
-
-        guard currentSize > CacheConfig.maxCacheSizeBytes else { return }
-
-        // Collect all cache files with their dates
+    private nonisolated static func enforceLimitAndMeasure(directories: [URL], fileManager: FileManager) -> Int64 {
         var allFiles: [(url: URL, date: Date, size: Int64)] = []
 
-        for cacheURL in [waveformURL, gopURL, gopFrameDetailURL] {
-            if let enumerator = fileManager.enumerator(
+        for cacheURL in directories {
+            guard let enumerator = fileManager.enumerator(
                 at: cacheURL,
                 includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey],
                 options: [.skipsHiddenFiles]
-            ) {
-                for case let fileURL as URL in enumerator {
-                    if let values = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey]),
-                       let date = values.contentModificationDate,
-                       let size = values.fileSize {
-                        allFiles.append((url: fileURL, date: date, size: Int64(size)))
-                    }
+            ) else { continue }
+
+            for case let fileURL as URL in enumerator {
+                if let values = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey]),
+                   let date = values.contentModificationDate,
+                   let size = values.fileSize {
+                    allFiles.append((url: fileURL, date: date, size: Int64(size)))
                 }
             }
         }
 
-        // Sort by date (oldest first)
-        allFiles.sort { $0.date < $1.date }
+        var totalSize = allFiles.reduce(Int64(0)) { $0 + $1.size }
+        guard totalSize > CacheConfig.maxCacheSizeBytes else { return totalSize }
 
-        // Remove oldest files until under limit
-        var remainingSize = currentSize
-        let targetSize = CacheConfig.maxCacheSizeBytes * 9 / 10 // Target 90% of limit
+        // Remove oldest files until at 90% of the limit
+        allFiles.sort { $0.date < $1.date }
+        let targetSize = CacheConfig.maxCacheSizeBytes * 9 / 10
 
         for file in allFiles {
-            guard remainingSize > targetSize else { break }
+            guard totalSize > targetSize else { break }
             try? fileManager.removeItem(at: file.url)
-            remainingSize -= file.size
+            totalSize -= file.size
         }
+        return totalSize
     }
 
-    /// Static version for use in detached tasks
-    private nonisolated static func calculateDirectorySizeStatic(at url: URL, fileManager: FileManager) -> Int64 {
+    private nonisolated static func directorySize(at url: URL, fileManager: FileManager) -> Int64 {
         guard let enumerator = fileManager.enumerator(
             at: url,
             includingPropertiesForKeys: [.fileSizeKey],
@@ -490,6 +458,19 @@ public final class CacheManager {
             }
         }
         return size
+    }
+
+    private nonisolated static func readPlist<T: Decodable>(_ type: T.Type, from fileURL: URL) async throws -> T {
+        try await Task.detached(priority: .userInitiated) {
+            try PropertyListDecoder().decode(T.self, from: Data(contentsOf: fileURL))
+        }.value
+    }
+
+    private nonisolated static func writePlist<T: Encodable>(_ value: T, to fileURL: URL) async throws {
+        try await Task.detached(priority: .utility) {
+            let data = try PropertyListEncoder().encode(value)
+            try data.write(to: fileURL)
+        }.value
     }
 
     // MARK: - Clear Cache

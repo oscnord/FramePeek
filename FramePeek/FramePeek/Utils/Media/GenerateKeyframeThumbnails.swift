@@ -62,8 +62,9 @@ public func GenerateKeyframeThumbnailsStream(
     batchSize: Int = 10,  // Generate thumbnails in batches
     thumbnailSize: CGSize = CGSize(width: 192, height: 120)  // Thumbnail size
 ) -> AsyncStream<[KeyframeThumbnail]> {
+    let maxThumbnails = max(2, maxThumbnails)
 
-    AsyncStream { continuation in
+    return AsyncStream { continuation in
         let task = Task.detached(priority: .userInitiated) {
             guard !keyframeTimes.isEmpty else {
                 continuation.finish()
@@ -212,23 +213,3 @@ public func GenerateKeyframeThumbnailsStream(
     }
 }
 
-/// Legacy function that collects all thumbnails before returning
-public func GenerateKeyframeThumbnails(
-    asset: AVAsset,
-    keyframeTimes: [Double],
-    maxThumbnails: Int = 150,  // Reasonable limit for smooth scrolling
-    thumbnailSize: CGSize = CGSize(width: 192, height: 120)  // Thumbnail size
-) async -> [KeyframeThumbnail] {
-    var allThumbnails: [KeyframeThumbnail] = []
-
-    for await batch in GenerateKeyframeThumbnailsStream(
-        asset: asset,
-        keyframeTimes: keyframeTimes,
-        maxThumbnails: maxThumbnails,
-        thumbnailSize: thumbnailSize
-    ) {
-        allThumbnails.append(contentsOf: batch)
-    }
-
-    return allThumbnails.sorted { $0.time < $1.time }
-}

@@ -94,7 +94,9 @@ extension FramePeekViewModel {
             for: url, startTime: segment.startTime, endTime: segment.endTime
         ) {
             cacheGOPFrameDetails(diskCached, for: segment.id)
-            selectedGOPFrameDetails = diskCached
+            if selectedGOPIndex == index {
+                selectedGOPFrameDetails = diskCached
+            }
             return
         }
 
@@ -116,6 +118,9 @@ extension FramePeekViewModel {
 
         // Update UI on main actor
         isLoadingGOPFrameDetails = false
+
+        // Selection may have moved on while extracting
+        guard selectedGOPIndex == index else { return }
 
         guard let result else {
             selectedGOPFrameDetails = nil
@@ -139,10 +144,7 @@ extension FramePeekViewModel {
             )
         }
 
-        // Only update if this GOP is still selected
-        if selectedGOPIndex == index {
-            selectedGOPFrameDetails = result.frames
-        }
+        selectedGOPFrameDetails = result.frames
     }
     
     /// Preloads frame details for visible GOPs in the background
@@ -256,13 +258,7 @@ extension FramePeekViewModel {
         
         // Clear frame details cache when starting new analysis
         clearGOPFrameDetailsCache()
-        
-        // Check codec support upfront
-        Task {
-            let codecFourCC = await getVideoCodecFourCC(from: asset)
-            codecSupportsFrameTypes = FrameDetailExtractor.codecSupportsFrameTypeDetection(codecFourCC)
-        }
-        
+
         guard let url = currentVideoURL else {
             isAnalyzingGOP = false
             return
@@ -270,7 +266,16 @@ extension FramePeekViewModel {
 
         gopTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
-            
+
+            // Check codec support upfront (inside the task so a cancelled
+            // analysis can't overwrite a newer file's result)
+            let codecFourCC = await self.getVideoCodecFourCC(from: asset)
+            let supportsFrameTypes = FrameDetailExtractor.codecSupportsFrameTypeDetection(codecFourCC)
+            await MainActor.run {
+                guard !Task.isCancelled else { return }
+                self.codecSupportsFrameTypes = supportsFrameTypes
+            }
+
             // Determine if this is a full file request (no maxScanSeconds limit means full file)
             let isFullFileRequest = options.maxScanSeconds == nil
             

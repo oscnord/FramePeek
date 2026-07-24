@@ -122,6 +122,8 @@ extension FramePeekViewModel {
             // Also load duration for timeline view
             let duration = (try? await assetForInfo.load(.duration).seconds) ?? 0
             await MainActor.run {
+                // A newer file may have started loading; don't overwrite its state
+                guard !Task.isCancelled else { return }
                 self.extendedInfo = info
                 self.durationSeconds = duration
 
@@ -226,6 +228,12 @@ extension FramePeekViewModel {
         legacySamplesCache = nil
         legacySamplesCacheCount = 0
         isAnalyzingColor = false
+        professionalColorAnalysis = []
+        colorAnalysisProgress = 0
+        currentFrameAnalysis = nil
+        hdrContentType = .sdr
+        dolbyVisionConfig = nil
+        selectedGOPIndex = nil
         containerAnalysis = nil
         isAnalyzingContainer = false
     }
