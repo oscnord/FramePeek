@@ -144,7 +144,7 @@ struct TimelineView: View {
                     )
 
                     // Playback position indicator
-                    if let playbackTime = currentPlaybackTime {
+                    if let playbackTime = currentPlaybackTime, duration > 0 {
                         let x: CGFloat = {
                             if let range = normalizedVisibleTimeRange {
                                 let visibleDuration = range.upperBound - range.lowerBound
@@ -194,7 +194,7 @@ struct TimelineView: View {
                             .allowsHitTesting(false)
                     }
 
-                    if let range = normalizedVisibleTimeRange {
+                    if let range = normalizedVisibleTimeRange, duration > 0 {
                         let startX = CGFloat(range.lowerBound / duration) * (geo.size.width - 20) + 10
                         let endX = CGFloat(range.upperBound / duration) * (geo.size.width - 20) + 10
                         let width = max(endX - startX, 20)
