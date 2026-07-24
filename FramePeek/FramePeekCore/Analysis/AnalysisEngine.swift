@@ -179,17 +179,9 @@ public enum AnalysisError: Error, LocalizedError {
 /// let result = try await engine.analyze(url: fileURL, options: options)
 /// ```
 public actor AnalysisEngine {
-    
-    private var currentTask: Task<Void, Never>?
-    
+
     public init() {}
-    
-    /// Cancels any in-progress analysis
-    public func cancel() {
-        currentTask?.cancel()
-        currentTask = nil
-    }
-    
+
     /// Performs analysis and returns the complete result
     /// - Parameters:
     ///   - url: URL of the media file to analyze
@@ -227,9 +219,10 @@ public actor AnalysisEngine {
         if options.includeMetadata {
             metadata = await extractMetadata(url: url, asset: asset)
         }
-        
+
         // Bitrate analysis
         if options.includeBitrate {
+            try Task.checkCancellation()
             let samples = await extractBitrate(asset: asset, options: options)
             let stats = BitrateStats(samples: samples)
             bitrateOutput = BitrateAnalysisOutput(
@@ -238,29 +231,35 @@ public actor AnalysisEngine {
                 samples: samples.map { BitrateSampleOutput(sample: $0) }
             )
         }
-        
+
         // GOP analysis
         if options.includeGOP {
+            try Task.checkCancellation()
             let gopResult = await extractGOP(asset: asset, url: url, options: options)
             gopOutput = GOPAnalysisOutput(result: gopResult, includeSegments: !options.gopStatsOnly)
         }
-        
+
         // Waveform extraction
         if options.includeWaveform {
+            try Task.checkCancellation()
             waveforms = await extractWaveforms(asset: asset, maxSamples: options.maxSamples)
         }
-        
+
         // Keyframe extraction
         if options.includeKeyframes {
+            try Task.checkCancellation()
             keyframes = await extractKeyframes(url: url)
         }
-        
+
         // Sync analysis
         if options.includeSync {
+            try Task.checkCancellation()
             if let syncResult = await extractSync(asset: asset) {
                 syncOutput = SyncAnalysisOutput(result: syncResult)
             }
         }
+
+        try Task.checkCancellation()
         
         // Note: Color analysis and thumbnails would need additional integration
         

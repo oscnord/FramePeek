@@ -611,11 +611,27 @@ struct ServerConfigurationTests {
     
     @Test func serverConfiguration_defaultValues() {
         let config = ServerConfiguration.default
-        
+
         #expect(config.port == 8080)
         #expect(config.bindAddress == "127.0.0.1")
-        #expect(config.enableAuth == false)
+        #expect(config.enableAuth == true)
         #expect(config.allowRemoteConnections == false)
+    }
+
+    @Test func isLoopbackHost_acceptsLocalAuthorities() {
+        #expect(isLoopbackHost("127.0.0.1"))
+        #expect(isLoopbackHost("127.0.0.1:8080"))
+        #expect(isLoopbackHost("localhost"))
+        #expect(isLoopbackHost("localhost:8080"))
+        #expect(isLoopbackHost("[::1]:8080"))
+    }
+
+    @Test func isLoopbackHost_rejectsForeignAuthorities() {
+        #expect(!isLoopbackHost(nil))
+        #expect(!isLoopbackHost(""))
+        #expect(!isLoopbackHost("attacker.example:8080"))
+        #expect(!isLoopbackHost("192.168.1.20:8080"))
+        #expect(!isLoopbackHost("localhost.attacker.example"))
     }
     
     @Test func serverConfiguration_effectiveBindAddress_local() {
