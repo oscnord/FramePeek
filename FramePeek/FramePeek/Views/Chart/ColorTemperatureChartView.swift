@@ -17,7 +17,7 @@ struct ColorTemperatureChartView: View {
         let inputHash = samples.count
         guard inputHash != lastDisplaySamplesInputHash else { return }
         lastDisplaySamplesInputHash = inputHash
-        cachedDisplaySamples = downsampleColorSamplesForTemperature(validSamples, targetCount: maxDisplayPoints)
+        cachedDisplaySamples = downsampleLTTB(validSamples, targetCount: maxDisplayPoints, x: { $0.time }, y: { $0.colorTemperature ?? 0 })
     }
 
     private var validSamples: [ColorSample] {
@@ -143,72 +143,4 @@ struct ColorTemperatureChartView: View {
             return .blue
         }
     }
-}
-
-private func downsampleColorSamplesForTemperature(_ samples: [ColorSample], targetCount: Int) -> [ColorSample] {
-    guard samples.count > targetCount, targetCount >= 2 else { return samples }
-
-    var result: [ColorSample] = []
-    result.reserveCapacity(targetCount)
-
-    result.append(samples[0])
-
-    let bucketSize = Double(samples.count - 2) / Double(targetCount - 2)
-    var lastSelectedIndex = 0
-
-    for i in 0..<(targetCount - 2) {
-        let bucketStart = Int(Double(i) * bucketSize) + 1
-        let bucketEnd = min(Int(Double(i + 1) * bucketSize) + 1, samples.count - 1)
-
-        let nextBucketStart = bucketEnd
-        let nextBucketEnd = min(Int(Double(i + 2) * bucketSize) + 1, samples.count - 1)
-
-        var avgX: Double = 0
-        var avgY: Double = 0
-        var validCount = 0
-
-        for j in nextBucketStart...nextBucketEnd {
-            if let temp = samples[j].colorTemperature {
-                avgX += samples[j].time
-                avgY += temp
-                validCount += 1
-            }
-        }
-
-        if validCount > 0 {
-            avgX /= Double(validCount)
-            avgY /= Double(validCount)
-        } else {
-            avgX = samples[nextBucketStart].time
-            avgY = samples[lastSelectedIndex].colorTemperature ?? 5500
-        }
-
-        var maxArea: Double = -1
-        var maxAreaIndex = bucketStart
-
-        let pointA = samples[lastSelectedIndex]
-        let pointATemp = pointA.colorTemperature ?? 5500
-
-        for j in bucketStart..<bucketEnd {
-            let pointB = samples[j]
-            if let pointBTemp = pointB.colorTemperature {
-                let area = abs(
-                    (pointA.time - avgX) * (pointBTemp - pointATemp) -
-                    (pointA.time - pointB.time) * (avgY - pointATemp)
-                ) * 0.5
-
-                if area > maxArea {
-                    maxArea = area
-                    maxAreaIndex = j
-                }
-            }
-        }
-
-        result.append(samples[maxAreaIndex])
-        lastSelectedIndex = maxAreaIndex
-    }
-
-    result.append(samples[samples.count - 1])
-
-    return result
 }
