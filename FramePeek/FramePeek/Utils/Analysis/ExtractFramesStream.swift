@@ -382,12 +382,16 @@ private func extractEveryFrame(
         }
     }
 
+    if reader.status == .reading {
+        reader.cancelReading()
+    }
+
     if !pending.isEmpty {
         continuation.yield(makeUpdate())
         pending.removeAll()
     }
 
-    if reader.status != .completed && !Task.isCancelled {
+    if reader.status != .completed && !Task.isCancelled && reader.status != .cancelled {
         Log.analysis.error("Reader ended with status \(reader.status.rawValue): \(reader.error?.localizedDescription ?? "No error")")
     }
 

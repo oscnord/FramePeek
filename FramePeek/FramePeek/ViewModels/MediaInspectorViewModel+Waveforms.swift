@@ -35,10 +35,13 @@ extension FramePeekViewModel {
                 if !forceRefresh && trackIndex == 1 {
                     if let cached = await CacheManager.shared.loadWaveformCache(for: url) {
                         await MainActor.run {
+                            // If cancelled, the canceller already cleared waveformTasks;
+                            // removing here would evict a newer file's live entry
+                            guard !Task.isCancelled else { return }
                             self.waveformData[trackIndex] = cached.samples
                             self.waveformLoadedFromCache = true
                             self.waveformTasks.removeValue(forKey: trackIndex)
-                            
+
                             // If partial cache, we could continue extraction, but for simplicity
                             // we'll just use the cached data as-is
                             if self.waveformTasks.isEmpty {
@@ -62,6 +65,7 @@ extension FramePeekViewModel {
                         return trackIndexInArray + 1 == trackIndex
                     }) else {
                         await MainActor.run {
+                            guard !Task.isCancelled else { return }
                             self.waveformTasks.removeValue(forKey: trackIndex)
                             if self.waveformTasks.isEmpty {
                                 self.isExtractingWaveforms = false
@@ -101,9 +105,8 @@ extension FramePeekViewModel {
                     // Final update - create a copy to avoid concurrency issues
                     let finalSamples = accumulatedSamples
                     await MainActor.run {
-                        if !Task.isCancelled {
-                            self.waveformData[trackIndex] = finalSamples
-                        }
+                        guard !Task.isCancelled else { return }
+                        self.waveformData[trackIndex] = finalSamples
                         self.waveformTasks.removeValue(forKey: trackIndex)
 
                         // Check if all extractions are complete
@@ -123,6 +126,7 @@ extension FramePeekViewModel {
                     }
                 } catch {
                     await MainActor.run {
+                        guard !Task.isCancelled else { return }
                         self.waveformTasks.removeValue(forKey: trackIndex)
                         if self.waveformTasks.isEmpty {
                             self.isExtractingWaveforms = false
@@ -174,15 +178,16 @@ extension FramePeekViewModel {
             if !forceRefresh && trackIndex == 1 {
                 if let cached = await CacheManager.shared.loadWaveformCache(for: url) {
                     await MainActor.run {
+                        guard !Task.isCancelled else { return }
                         self.waveformData[trackIndex] = cached.samples
                         self.waveformLoadedFromCache = true
                         self.waveformTasks.removeValue(forKey: trackIndex)
-                        
+
                         if self.waveformTasks.isEmpty {
                             self.isExtractingWaveforms = false
                         }
                     }
-                    
+
                     // If not partial, we're done
                     if !cached.isPartial {
                         return
@@ -221,9 +226,8 @@ extension FramePeekViewModel {
             // Final update - create a copy to avoid concurrency issues
             let finalSamples = accumulatedSamples
             await MainActor.run {
-                if !Task.isCancelled {
-                    self.waveformData[trackIndex] = finalSamples
-                }
+                guard !Task.isCancelled else { return }
+                self.waveformData[trackIndex] = finalSamples
                 self.waveformTasks.removeValue(forKey: trackIndex)
 
                 // Check if all extractions are complete

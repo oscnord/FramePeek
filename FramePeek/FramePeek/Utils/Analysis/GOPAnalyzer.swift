@@ -394,6 +394,10 @@ private func extractGOPSegmentsStandard(
                     }
                 }
 
+                if reader.status == .reading {
+                    reader.cancelReading()
+                }
+
                 if !Task.isCancelled, let start = lastKeyframeTime {
                     let end: Double
                     if let range = timeRange {

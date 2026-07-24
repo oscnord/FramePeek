@@ -88,15 +88,8 @@ struct VideoPreviewView: View {
                     openWindow(id: "videoPlayer")
                 }
                 .accessibilityAddTraits(.isButton)
-                .onAppear {
-                    loadThumbnail(url: videoURL)
-                }
-                .onChange(of: viewModel.currentVideoURL) { oldValue, newValue in
-                    if let newURL = newValue, newURL != oldValue {
-                        loadThumbnail(url: newURL)
-                    } else if newValue == nil {
-                        thumbnailImage = nil
-                    }
+                .task(id: videoURL) {
+                    await loadThumbnail(url: videoURL)
                 }
             } else {
                 // Placeholder when no video
@@ -118,40 +111,36 @@ struct VideoPreviewView: View {
         }
     }
 
-    private func loadThumbnail(url: URL) {
+    private func loadThumbnail(url: URL) async {
         thumbnailImage = nil
 
-        Task {
-            let asset = AVURLAsset(url: url)
-            let imageGenerator = AVAssetImageGenerator(asset: asset)
-            imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: 400, height: 300)
+        let asset = AVURLAsset(url: url)
+        let imageGenerator = AVAssetImageGenerator(asset: asset)
+        imageGenerator.appliesPreferredTrackTransform = true
+        imageGenerator.maximumSize = CGSize(width: 400, height: 300)
 
-            // Get thumbnail from a few seconds in to avoid black frames
-            // Try to get the third frame or at least 2-3 seconds in
-            let duration = (try? await asset.load(.duration).seconds) ?? 0
+        // Get thumbnail from a few seconds in to avoid black frames
+        // Try to get the third frame or at least 2-3 seconds in
+        let duration = (try? await asset.load(.duration).seconds) ?? 0
 
-            // Get frame rate to calculate third frame time
-            var frameRate: Double = 30.0 // Default to 30 fps
-            if let videoTrack = try? await asset.loadTracks(withMediaType: .video).first,
-               let nominalFrameRate = try? await videoTrack.load(.nominalFrameRate) {
-                frameRate = Double(nominalFrameRate)
-            }
+        // Get frame rate to calculate third frame time
+        var frameRate: Double = 30.0 // Default to 30 fps
+        if let videoTrack = try? await asset.loadTracks(withMediaType: .video).first,
+           let nominalFrameRate = try? await videoTrack.load(.nominalFrameRate) {
+            frameRate = Double(nominalFrameRate)
+        }
 
-            // Calculate time for third frame (or at least 2 seconds in, whichever is smaller)
-            let thirdFrameTime = 2.0 / frameRate // Time for third frame
-            let minTime = min(2.0, duration * 0.1) // At least 2 seconds or 10% of duration
-            let time = duration > 0 ? CMTime(seconds: max(thirdFrameTime, minTime), preferredTimescale: 600) : CMTime(seconds: 0.1, preferredTimescale: 600)
+        // Calculate time for third frame (or at least 2 seconds in, whichever is smaller)
+        let thirdFrameTime = 2.0 / frameRate // Time for third frame
+        let minTime = min(2.0, duration * 0.1) // At least 2 seconds or 10% of duration
+        let time = duration > 0 ? CMTime(seconds: max(thirdFrameTime, minTime), preferredTimescale: 600) : CMTime(seconds: 0.1, preferredTimescale: 600)
 
-            do {
-                let cgImage = try await imageGenerator.image(at: time).image
-                let nsImage = NSImage(cgImage: cgImage, size: .zero)
-                await MainActor.run {
-                    thumbnailImage = nsImage
-                }
-            } catch {
-                // Failed to generate thumbnail, leave as nil
-            }
+        do {
+            let cgImage = try await imageGenerator.image(at: time).image
+            guard !Task.isCancelled else { return }
+            thumbnailImage = NSImage(cgImage: cgImage, size: .zero)
+        } catch {
+            // Failed to generate thumbnail, leave as nil
         }
     }
 }

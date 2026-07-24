@@ -123,6 +123,10 @@ public func extractWithReader(
         }
     }
 
+    if reader.status == .reading {
+        reader.cancelReading()
+    }
+
     // Sort by PTS to ensure chronological order
     allSamples.sort { $0.pts < $1.pts }
 
