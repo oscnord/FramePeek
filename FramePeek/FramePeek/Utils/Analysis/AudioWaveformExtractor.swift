@@ -93,6 +93,26 @@ public func extractWaveform(
             let yieldInterval: TimeInterval = 0.1 // Yield every 100ms for UI responsiveness
             var shouldBreak = false
 
+            // True-peak tracking across skipped buffers: a user reading the
+            // envelope for clipping must not lose peaks to buffer sampling
+            var pendingSkippedPeak: Double = 0
+            var peakScratch: [Float] = []
+
+            func mergeSkippedPeak(_ sample: WaveformSample) -> WaveformSample {
+                guard pendingSkippedPeak > sample.maxAmplitude else {
+                    pendingSkippedPeak = 0
+                    return sample
+                }
+                let merged = WaveformSample(
+                    time: sample.time,
+                    amplitude: sample.amplitude,
+                    minAmplitude: sample.minAmplitude,
+                    maxAmplitude: pendingSkippedPeak
+                )
+                pendingSkippedPeak = 0
+                return merged
+            }
+
             while !Task.isCancelled && !shouldBreak {
                 autoreleasepool {
                     guard let sampleBuffer = output.copyNextSampleBuffer() else {
@@ -100,17 +120,14 @@ public func extractWaveform(
                         return
                     }
 
-                    // Sample buffers strategically - skip some to speed up processing
-                    if bufferIndex % bufferSkipInterval != 0 {
+                    let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+                    guard pts.isFinite else {
                         bufferIndex += 1
                         return
                     }
-                    bufferIndex += 1
-
-                    let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-                    guard pts.isFinite else { return }
 
                     guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
+                        bufferIndex += 1
                         return
                     }
 
@@ -125,8 +142,35 @@ public func extractWaveform(
                     )
 
                     guard status == noErr, let data = dataPointer, length > 0 else {
+                        bufferIndex += 1
                         return
                     }
+
+                    // Calculate interleaved sample count for buffer access
+                    let interleavedSampleCount = length / MemoryLayout<Int16>.size
+                    guard interleavedSampleCount > 0 else {
+                        bufferIndex += 1
+                        return
+                    }
+
+                    // Sample buffers strategically - skip detailed accumulation for
+                    // most buffers, but always fold their peak into the envelope
+                    if bufferIndex % bufferSkipInterval != 0 {
+                        bufferIndex += 1
+                        data.withMemoryRebound(to: Int16.self, capacity: interleavedSampleCount) { ptr in
+                            if peakScratch.count < interleavedSampleCount {
+                                peakScratch = [Float](repeating: 0, count: interleavedSampleCount)
+                            }
+                            var peak: Float = 0
+                            peakScratch.withUnsafeMutableBufferPointer { scratch in
+                                vDSP_vflt16(ptr, 1, scratch.baseAddress!, 1, vDSP_Length(interleavedSampleCount))
+                                vDSP_maxmgv(scratch.baseAddress!, 1, &peak, vDSP_Length(interleavedSampleCount))
+                            }
+                            pendingSkippedPeak = max(pendingSkippedPeak, min(1.0, Double(peak) / 32768.0))
+                        }
+                        return
+                    }
+                    bufferIndex += 1
 
                     // Get the actual number of audio frames (not interleaved samples)
                     // For stereo audio, interleavedSampleCount would be 2x the number of frames
@@ -136,10 +180,6 @@ public func extractWaveform(
                     let bufferDuration = CMSampleBufferGetDuration(sampleBuffer).seconds
                     // Use frame count for time step, not interleaved sample count
                     let timeStep = bufferDuration / Double(numFrames)
-
-                    // Calculate interleaved sample count for buffer access
-                    let interleavedSampleCount = length / MemoryLayout<Int16>.size
-                    guard interleavedSampleCount > 0 else { return }
 
                     // Determine channel count from interleaved samples vs frames
                     let channelCount = max(1, interleavedSampleCount / numFrames)
@@ -161,7 +201,7 @@ public func extractWaveform(
                                         windowStart: currentWindowStart,
                                         windowSize: actualWindowSize
                                     )
-                                    allSamples.append(newSample)
+                                    allSamples.append(mergeSkippedPeak(newSample))
                                 }
 
                                 // Move to next window
@@ -198,7 +238,7 @@ public func extractWaveform(
                                 windowStart: currentWindowStart,
                                 windowSize: actualWindowSize
                             )
-                            allSamples.append(newSample)
+                            allSamples.append(mergeSkippedPeak(newSample))
                         }
                         shouldBreak = true
                         return
@@ -229,7 +269,7 @@ public func extractWaveform(
                     windowStart: currentWindowStart,
                     windowSize: actualWindowSize
                 )
-                allSamples.append(newSample)
+                allSamples.append(mergeSkippedPeak(newSample))
             }
 
             if allSamples.count > maxSamples {
