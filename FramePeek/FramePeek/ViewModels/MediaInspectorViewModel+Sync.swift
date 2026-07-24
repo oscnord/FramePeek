@@ -18,28 +18,23 @@ extension FramePeekViewModel {
         syncTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
 
-            let result = await analyzeAudioVideoSync(asset: assetForSync)
-
-            await MainActor.run {
-                if !Task.isCancelled {
-                    self.syncAnalysisResult = result
-                }
-            }
-
-            for await batch in analyzeFrameTimingStream(asset: assetForSync, maxSamples: 500) {
+            for await update in analyzeSyncStream(asset: assetForSync, maxChartSamples: 500) {
                 if Task.isCancelled { break }
 
                 await MainActor.run {
-                    if !Task.isCancelled {
+                    guard !Task.isCancelled else { return }
+                    if let batch = update.frameTimingSamples {
                         self.frameTimingSamples = batch
+                    }
+                    if let result = update.result {
+                        self.syncAnalysisResult = result
                     }
                 }
             }
 
             await MainActor.run {
-                if !Task.isCancelled {
-                    self.isAnalyzingSync = false
-                }
+                guard !Task.isCancelled else { return }
+                self.isAnalyzingSync = false
                 self.syncTask = nil
             }
         }
