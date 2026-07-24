@@ -19,7 +19,10 @@ public func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
         var channels = 0
         var sampleRateHz: Double = 0
 
-        if let formatDesc = await AVAssetLoader.firstFormatDescription(of: track) {
+        // One batched property load per track instead of three sequential awaits
+        let loaded = try? await track.load(.formatDescriptions, .estimatedDataRate, .languageCode)
+
+        if let formatDesc = loaded?.0.first {
             let codecFourCC = CMFormatDescriptionGetMediaSubType(formatDesc)
             codec = fourCCToString(codecFourCC)
 
@@ -31,9 +34,9 @@ public func loadAudioInfo(asset: AVAsset) async -> [AudioTrackInfo] {
             }
         }
 
-        let bitrateBps = await AVAssetLoader.estimatedDataRate(of: track)
+        let bitrateBps = loaded?.1 ?? 0
         let bitrateKbps: Float? = bitrateBps > 0 ? bitrateBps / 1000.0 : nil
-        let languageCode = try? await track.load(.languageCode)
+        let languageCode = loaded?.2 ?? nil
 
         result.append(
             AudioTrackInfo(

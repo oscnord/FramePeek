@@ -58,8 +58,8 @@ public struct ExtendedVideoInfo: Codable, Sendable {
     // Video extra
     public let orientationDegrees: Int?
     public let trackBitrate: String?
-    public let maxBitrate: String?
-    public let minBitrate: String?
+    public var maxBitrate: String?
+    public var minBitrate: String?
     public let pixelAspectRatio: String?
     public let cleanAperture: String?
     public let scanType: String?
@@ -163,9 +163,9 @@ public struct ExtendedVideoInfo: Codable, Sendable {
         return Double(firstComponent)
     }
 
-    /// Parses the duration in seconds from the duration string
+    /// Parses the duration in seconds from the duration string (e.g., "12.34 sec")
     public var durationSeconds: Double? {
-        return Double(duration)
+        Double(duration.split(separator: " ").first ?? "")
     }
 
     /// Parses width and height from resolution string (e.g., "1920x1080" -> (1920, 1080))

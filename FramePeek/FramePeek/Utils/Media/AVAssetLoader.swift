@@ -25,10 +25,6 @@ public enum AVAssetLoader {
         return rate > 0 ? rate : defaultValue
     }
 
-    public static func estimatedDataRate(of track: AVAssetTrack) async -> Float {
-        (try? await track.load(.estimatedDataRate)) ?? 0
-    }
-
     public static func formatDescriptions(of track: AVAssetTrack) async -> [CMFormatDescription] {
         (try? await track.load(.formatDescriptions)) ?? []
     }

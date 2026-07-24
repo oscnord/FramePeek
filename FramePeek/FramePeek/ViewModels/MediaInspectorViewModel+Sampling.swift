@@ -90,54 +90,9 @@ extension FramePeekViewModel {
         let maxBitrateString = String(format: "%.0f kb/s", maxBitrateKbps)
         let minBitrateString = String(format: "%.0f kb/s", minBitrateKbps)
 
-        // Create new ExtendedVideoInfo with updated maxBitrate and minBitrate
-        let updatedInfo = ExtendedVideoInfo(
-            fileName: info.fileName,
-            fileSize: info.fileSize,
-            fileSizeBytes: info.fileSizeBytes,
-            overallBitrate: info.overallBitrate,
-            duration: info.duration,
-            durationFormatted: info.durationFormatted,
-            containerFormat: info.containerFormat,
-            containerFormatProfile: info.containerFormatProfile,
-            codecIdRaw: info.codecIdRaw,
-            resolution: info.resolution,
-            displayAspectRatio: info.displayAspectRatio,
-            frameRate: info.frameRate,
-            codec: info.codec,
-            codecProfile: info.codecProfile,
-            codecIdInfo: info.codecIdInfo,
-            orientationDegrees: info.orientationDegrees,
-            trackBitrate: info.trackBitrate,
-            maxBitrate: maxBitrateString, // Use peak from analysis
-            minBitrate: minBitrateString, // Use minimum from analysis
-            pixelAspectRatio: info.pixelAspectRatio,
-            cleanAperture: info.cleanAperture,
-            scanType: info.scanType,
-            frameRateMode: info.frameRateMode,
-            colorSpace: info.colorSpace,
-            chromaSubsampling: info.chromaSubsampling,
-            bitsPerPixelFrame: info.bitsPerPixelFrame,
-            videoStreamSize: info.videoStreamSize,
-            colorPrimaries: info.colorPrimaries,
-            transferFunction: info.transferFunction,
-            matrixCoefficients: info.matrixCoefficients,
-            colorRange: info.colorRange,
-            bitDepth: info.bitDepth,
-            hdrFormat: info.hdrFormat,
-            av1CSize: info.av1CSize,
-            av1Profile: info.av1Profile,
-            av1Level: info.av1Level,
-            av1ChromaSubsampling: info.av1ChromaSubsampling,
-            av1FullRange: info.av1FullRange,
-            creationDate: info.creationDate,
-            metadataTitle: info.metadataTitle,
-            metadataArtist: info.metadataArtist,
-            metadataEncoder: info.metadataEncoder,
-            metadataDescription: info.metadataDescription,
-            audioTracks: info.audioTracks
-        )
-
+        var updatedInfo = info
+        updatedInfo.maxBitrate = maxBitrateString
+        updatedInfo.minBitrate = minBitrateString
         extendedInfo = updatedInfo
     }
 

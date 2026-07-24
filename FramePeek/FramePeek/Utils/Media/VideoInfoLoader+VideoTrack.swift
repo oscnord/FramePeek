@@ -36,14 +36,11 @@ public struct VideoTrackInfo {
     }
 }
 
-public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
-    guard let videoTrack = await AVAssetLoader.firstTrack(of: asset, mediaType: .video) else {
-        return nil
-    }
-
+public func extractVideoTrackInfo(videoTrack: AVAssetTrack, formatDescription: CMFormatDescription?) async -> VideoTrackInfo? {
     do {
-        let naturalSize = try await videoTrack.load(.naturalSize)
-        let loadedFrameRate = try await videoTrack.load(.nominalFrameRate)
+        // One batched load for the required properties, one for the optional ones
+        let (naturalSize, loadedFrameRate) = try await videoTrack.load(.naturalSize, .nominalFrameRate)
+        let optional = try? await videoTrack.load(.preferredTransform, .estimatedDataRate)
 
         let w = Int(naturalSize.width)
         let h = Int(naturalSize.height)
@@ -51,13 +48,13 @@ public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
         let frameRate = String(format: "%.3f FPS", loadedFrameRate)
 
         // Orientation (preferredTransform)
-        let t = (try? await videoTrack.load(.preferredTransform)) ?? CGAffineTransform.identity
+        let t = optional?.0 ?? CGAffineTransform.identity
         let angle = atan2(t.b, t.a) * 180.0 / .pi
         let normalized = (Int(round(angle)) % 360 + 360) % 360
         let orientationDegrees: Int? = normalized != 0 ? normalized : nil
 
         // Track bitrate
-        let estimated = await AVAssetLoader.estimatedDataRate(of: videoTrack)
+        let estimated = optional?.1 ?? 0
         let trackBitrateValue = estimated
         let trackBitrate: String? = estimated > 0 ? String(format: "%.0f kb/s", estimated / 1000.0) : nil
 
@@ -68,8 +65,7 @@ public func extractVideoTrackInfo(asset: AVAsset) async -> VideoTrackInfo? {
         var cleanAperture: String?
         var scanType: String?
 
-        let formatDescriptions = try await videoTrack.load(.formatDescriptions)
-        if let formatDesc = formatDescriptions.first,
+        if let formatDesc = formatDescription,
            let extDict = CMFormatDescriptionGetExtensions(formatDesc) as? [CFString: Any] {
 
             // Clean aperture

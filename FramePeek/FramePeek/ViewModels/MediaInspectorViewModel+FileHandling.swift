@@ -119,8 +119,7 @@ extension FramePeekViewModel {
         infoTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             let info = await getExtendedInfo(url: url, asset: assetForInfo)
-            // Also load duration for timeline view
-            let duration = (try? await assetForInfo.load(.duration).seconds) ?? 0
+            let duration = info.durationSeconds ?? 0
             await MainActor.run {
                 // A newer file may have started loading; don't overwrite its state
                 guard !Task.isCancelled else { return }
