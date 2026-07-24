@@ -185,54 +185,59 @@ extension FramePeekViewModel {
         }
 
         frameDetailPreloadTask = Task.detached(priority: .utility) { [weak self] in
-            let asset = AVURLAsset(url: url)
+            // Segments extract concurrently; AVAssetReader allows one reader
+            // per asset, so each extraction gets its own asset instance
+            await withTaskGroup(of: Void.self) { group in
+                for info in segmentInfos {
+                    group.addTask {
+                        if Task.isCancelled { return }
 
-            for info in segmentInfos {
-                if Task.isCancelled { break }
-
-                // Check disk cache first
-                if let diskCached = await CacheManager.shared.loadGOPFrameDetails(
-                    for: url, startTime: info.timeRange.lowerBound, endTime: info.timeRange.upperBound
-                ) {
-                    await MainActor.run {
-                        guard let self else { return }
-                        self.preloadingGOPIndices.remove(info.index)
-                        self.cacheGOPFrameDetails(diskCached, for: info.id)
-                        if self.selectedGOPIndex == info.index {
-                            self.selectedGOPFrameDetails = diskCached
-                        }
-                    }
-                    continue
-                }
-
-                let result = await FrameDetailExtractor.extractFrameDetails(from: asset, timeRange: info.timeRange)
-
-                if Task.isCancelled { break }
-
-                // Single MainActor bounce per segment for the final UI update
-                await MainActor.run {
-                    guard let self else { return }
-                    self.preloadingGOPIndices.remove(info.index)
-
-                    if let result, result.codecSupportsFrameTypes {
-                        self.cacheGOPFrameDetails(result.frames, for: info.id)
-
-                        // Persist to disk in background
-                        let frames = result.frames
-                        let startTime = info.timeRange.lowerBound
-                        let endTime = info.timeRange.upperBound
-                        Task.detached(priority: .utility) {
-                            await CacheManager.shared.saveGOPFrameDetails(
-                                for: url, startTime: startTime, endTime: endTime, frames: frames
-                            )
+                        // Check disk cache first
+                        if let diskCached = await CacheManager.shared.loadGOPFrameDetails(
+                            for: url, startTime: info.timeRange.lowerBound, endTime: info.timeRange.upperBound
+                        ) {
+                            await MainActor.run {
+                                guard let self, !Task.isCancelled else { return }
+                                self.preloadingGOPIndices.remove(info.index)
+                                self.cacheGOPFrameDetails(diskCached, for: info.id)
+                                if self.selectedGOPIndex == info.index {
+                                    self.selectedGOPFrameDetails = diskCached
+                                }
+                            }
+                            return
                         }
 
-                        // If this is the currently selected GOP, update selectedGOPFrameDetails
-                        if self.selectedGOPIndex == info.index {
-                            self.selectedGOPFrameDetails = result.frames
+                        let asset = AVURLAsset(url: url)
+                        let result = await FrameDetailExtractor.extractFrameDetails(from: asset, timeRange: info.timeRange)
+
+                        if Task.isCancelled { return }
+
+                        // Single MainActor bounce per segment for the final UI update
+                        await MainActor.run {
+                            guard let self else { return }
+                            self.preloadingGOPIndices.remove(info.index)
+
+                            if let result, result.codecSupportsFrameTypes {
+                                self.cacheGOPFrameDetails(result.frames, for: info.id)
+
+                                // Persist to disk in background
+                                let frames = result.frames
+                                let startTime = info.timeRange.lowerBound
+                                let endTime = info.timeRange.upperBound
+                                Task.detached(priority: .utility) {
+                                    await CacheManager.shared.saveGOPFrameDetails(
+                                        for: url, startTime: startTime, endTime: endTime, frames: frames
+                                    )
+                                }
+
+                                // If this is the currently selected GOP, update selectedGOPFrameDetails
+                                if self.selectedGOPIndex == info.index {
+                                    self.selectedGOPFrameDetails = result.frames
+                                }
+                            } else if result != nil {
+                                self.codecSupportsFrameTypes = false
+                            }
                         }
-                    } else if result != nil {
-                        self.codecSupportsFrameTypes = false
                     }
                 }
             }
