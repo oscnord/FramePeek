@@ -85,5 +85,3 @@ xcodebuild -project FramePeek/FramePeek.xcodeproj -scheme FramePeek test
 ## Updating AGENTS.md
 
 When you learn new patterns or best practices, update this file to help future agents.
-
-## Version History

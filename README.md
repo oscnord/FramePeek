@@ -2,7 +2,7 @@
 
 [![Release](https://github.com/oscnord/FramePeek/actions/workflows/release.yml/badge.svg)](https://github.com/oscnord/FramePeek/actions/workflows/release.yml)
 
-A macOS application for inspecting video and audio files with metadata analysis, bitrate visualization, and keyframe detection.
+A macOS application for inspecting video and audio files with metadata analysis, bitrate visualization, GOP structure analysis, color analysis, and keyframe detection.
 
 https://github.com/user-attachments/assets/bbd946b5-e3d0-4659-8169-be47a73d1ab8
 
@@ -27,10 +27,27 @@ https://github.com/user-attachments/assets/bbd946b5-e3d0-4659-8169-be47a73d1ab8
 - **Performance Optimized**: Efficient frame extraction with configurable accuracy settings and LTTB downsampling
 - **Timeline Zoom**: Interactive timeline for zooming into specific time ranges
 
+### GOP Structure Analysis
+- **Frame-Type Timeline**: I/P/B frame visualization with per-GOP details
+- **GOP Heatmap**: Size and structure heatmap with viewport culling for large files
+- **On-Demand Frame Details**: Per-frame size and type extraction with LRU caching
+
 ### Keyframe Detection
 - **Thumbnail Strip**: Horizontal scrollable strip of keyframe thumbnails for quick navigation
 - **Sync Sample Detection**: Identifies I-frames (intra-coded frames) without decoding
 - **GOP Interval Display**: Shows Group of Pictures intervals for each keyframe
+
+### Color & Exposure Analysis
+- **Scopes**: Vectorscope, waveform scope, and RGB histogram
+- **Color Temperature & Brightness**: CCT and brightness charts over time
+- **HDR Analysis**: Dolby Vision configuration details and HDR content classification
+
+### Audio Waveforms & A/V Sync
+- **Per-Track Waveforms**: Peak waveform visualization for every audio track
+- **Sync Analysis**: Audio/video timestamp drift detection
+
+### Container Inspector
+- **Atom/Box Tree**: Browse MP4/MOV container structure with size breakdowns
 
 ### Video Player
 - **Built-in Player**: Play videos with AVPlayer integration
@@ -50,8 +67,7 @@ https://github.com/user-attachments/assets/bbd946b5-e3d0-4659-8169-be47a73d1ab8
 ## System Requirements
 
 - **macOS**: 15.2 (Sequoia) or later
-- **Xcode**: 15.0 or later (for building from source)
-- **Swift**: 5.0 or later
+- **Xcode**: 16.2 or later (for building from source)
 
 ## Installation
 
