@@ -65,26 +65,16 @@ struct ChromaticityXY {
     }
     
     /// Get uv coordinates on Planckian locus for given CCT
+    /// Krystek (1985) rational approximation, valid 1000K-15000K
     private func planckianLocusUV(cct: Double) -> (u: Double, v: Double) {
-        // Approximation of Planckian locus in CIE 1960 UCS
-        // Based on Kim et al. (2002) approximation
-        
-        let t = 1000.0 / cct
+        let t = cct
         let t2 = t * t
-        let t3 = t2 * t
-        
-        // u coordinate approximation
-        let u: Double
-        if cct < 4000 {
-            u = 0.860117757 + 1.54118254e-4 * cct - 1.28641212e-7 * cct * cct
-        } else {
-            u = 0.860117757 + 1.54118254e-4 * cct - 1.28641212e-7 * cct * cct + 2.96240482e-11 * cct * cct * cct
-        }
-        
-        // Simplified v approximation (good enough for Duv calculation)
-        // Using the relationship between CCT and v on the Planckian locus
-        let v = 0.293 + 0.0365 * t - 0.00685 * t2 + 0.000475 * t3
-        
+
+        let u = (0.860117757 + 1.54118254e-4 * t + 1.28641212e-7 * t2) /
+                (1.0 + 8.42420235e-4 * t + 7.08145163e-7 * t2)
+        let v = (0.317398726 + 4.22806245e-5 * t + 4.20481691e-8 * t2) /
+                (1.0 - 2.89741816e-5 * t + 1.61456053e-7 * t2)
+
         return (u, v)
     }
     

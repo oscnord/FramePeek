@@ -47,6 +47,9 @@ public func analyzeColorProfessional(
             generator.requestedTimeToleranceBefore = CMTime(seconds: 0.01, preferredTimescale: 600)
             generator.requestedTimeToleranceAfter = CMTime(seconds: 0.01, preferredTimescale: 600)
             generator.apertureMode = .productionAperture
+            // Analysis downscales to 256x256; decode-time downscale instead of
+            // decoding full 4K/8K frames (512 keeps headroom for wide aspect ratios)
+            generator.maximumSize = CGSize(width: 512, height: 512)
             
             var samples: [FrameColorAnalysis] = []
             samples.reserveCapacity(estimatedSamples)
@@ -514,45 +517,4 @@ public func convertToLegacyColorSample(_ analysis: FrameColorAnalysis) -> ColorS
 /// Converts array of professional analyses to legacy format
 public func convertToLegacyColorSamples(_ analyses: [FrameColorAnalysis]) -> [ColorSample] {
     return analyses.map { convertToLegacyColorSample($0) }
-}
-
-// MARK: - Single Frame Analysis for Player Overlay
-
-/// Analyzes a single frame for real-time display in player overlay
-/// Optimized for speed with reduced resolution
-public func analyzeFrameForOverlay(
-    cgImage: CGImage,
-    config: ColorAnalysisConfig = .default
-) -> FrameColorAnalysis {
-    // Use lower resolution for real-time analysis
-    let analysisWidth = 128
-    let analysisHeight = 128
-    let pixelData = extractPixelData(from: cgImage, width: analysisWidth, height: analysisHeight)
-    
-    let luminance = calculateLuminanceData(
-        pixelData: pixelData,
-        width: analysisWidth,
-        height: analysisHeight,
-        contentType: config.hdrContentType
-    )
-    
-    let histogram = calculateColorHistogramFromPixels(
-        pixelData: pixelData,
-        width: analysisWidth,
-        height: analysisHeight
-    )
-    
-    let exposure = determineExposureStatus(luminance: luminance, histogram: histogram)
-    
-    // Skip expensive calculations for overlay
-    return FrameColorAnalysis(
-        time: 0,
-        luminance: luminance,
-        colorTemperature: nil,
-        saturation: 0,
-        histogram: histogram,
-        waveformData: nil,
-        vectorscopeData: nil,
-        exposureStatus: exposure
-    )
 }
