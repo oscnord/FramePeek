@@ -258,17 +258,29 @@ jobs:
           VERSION=${{ steps.version.outputs.marketing }}
           ./scripts/notarize.sh "$RUNNER_TEMP/FramePeek-$VERSION.dmg" --staple
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: FramePeek ${{ steps.version.outputs.marketing }}
-          # Body comes from release-please's generated changelog; only the
-          # build artifacts are attached here
-          fail_on_unmatched_files: true
-          files: |
-            ${{ runner.temp }}/FramePeek-${{ steps.version.outputs.marketing }}.dmg
-            ${{ runner.temp }}/framepeek-cli-${{ steps.version.outputs.marketing }}.tar.gz
+      # Assets attach via gh so the release object (created by release-please
+      # with the changelog body) is never modified; updating it from this
+      # run's token 403s regardless of contents:write
+      - name: Attach artifacts to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.marketing }}"
+
+          if ! gh release view "$TAG" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            # Manual test tags have no release-please release; create one
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "FramePeek $VERSION" \
+              --generate-notes
+          fi
+
+          gh release upload "$TAG" \
+            "$RUNNER_TEMP/FramePeek-$VERSION.dmg" \
+            "$RUNNER_TEMP/framepeek-cli-$VERSION.tar.gz" \
+            --clobber --repo "${{ github.repository }}"
 
       - name: Write job summary
         if: always()
