@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/oscnord/FramePeek/compare/v1.1.0...v1.2.0) (2026-07-24)
+
+
+### Features
+
+* two-channel updates - Sparkle for GitHub, App Store target split ([#42](https://github.com/oscnord/FramePeek/issues/42)) ([9f38101](https://github.com/oscnord/FramePeek/commit/9f381019596ecc8ecfa9ac9aa2e1dd5fa2135074))
+
 ## [1.1.0](https://github.com/oscnord/FramePeek/compare/v1.0.0...v1.1.0) (2026-07-24)
 
 
