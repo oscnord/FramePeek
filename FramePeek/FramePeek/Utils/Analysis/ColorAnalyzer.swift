@@ -53,47 +53,77 @@ public func analyzeColor(
             
             var samples: [FrameColorAnalysis] = []
             samples.reserveCapacity(estimatedSamples)
-            
-            var currentTime = 0.0
-            var sampleCount = 0
+
             var lastEmitTime: Double = -1
-            
-            while currentTime < duration && sampleCount < maxSamples {
-                if Task.isCancelled { break }
-                
-                let time = CMTime(seconds: currentTime, preferredTimescale: 600)
-                
-                guard let cgImage = try? await generator.image(at: time).image else {
+
+            // Decode stays sequential (hardware decoder), but per-frame pixel
+            // analysis is CPU-bound and fans out to a bounded task group.
+            // Results append in decode order via an index frontier.
+            let analysisWidth = max(2, min(6, ProcessInfo.processInfo.activeProcessorCount - 2))
+
+            await withTaskGroup(of: (Int, FrameColorAnalysis).self) { group in
+                var pendingByIndex: [Int: FrameColorAnalysis] = [:]
+                var nextToAppend = 0
+                var decodedCount = 0
+                var inFlight = 0
+                var currentTime = 0.0
+
+                func drainOne() async {
+                    guard let (index, analysis) = await group.next() else { return }
+                    inFlight -= 1
+                    pendingByIndex[index] = analysis
+                    while let next = pendingByIndex.removeValue(forKey: nextToAppend) {
+                        samples.append(next)
+                        nextToAppend += 1
+                    }
+                }
+
+                while currentTime < duration && decodedCount < maxSamples {
+                    if Task.isCancelled { break }
+
+                    if inFlight >= analysisWidth {
+                        await drainOne()
+
+                        // Emit progress updates every 10 samples or 5 seconds of content
+                        if let lastTime = samples.last?.time,
+                           samples.count % 10 == 0 || lastTime - lastEmitTime >= 5.0 {
+                            continuation.yield(ColorAnalysisUpdate(
+                                samples: samples,
+                                progress: min(1.0, currentTime / duration),
+                                isFinished: false
+                            ))
+                            lastEmitTime = lastTime
+                        }
+                    }
+
+                    let time = CMTime(seconds: currentTime, preferredTimescale: 600)
+
+                    guard let cgImage = try? await generator.image(at: time).image else {
+                        currentTime += effectiveInterval
+                        continue
+                    }
+
+                    let index = decodedCount
+                    let frameTime = currentTime
+                    decodedCount += 1
+                    inFlight += 1
+                    group.addTask {
+                        (index, analyzeFrame(
+                            cgImage: cgImage,
+                            time: frameTime,
+                            config: config,
+                            colorSpace: colorSpace
+                        ))
+                    }
+
                     currentTime += effectiveInterval
-                    continue
                 }
-                
-                // Analyze the frame
-                let analysis = analyzeFrame(
-                    cgImage: cgImage,
-                    time: currentTime,
-                    config: config,
-                    colorSpace: colorSpace
-                )
-                
-                samples.append(analysis)
-                sampleCount += 1
-                
-                // Emit progress updates every 10 samples or 5 seconds of content
-                let shouldEmit = sampleCount % 10 == 0 || currentTime - lastEmitTime >= 5.0
-                if shouldEmit {
-                    let progress = min(1.0, currentTime / duration)
-                    continuation.yield(ColorAnalysisUpdate(
-                        samples: samples,
-                        progress: progress,
-                        isFinished: false
-                    ))
-                    lastEmitTime = currentTime
+
+                while inFlight > 0 {
+                    await drainOne()
                 }
-                
-                currentTime += effectiveInterval
             }
-            
+
             // Final update
             continuation.yield(ColorAnalysisUpdate(
                 samples: samples,
