@@ -1,0 +1,53 @@
+/* Hallmark · genre: atmospheric · macrostructure: Workbench · theme: Midnight
+ * paper-band: dark · display-style: geometric-sans · accent-hue: neutral
+ */
+
+:root {
+  --color-paper: oklch(12% 0.006 260);
+  --color-paper-2: oklch(16.5% 0.007 260);
+  --color-paper-3: oklch(21% 0.008 260);
+  --color-rule: oklch(27% 0.008 260);
+  --color-rule-soft: oklch(22% 0.008 260);
+  --color-neutral: oklch(60% 0.008 260);
+  --color-muted: oklch(72% 0.006 260);
+  --color-ink: oklch(96% 0.003 260);
+  --color-ink-bright: oklch(99% 0.003 260);
+  --color-panel: oklch(16.5% 0.007 260 / 0.6);
+  --color-shadow: oklch(6% 0.010 260 / 0.55);
+  --color-accent: oklch(96% 0.003 260);
+  --color-accent-ink: oklch(16% 0.008 260);
+  --color-focus: oklch(72% 0.130 250);
+  --color-glow-a: oklch(42% 0.140 250);
+  --color-glow-b: oklch(40% 0.100 205);
+
+  --font-display: "Geist", ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --font-body: "Geist", ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-display-s: clamp(1.9rem, 3vw + 0.9rem, 2.9rem);
+  --text-display: clamp(2.4rem, 4.6vw + 0.9rem, 4.25rem);
+
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6.5rem;
+
+  --measure: 58ch;
+  --rule: 1px solid var(--color-rule-soft);
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --dur-fast: 120ms;
+}

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FramePeek — inspect video and audio files on macOS</title>
+    <meta
+      name="description"
+      content="A macOS app that measures what is actually inside a video or audio file: bitrate over time, GOP structure, EBU R128 loudness, A/V drift and HLS ladders. Built on AVFoundation, no FFmpeg."
+    />
+    <link rel="icon" href="img/icon.png" />
+    <meta property="og:title" content="FramePeek" />
+    <meta
+      property="og:description"
+      content="Inspect the file, not the label. Bitrate, GOP structure, loudness and HLS ladder QC on macOS."
+    />
+    <meta property="og:image" content="img/app.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@350;500;600&family=Geist+Mono:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="masthead shell">
+      <a class="wordmark" href="./"
+        ><img src="img/icon.png" width="24" height="24" alt="" />FramePeek</a
+      >
+      <nav>
+        <a href="#ladder">Streaming</a>
+        <a href="#cli">CLI</a>
+        <a href="https://github.com/oscnord/FramePeek">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero shell">
+        <h1>Inspect the file, not the label.</h1>
+        <p class="hero__lede">
+          FramePeek opens a video or audio file and measures what is actually in
+          it. Bitrate over time, GOP structure, EBU R128 loudness, A/V drift and
+          HLS ladders. Built on AVFoundation. No FFmpeg.
+        </p>
+        <div class="hero__actions">
+          <a
+            class="btn btn--primary"
+            href="https://github.com/oscnord/FramePeek/releases/latest"
+            >Download for macOS</a
+          >
+          <a class="btn btn--ghost" href="https://github.com/oscnord/FramePeek"
+            >Source</a
+          >
+          <span class="hero__note">macOS 15.2+ · MIT</span>
+        </div>
+      </section>
+
+      <section class="stage shell">
+        <img
+          src="img/app.png"
+          width="2000"
+          height="1250"
+          alt="FramePeek showing a bitrate-over-time chart, a keyframe thumbnail strip and the GOP structure for Big Buck Bunny, with a metadata inspector on the right."
+        />
+        <dl class="readout">
+          <div><dt>Overall</dt><dd>9 725 kb/s</dd></div>
+          <div><dt>Peak</dt><dd>30 242 kb/s</dd></div>
+          <div><dt>GOPs</dt><dd>597</dd></div>
+          <div><dt>Pattern</dt><dd>Irregular</dd></div>
+        </dl>
+      </section>
+
+      <section class="block shell" id="ladder">
+        <div class="block__head">
+          <p class="eyebrow">Declared vs measured</p>
+          <h2>The manifest is a claim. Check it.</h2>
+          <p>
+            Paste a playlist URL or open a local folder. FramePeek walks every
+            variant, measures the segments and flags the ones whose real peak
+            exceeds the BANDWIDTH they advertise. It also checks segment
+            durations, keyframe alignment across the ladder, and whether CODECS
+            matches what the segments actually contain.
+          </p>
+        </div>
+        <figure>
+          <img
+            src="img/ladder-table.png"
+            width="1800"
+            height="302"
+            alt="Per-variant table for a five-rendition ladder listing resolution, codecs, declared bandwidth, measured bitrate, peak and segment count. Two rows show the peak in red."
+          />
+          <img
+            src="img/ladder-findings.png"
+            width="1800"
+            height="509"
+            alt="Findings list grouped into errors and warnings, including two measured peak segment bitrates that exceed the declared BANDWIDTH and two CODECS strings that do not match the segments."
+          />
+          <figcaption>
+            A public test ladder. Two variants break the RFC 8216 rule that
+            BANDWIDTH is an upper bound; two more declare a CODECS string their
+            segments do not match.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="block shell">
+        <div class="block__head">
+          <p class="eyebrow">Loudness</p>
+          <h2>R128 without a render.</h2>
+          <p>
+            Integrated loudness, true peak and loudness range, gated per ITU-R
+            BS.1770-4. The short-term curve is drawn against the -23 LUFS
+            target, so you can see which passage is pulling the number.
+          </p>
+        </div>
+        <figure>
+          <img
+            src="img/loudness.png"
+            width="1600"
+            height="767"
+            alt="Loudness card showing integrated -18.5 LUFS, true peak 0.6 dBTP and range 23.7 LU, above a short-term LUFS curve. A per-track audio waveform sits above it."
+          />
+          <figcaption>
+            Integrated -18.5 LUFS · true peak 0.6 dBTP · range 23.7 LU. Both the
+            integrated value and the true peak are flagged against R128.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="block shell">
+        <div class="block__head">
+          <p class="eyebrow">A/V sync</p>
+          <h2>Find the drift before QC does.</h2>
+          <p>
+            Audio and video timestamps compared track by track, with the frame
+            interval distribution underneath. Constant frame rate, variable
+            frame rate and duration mismatches all show up here.
+          </p>
+        </div>
+        <figure>
+          <img
+            src="img/sync.png"
+            width="1600"
+            height="632"
+            alt="Audio/Video sync card reporting an in-sync verdict, 0.0 ms offset, 40.7 ms duration delta, 24.000 FPS constant frame rate and 14 319 frames analysed."
+          />
+          <figcaption>
+            0.0 ms offset across 14 319 frames · 24.000 FPS CFR · 40.7 ms
+            duration delta between the audio and video tracks.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="block shell" id="cli">
+        <div class="block__head">
+          <p class="eyebrow">Headless</p>
+          <h2>Same analyses, no window.</h2>
+          <p>
+            <code>framepeek-cli</code> runs every analysis from the shell as
+            JSON, text or CSV, so it drops into a batch job or a CI step. The
+            same tools are exposed over MCP, which lets an agent read a file's
+            real properties instead of guessing at them.
+          </p>
+        </div>
+        <div class="code-stack">
+          <pre><span class="prompt">$</span> framepeek-cli big_buck_bunny_1080p_h264.mov --info --pretty
+
+<b>{
+  "codec" : "H.264",
+  "codecProfile" : "Main@L4.1",
+  "resolution" : "1920x1080",
+  "frameRate" : "24.000 FPS",
+  "chromaSubsampling" : "4:2:0",
+  "colorPrimaries" : "ITU_R_709_2",
+  "overallBitrate" : "9725 kb/s",
+  "durationFormatted" : "9m 56s"
+}</b></pre>
+          <pre><span class="prompt">$</span> <b>framepeek-cli *.mp4 --all --parallel</b>
+<span class="prompt">$</span> <b>framepeek-cli video.mp4 --bitrate --format csv</b>
+<span class="prompt">$</span> <b>framepeek-cli video.mp4 --loudness --pretty</b>
+
+<span class="prompt">#</span> expose the same analyses to an agent
+<span class="prompt">$</span> <b>claude mcp add framepeek -- framepeek-cli mcp</b>
+
+<span class="prompt">#</span> tools: analyze_media, media_summary,
+<span class="prompt">#</span>        inspect_container, inspect_hls_ladder</pre>
+        </div>
+      </section>
+
+      <section class="close shell">
+        <h2>Open a file and look.</h2>
+        <p>
+          Signed and notarised. The CLI ships as a separate tarball on the same
+          release.
+        </p>
+        <a
+          class="btn btn--primary"
+          href="https://github.com/oscnord/FramePeek/releases/latest"
+          >Download for macOS</a
+        >
+      </section>
+    </main>
+
+    <footer class="foot shell">
+      <span>FramePeek · MIT</span>
+      <span
+        ><a href="https://github.com/oscnord/FramePeek">GitHub</a> ·
+        <a href="https://github.com/oscnord/FramePeek/releases">Releases</a> ·
+        <a href="https://github.com/oscnord/FramePeek/issues">Issues</a></span
+      >
+    </footer>
+  </body>
+</html>
