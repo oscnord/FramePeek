@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/oscnord/FramePeek/compare/v1.3.0...v1.4.0) (2026-07-29)
+
+
+### Features
+
+* **docs:** GitHub Pages landing page ([#55](https://github.com/oscnord/FramePeek/issues/55)) ([b043db6](https://github.com/oscnord/FramePeek/commit/b043db6bb4cc0e814863a8d29565fbe18551af6b))
+* **icon:** new app icon, generated from a single source ([#56](https://github.com/oscnord/FramePeek/issues/56)) ([17aa3ed](https://github.com/oscnord/FramePeek/commit/17aa3edf1096e917450a486b01455bf011d25236))
+
 ## [1.3.0](https://github.com/oscnord/FramePeek/compare/v1.2.0...v1.3.0) (2026-07-24)
 
 
