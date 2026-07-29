@@ -33,8 +33,8 @@
             }
           ],
           "hidden": false,
-          "image-name": "Half.svg",
-          "name": "Half",
+          "image-name": "Minor.svg",
+          "name": "Minor",
           "position": {
             "scale": 1,
             "translation-in-points": [
@@ -70,8 +70,8 @@
             }
           ],
           "hidden": false,
-          "image-name": "Disc.svg",
-          "name": "Disc",
+          "image-name": "Major.svg",
+          "name": "Major",
           "position": {
             "scale": 1,
             "translation-in-points": [

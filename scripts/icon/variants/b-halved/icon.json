@@ -70,8 +70,8 @@
             }
           ],
           "hidden": false,
-          "image-name": "Disc.svg",
-          "name": "Disc",
+          "image-name": "Whole.svg",
+          "name": "Whole",
           "position": {
             "scale": 1,
             "translation-in-points": [
