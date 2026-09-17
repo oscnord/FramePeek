@@ -1,11 +1,19 @@
 name: Release Please
 
-# Manual-only by design: nothing releases on push or merge to main.
-# Run once to open/refresh the release PR from accumulated conventional
-# commits; merge that PR when ready; run again to create the tag and
-# GitHub release and dispatch the signed build.
+# Every push to main opens or refreshes the release PR from the accumulated
+# conventional commits. Merging that PR is what ships: the same workflow then
+# creates the tag and GitHub release and dispatches the signed build.
+# Nothing is released until the release PR is merged.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+# Two pushes landing together would both force-update the release branch.
+# Queue instead of cancelling, so a run is never interrupted mid-update.
+concurrency:
+  group: release-please
+  cancel-in-progress: false
 
 permissions:
   contents: write
