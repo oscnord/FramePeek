@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.0](https://github.com/oscnord/FramePeek/compare/v1.4.0...v1.5.0) (2026-09-17)
+
+
+### Features
+
+* remember inspector and sidebar layout, fix macOS 27 launch crash ([#58](https://github.com/oscnord/FramePeek/issues/58)) ([4064d26](https://github.com/oscnord/FramePeek/commit/4064d265e88adff8f738f26a9a6a2d57d6f38b5d))
+
+
+### Bug Fixes
+
+* app icon on macos27 ([7bf792f](https://github.com/oscnord/FramePeek/commit/7bf792fcbc3a5827f1ff5c37778121759c024dac))
+
 ## [1.4.0](https://github.com/oscnord/FramePeek/compare/v1.3.0...v1.4.0) (2026-07-29)
 
 
