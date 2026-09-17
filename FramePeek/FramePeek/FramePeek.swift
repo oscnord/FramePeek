@@ -317,10 +317,10 @@ struct FramePeek: View {
                 if let viewModel = currentViewModel {
                     InfoInspectorView(viewModel: viewModel)
                         .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
-                        .inspectorColumnWidth(425)
+                        .inspectorColumnWidth(min: 320, ideal: 425, max: 600)
                 } else {
                     EmptyInspectorState()
-                        .inspectorColumnWidth(425)
+                        .inspectorColumnWidth(min: 320, ideal: 425, max: 600)
                 }
             }
             } // End of else (not showServerTab)

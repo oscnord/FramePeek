@@ -84,7 +84,7 @@ struct EmptyMainState: View {
                     }
                     .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium, style: .continuous))
                 }
-                .frame(width: 450)
+                .frame(maxWidth: 450)
                 .opacity(contentOpacity)
                 .offset(y: contentOffset)
             }
