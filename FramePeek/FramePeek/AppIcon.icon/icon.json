@@ -1,100 +1,108 @@
 {
-  "color-space-for-untagged-svg-colors": "display-p3",
-  "fill": {
-    "solid": "extended-srgb:0.95686,0.94510,0.91373,1.00000"
+  "color-space-for-untagged-svg-colors" : "display-p3",
+  "fill" : {
+    "solid" : "extended-srgb:0.95686,0.94510,0.91373,1.00000"
   },
-  "groups": [
+  "groups" : [
     {
-      "layers": [
+      "layers" : [
         {
-          "blend-mode": "normal",
-          "fill-specializations": [
+          "blend-mode-specializations" : [
             {
-              "value": "automatic"
+              "value" : "normal"
             },
             {
-              "appearance": "dark",
-              "value": {
-                "solid": "display-p3:1.00000,1.00000,1.00000,1.00000"
-              }
+              "appearance" : "tinted",
+              "value" : "normal"
             }
           ],
-          "glass-specializations": [
+          "fill-specializations" : [
             {
-              "value": false
+              "value" : "automatic"
             },
             {
-              "appearance": "dark",
-              "value": false
+              "appearance" : "dark",
+              "value" : "automatic"
             },
             {
-              "appearance": "tinted",
-              "value": false
+              "appearance" : "tinted",
+              "value" : "automatic"
             }
           ],
-          "hidden": false,
-          "image-name": "Half.svg",
-          "name": "Half",
-          "position": {
-            "scale": 1,
-            "translation-in-points": [
+          "glass-specializations" : [
+            {
+              "value" : true
+            },
+            {
+              "appearance" : "dark",
+              "value" : true
+            },
+            {
+              "appearance" : "tinted",
+              "value" : true
+            }
+          ],
+          "hidden" : false,
+          "image-name" : "Half.svg",
+          "name" : "Half",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
               0,
               0
             ]
           }
         },
         {
-          "blend-mode": "normal",
-          "fill-specializations": [
+          "blend-mode" : "normal",
+          "fill-specializations" : [
             {
-              "value": "automatic"
+              "value" : "automatic"
             },
             {
-              "appearance": "dark",
-              "value": {
-                "solid": "display-p3:1.00000,1.00000,1.00000,1.00000"
-              }
+              "appearance" : "dark",
+              "value" : "automatic"
             }
           ],
-          "glass-specializations": [
+          "glass-specializations" : [
             {
-              "value": false
+              "value" : true
             },
             {
-              "appearance": "dark",
-              "value": false
+              "appearance" : "dark",
+              "value" : true
             },
             {
-              "appearance": "tinted",
-              "value": false
+              "appearance" : "tinted",
+              "value" : true
             }
           ],
-          "hidden": false,
-          "image-name": "Disc.svg",
-          "name": "Disc",
-          "position": {
-            "scale": 1,
-            "translation-in-points": [
+          "hidden" : false,
+          "image-name" : "Disc.svg",
+          "name" : "Disc",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
               0,
               0
             ]
           }
         }
       ],
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.5
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
       },
-      "translucency": {
-        "enabled": false,
-        "value": 0.5
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
       }
     }
   ],
-  "supported-platforms": {
-    "circles": [
+  "supported-platforms" : {
+    "circles" : [
       "watchOS"
     ],
-    "squares": "shared"
+    "squares" : "shared"
   }
 }
