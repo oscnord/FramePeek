@@ -12,8 +12,9 @@ struct FramePeek: View {
     @State private var showTabChoiceDialog: Bool = false
     @State private var tabChoiceURL: URL?
     @State private var isProcessing: Bool = false
-    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
-    @State private var isInspectorVisible: Bool = true
+    @State private var columnVisibility: NavigationSplitViewVisibility = ColumnLayout.sidebarVisibility
+    @State private var inspectorIdealWidth: CGFloat = ColumnLayout.inspectorWidth
+    @AppStorage("inspector.visible") private var isInspectorVisible: Bool = true
     @State private var isTimelineVisible: Bool = true
     @State private var showServerTab: Bool = false
     @State private var showStreamingTab: Bool = false
@@ -314,20 +315,37 @@ struct FramePeek: View {
             .animation(.spring(response: 0.6, dampingFraction: 0.85), value: currentViewModel?.extendedInfo != nil)
             .animation(.easeInOut(duration: 0.12), value: tabManager.selectedTabId)
             .inspector(isPresented: $isInspectorVisible) {
-                if let viewModel = currentViewModel {
-                    InfoInspectorView(viewModel: viewModel)
-                        .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
-                        .inspectorColumnWidth(425)
-                } else {
-                    EmptyInspectorState()
-                        .inspectorColumnWidth(425)
-                }
+                inspectorColumn
             }
             } // End of else (not showServerTab)
         }
         .navigationSplitViewStyle(.balanced)
         .navigationTitle("")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: columnVisibility) { _, visibility in
+            ColumnLayout.sidebarVisibility = visibility
+        }
+    }
+
+    @ViewBuilder
+    private var inspectorContent: some View {
+        if let viewModel = currentViewModel {
+            InfoInspectorView(viewModel: viewModel)
+                .id(tabManager.selectedTabId) // Force view recreation on tab switch to isolate state
+        } else {
+            EmptyInspectorState()
+        }
+    }
+
+    private var inspectorColumn: some View {
+        inspectorContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { ColumnLayout.inspectorWidth = $0 }
+            .inspectorColumnWidth(
+                min: ColumnLayout.inspectorWidths.lowerBound,
+                ideal: inspectorIdealWidth,
+                max: ColumnLayout.inspectorWidths.upperBound
+            )
     }
 
     @ToolbarContentBuilder
@@ -666,6 +684,37 @@ private struct ScrollEdgeEffectModifier: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+// MARK: - Column layout persistence
+
+/// Sidebar and inspector geometry the user last set, restored on the next launch.
+private enum ColumnLayout {
+    static let inspectorWidths: ClosedRange<CGFloat> = 320...600
+
+    private static let defaultInspectorWidth: CGFloat = 425
+    private static let inspectorWidthKey = "inspector.width"
+    private static let sidebarCollapsedKey = "sidebar.collapsed"
+
+    static var inspectorWidth: CGFloat {
+        get {
+            let stored = CGFloat(UserDefaults.standard.double(forKey: inspectorWidthKey))
+            return stored > 0 ? clamped(stored) : defaultInspectorWidth
+        }
+        set {
+            guard newValue > 0 else { return }
+            UserDefaults.standard.set(Double(clamped(newValue)), forKey: inspectorWidthKey)
+        }
+    }
+
+    static var sidebarVisibility: NavigationSplitViewVisibility {
+        get { UserDefaults.standard.bool(forKey: sidebarCollapsedKey) ? .detailOnly : .automatic }
+        set { UserDefaults.standard.set(newValue == .detailOnly, forKey: sidebarCollapsedKey) }
+    }
+
+    private static func clamped(_ width: CGFloat) -> CGFloat {
+        min(max(width, inspectorWidths.lowerBound), inspectorWidths.upperBound)
     }
 }
 
